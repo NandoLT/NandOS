@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-labelledby="title">
+  <title id="title">LT</title>
+  <circle cx="21" cy="21" r="18" fill="#666" />
+  <circle cx="19" cy="19" r="17" fill="#000080" stroke="#fff" stroke-width="2" />
+  <circle cx="19" cy="19" r="14.5" fill="none" stroke="#7f9ed5" stroke-width="1" />
+  <text x="19" y="24.5" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="-1.2" text-anchor="middle">LT</text>
+</svg>

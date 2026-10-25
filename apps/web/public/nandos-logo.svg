@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" role="img" aria-labelledby="title">
+  <title id="title">NandOS</title>
+  <circle cx="21" cy="21" r="18" fill="#555" />
+  <circle cx="19" cy="19" r="17" fill="#000080" stroke="#fff" stroke-width="2" />
+  <circle cx="19" cy="19" r="14.5" fill="none" stroke="#7f9ed5" stroke-width="1" />
+  <path d="M10.5 27V11h3.3l10.4 10.2V11h3.3v16h-3.3L13.8 16.8V27z" fill="#e8f7ff" />
+  <path d="M24.2 24.6h3.3v3.3h-3.3z" fill="#4de0ff" />
+</svg>

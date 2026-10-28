@@ -120,7 +120,11 @@ importers:
 
   packages/config: {}
 
-  packages/contracts: {}
+  packages/contracts:
+    devDependencies:
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
 
 packages:
 

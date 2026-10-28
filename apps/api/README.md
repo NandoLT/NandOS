@@ -27,6 +27,8 @@ El primer acceso administrativo aparece desde el login de Invitado. Si aún no e
 
 ## Vercel
 
-En el proyecto `portfolio-api`, usa `apps/api` como Root Directory y define `DATABASE_URL`, `FRONTEND_ORIGIN`, `ADMIN_BOOTSTRAP_KEY` y `BLOB_READ_WRITE_TOKEN`. En el proyecto `portfolio-web`, usa `apps/web` como Root Directory, deja `VITE_API_URL` vacío y define `NANDOS_API_ORIGIN` con el origen HTTPS del proyecto API (sin `/api`). Así el navegador llama al proxy del mismo origen del frontend.
+En Vercel, el proyecto `nandos-api` usa `apps/api` como Root Directory y `nand-os` usa `apps/web`. En ambos proyectos activa **Include source files outside of the Root Directory** para que se empaquete el contrato compartido `packages/contracts`.
 
-Aplica las migraciones de la base de datos antes de habilitar el acceso administrativo y configura Preview y Production con sus orígenes permitidos correspondientes.
+En Production, `nandos-api` necesita `DATABASE_URL` (Neon), `BLOB_READ_WRITE_TOKEN` (Blob), `FRONTEND_ORIGIN=https://nand-os.vercel.app` y `ADMIN_BOOTSTRAP_KEY`. Neon y Blob inyectan automáticamente sus variables al conectar los recursos. La clave inicial debe ser aleatoria, larga y guardarse como variable sensible; tras crear tu cuenta de administrador, elimínala. En `nand-os`, define `NANDOS_API_ORIGIN=https://nandos-api.vercel.app` y deja `VITE_API_URL` vacío para que el navegador use el proxy del mismo origen.
+
+Aplica las migraciones antes de habilitar el acceso administrativo. Si se añade un dominio propio, actualiza `FRONTEND_ORIGIN` y `NANDOS_API_ORIGIN` con los orígenes HTTPS definitivos. Configura Preview con orígenes y ramas de base de datos separados antes de probar cambios desde previews.

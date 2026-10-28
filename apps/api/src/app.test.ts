@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createApp } from './app.js'
+import { createApp } from './app-factory.js'
 
 test('serves a health response without opening a database connection', async () => {
   const previousOrigin = process.env.FRONTEND_ORIGIN

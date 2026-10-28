@@ -1,7 +1,8 @@
 import 'dotenv/config'
-import { createApp } from './app-factory.js'
+import Fastify from 'fastify'
+import { configureApp, fastifyOptions } from './app-factory.js'
 
-const app = await createApp()
+const app = await configureApp(Fastify(fastifyOptions))
 const port = Number(process.env.PORT ?? 3001)
 
 try {

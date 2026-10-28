@@ -2,23 +2,23 @@ import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
-import Fastify from 'fastify'
+import Fastify, { type FastifyInstance } from 'fastify'
 import { registerAdminRoutes } from './modules/admin/routes.js'
 import { registerPortfolioRoutes } from './modules/portfolio/routes.js'
 
-export async function createApp() {
+export const fastifyOptions: Fastify.FastifyServerOptions = {
+  logger: {
+    level: process.env.LOG_LEVEL ?? 'info',
+    redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-admin-bootstrap-key'],
+  },
+  trustProxy: true,
+  bodyLimit: 4 * 1024 * 1024 + 64 * 1024,
+}
+
+export async function configureApp(app: FastifyInstance) {
   const production = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
   const frontendOrigin = process.env.FRONTEND_ORIGIN ?? (production ? undefined : 'http://localhost:5173')
   if (!frontendOrigin) throw new Error('FRONTEND_ORIGIN must be configured for production.')
-
-  const app = Fastify({
-    logger: {
-      level: process.env.LOG_LEVEL ?? 'info',
-      redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-admin-bootstrap-key'],
-    },
-    trustProxy: true,
-    bodyLimit: 4 * 1024 * 1024 + 64 * 1024,
-  })
 
   await app.register(cookie)
   await app.register(cors, {
@@ -57,4 +57,8 @@ export async function createApp() {
   await registerAdminRoutes(app)
 
   return app
+}
+
+export async function createApp() {
+  return configureApp(Fastify(fastifyOptions))
 }

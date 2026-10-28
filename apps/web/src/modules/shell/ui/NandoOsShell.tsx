@@ -7,12 +7,17 @@ import type {
 import { createPortal } from 'react-dom'
 import styled from '@emotion/styled'
 import type { AppId } from '@nandoos/contracts'
+import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import { appRegistry } from '../../applications/domain/app-registry'
 import { FileExplorer } from '../../applications/ui/FileExplorer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
 import { SettingsWindow } from '../../applications/ui/SettingsWindow'
 import { AboutWindow } from '../../portfolio/ui/AboutWindow'
 import { PortfolioSectionWindow } from '../../portfolio/ui/PortfolioSectionWindow'
+import { usePortfolioContent } from '../../portfolio/application/usePortfolioContent'
+import { apiRequest } from '../../portfolio/infrastructure/http-client'
+import { AdminDashboard } from '../../admin/ui/AdminDashboard'
+import { AdminLogin } from '../../admin/ui/AdminLogin'
 import { useThemeStore } from '../../../shared/styles/theme.store'
 import { useShellStore } from '../application/shell.store'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
@@ -626,10 +631,11 @@ function DesktopShortcut({
   )
 }
 
-type SessionScreen = 'boot' | 'login' | 'desktop' | 'shutdown'
+type SessionScreen = 'boot' | 'login' | 'admin-login' | 'admin' | 'desktop' | 'shutdown'
 
 export function NandoOsShell() {
   const [screen, setScreen] = useState<SessionScreen>('boot')
+  const [adminUsername, setAdminUsername] = useState<string | null>(null)
   const [clock, setClock] = useState(() => new Date())
   const [viewport, setViewport] = useState<WindowBounds>({
     x: 0,
@@ -674,6 +680,7 @@ export function NandoOsShell() {
     emptyRecycleBin,
     setStartMenuOpen,
   } = useShellStore()
+  const { data: portfolioContent = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
 
   const showMenuTooltip = (id: string, text: string, element: HTMLButtonElement) => {
     const bounds = element.getBoundingClientRect()
@@ -715,13 +722,25 @@ export function NandoOsShell() {
     if (isStartMenuOpen) startMenuRef.current?.focus()
   }, [isStartMenuOpen])
 
-  const showLogin = useCallback(() => setScreen('login'), [])
+  const showLogin = useCallback(() => setScreen(adminUsername ? 'admin' : 'login'), [adminUsername])
   const startDesktop = useCallback(() => setScreen('desktop'), [])
   const startShutdown = useCallback(() => {
     closeStartMenu()
     setNotice(null)
     setScreen('shutdown')
   }, [closeStartMenu])
+
+  useEffect(() => {
+    let active = true
+    apiRequest<{ authenticated: boolean; username?: string }>('auth/session')
+      .then((session) => {
+        if (!active || !session.authenticated || !session.username) return
+        setAdminUsername(session.username)
+        setScreen((current) => current === 'boot' || current === 'login' ? 'admin' : current)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     const clockTimer = window.setInterval(() => setClock(new Date()), 1000)
@@ -751,15 +770,35 @@ export function NandoOsShell() {
   )
 
   if (screen === 'boot') return <BootScreen onComplete={showLogin} />
-  if (screen === 'login') return <GuestLogin onLogin={startDesktop} />
+  if (screen === 'login') return <GuestLogin onLogin={startDesktop} onAdminLogin={() => setScreen('admin-login')} />
+  if (screen === 'admin-login') return (
+    <AdminLogin
+      onAuthenticated={(username) => {
+        setAdminUsername(username)
+        setScreen('admin')
+      }}
+      onBackToGuest={() => setScreen('login')}
+    />
+  )
+  if (screen === 'admin') return (
+    <AdminDashboard
+      username={adminUsername ?? ''}
+      onUsernameChange={setAdminUsername}
+      onLogout={() => {
+        setAdminUsername(null)
+        setScreen('login')
+      }}
+    />
+  )
   if (screen === 'shutdown') return <ShutdownScreen onRestart={() => setScreen('boot')} />
 
   const downloadCv = (language: 'es' | 'en') => {
-    const filename = language === 'es'
-      ? 'Fernando_Lopez_Trejo_CV_ES.pdf'
-      : 'Fernando_Lopez_Trejo_CV_EN.pdf'
+    const documentMetadata = portfolioContent.cvDocuments[language]
+    const filename = documentMetadata?.filename ?? (language === 'es'
+      ? 'CV_Fernando_Lopez_Trejo_ES.pdf'
+      : 'CV_Fernando_Lopez_Trejo_EN.pdf')
     const link = document.createElement('a')
-    link.href = `/cv/${filename}`
+    link.href = documentMetadata?.url ?? `/cv/${filename}`
     link.download = filename
     document.body.append(link)
     link.click()

@@ -18,4 +18,13 @@ describe('guest login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
     expect(onLogin).toHaveBeenCalledOnce()
   })
+
+  it('offers a distinct entry to the administrative login', () => {
+    const onAdminLogin = vi.fn()
+    render(<GuestLogin onLogin={vi.fn()} onAdminLogin={onAdminLogin} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Acceso de administración' }))
+
+    expect(onAdminLogin).toHaveBeenCalledOnce()
+  })
 })

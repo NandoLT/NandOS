@@ -1,4 +1,6 @@
 import styled from '@emotion/styled'
+import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
+import { usePortfolioContent } from '../application/usePortfolioContent'
 
 const Intro = styled.div`
   display: grid;
@@ -45,24 +47,23 @@ const Facts = styled.dl`
 `
 
 export function AboutWindow() {
+  const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
+
   return (
     <Intro>
       <div>
         <Badge>PERSONAL PORTFOLIO OS</Badge>
-        <h1>Fernando López Trejo</h1>
-        <p>
-          Bienvenido a NandOS. Desde este escritorio puedes explorar mi experiencia,
-          proyectos, habilidades y descargar el CV.
-        </p>
+        <h1>{data?.profile.fullName}</h1>
+        <p>{data?.profile.summary}</p>
       </div>
 
       <Facts>
         <dt>Estado</dt>
-        <dd>Explorando nuevas oportunidades</dd>
+        <dd>{data?.profile.status}</dd>
         <dt>Interfaz</dt>
-        <dd>React · TypeScript · Product thinking</dd>
+        <dd>{data?.profile.interface}</dd>
         <dt>Especialidad</dt>
-        <dd>Interfaces y producto con React y TypeScript</dd>
+        <dd>{data?.profile.specialty}</dd>
       </Facts>
     </Intro>
   )

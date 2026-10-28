@@ -277,7 +277,7 @@ export function BootScreen({ onComplete }: { onComplete: () => void }) {
   )
 }
 
-export function GuestLogin({ onLogin }: { onLogin: () => void }) {
+export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onAdminLogin?: () => void }) {
   const [password, setPassword] = useState('')
   const [hasError, setHasError] = useState(false)
 
@@ -322,6 +322,9 @@ export function GuestLogin({ onLogin }: { onLogin: () => void }) {
             <LoginButton type="submit">Aceptar</LoginButton>
           </LoginForm>
           <Hint>Contraseña de demostración: 12345 · Este acceso no es una autenticación real.</Hint>
+          {onAdminLogin && (
+            <GhostButton type="button" onClick={onAdminLogin}>Acceso de administración</GhostButton>
+          )}
         </PanelContent>
       </LoginPanel>
     </Screen>

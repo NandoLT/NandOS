@@ -1,6 +1,7 @@
 import styled from '@emotion/styled'
-import { contactChannels, experienceEntries, featuredProjects, skillGroups } from '../domain/portfolio-content'
-import type { PortfolioSectionId } from '../domain/portfolio-content'
+import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
+import type { PortfolioSectionId } from '@nandoos/contracts'
+import { usePortfolioContent } from '../application/usePortfolioContent'
 
 type PortfolioSectionWindowProps = {
   sectionId: PortfolioSectionId
@@ -146,50 +147,29 @@ const DownloadButton = styled.button`
   &:focus-visible { outline: 2px dotted var(--os-accent); outline-offset: 2px; }
 `
 
-const ReviewNote = styled.p`
-  padding-top: 4px;
-  font-size: 11px !important;
-`
-
-const pageContent: Record<PortfolioSectionId, { title: string; eyebrow: string; description: string }> = {
-  experience: {
-    title: 'Experiencia',
-    eyebrow: 'Contribuciones profesionales',
-    description:
-      'Trabajo frontend con React y TypeScript, integración de servicios y evolución de flujos de producto.',
-  },
-  projects: {
-    title: 'Proyectos',
-    eyebrow: 'Trabajo seleccionado',
-    description: 'Algunos problemas de producto y técnicos en los que he contribuido.',
-  },
-  skills: {
-    title: 'Habilidades',
-    eyebrow: 'Herramientas y prácticas',
-    description: 'Tecnologías y áreas de trabajo reflejadas en mi experiencia y proyectos.',
-  },
-  contact: {
-    title: 'Contacto',
-    eyebrow: 'Hablemos',
-    description: 'Estoy explorando oportunidades de Senior Frontend Engineer con foco en React y TypeScript.',
-  },
+const sectionTitles: Record<PortfolioSectionId, string> = {
+  experience: 'Experiencia',
+  projects: 'Proyectos',
+  skills: 'Habilidades',
+  contact: 'Contacto',
 }
 
 export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSectionWindowProps) {
-  const page = pageContent[sectionId]
+  const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
+  const page = data.sectionIntros[sectionId]
 
   return (
     <Page>
       <PageIntro>
         <Eyebrow>{page.eyebrow}</Eyebrow>
-        <h2>{page.title}</h2>
+        <h2>{sectionTitles[sectionId]}</h2>
         <p>{page.description}</p>
       </PageIntro>
 
       {sectionId === 'experience' && (
         <EntryList>
-          {experienceEntries.map((entry) => (
-            <EntryCard key={entry.title}>
+          {data.experienceEntries.map((entry) => (
+            <EntryCard key={entry.id}>
               <div>
                 <h3>{entry.title}</h3>
                 <EntryMeta>{entry.context}</EntryMeta>
@@ -205,8 +185,8 @@ export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSec
 
       {sectionId === 'projects' && (
         <EntryList>
-          {featuredProjects.map((project) => (
-            <EntryCard key={project.title}>
+          {data.featuredProjects.map((project) => (
+            <EntryCard key={project.id}>
               <div>
                 <h3>{project.title}</h3>
                 <EntryMeta>{project.details}</EntryMeta>
@@ -222,8 +202,8 @@ export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSec
 
       {sectionId === 'skills' && (
         <SkillsGrid>
-          {skillGroups.map((group) => (
-            <EntryCard key={group.title}>
+          {data.skillGroups.map((group) => (
+            <EntryCard key={group.id}>
               <h3>{group.title}</h3>
               <TagList>
                 {group.skills.map((skill) => <Tag key={skill}>{skill}</Tag>)}
@@ -235,9 +215,9 @@ export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSec
 
       {sectionId === 'contact' && (
         <>
-          <ContactLocation>San Fernando, Cádiz (España) · Disponibilidad para remoto</ContactLocation>
+          <ContactLocation>{data.contact.location} · {data.contact.availability}</ContactLocation>
           <ContactList aria-label="Canales de contacto">
-            {contactChannels.map((channel) => (
+            {data.contact.channels.map((channel) => (
               <ContactRow key={channel.id}>
                 <span aria-hidden="true">{channel.icon}</span>
                 <a
@@ -259,7 +239,6 @@ export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSec
               📄 Download CV · English
             </DownloadButton>
           </DownloadActions>
-          <ReviewNote>Los PDF aún contienen campos por actualizar; conviene sustituirlos antes de considerar definitiva su información.</ReviewNote>
         </>
       )}
     </Page>

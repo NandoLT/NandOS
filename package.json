@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
-    "dev": "pnpm --filter @nandoos/web dev",
+    "dev": "pnpm --parallel --filter @nandoos/web --filter @nandoos/api dev",
     "build": "pnpm --recursive --if-present run build",
     "lint": "pnpm --recursive --if-present run lint",
     "typecheck": "pnpm --recursive --if-present run typecheck",

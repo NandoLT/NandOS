@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import styled from '@emotion/styled'
+import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
+import { usePortfolioContent } from '../../portfolio/application/usePortfolioContent'
 
 type ExplorerItem = {
   name: string
@@ -163,6 +165,7 @@ type FileExplorerProps = {
 }
 
 export function FileExplorer({ onOpenAbout, onDownloadCv, onNotify }: FileExplorerProps) {
+  const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
   const [currentPath, setCurrentPath] = useState('Este equipo')
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{
@@ -171,7 +174,11 @@ export function FileExplorer({ onOpenAbout, onDownloadCv, onNotify }: FileExplor
     item: ExplorerItem
   } | null>(null)
   const pathParts = currentPath.split(' / ')
-  const items = contents[pathParts.at(-1) ?? 'Este equipo'] ?? []
+  const items = (contents[pathParts.at(-1) ?? 'Este equipo'] ?? []).map((item) => {
+    if (item.action === 'cv-es') return { ...item, name: data.cvDocuments.es?.filename ?? item.name }
+    if (item.action === 'cv-en') return { ...item, name: data.cvDocuments.en?.filename ?? item.name }
+    return item
+  })
 
   const goBack = () => {
     if (pathParts.length > 1) {

@@ -1,0 +1,34 @@
+{
+  "name": "@nandoos/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -b",
+    "lint": "oxlint",
+    "typecheck": "tsc -b --pretty false",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "^11.3.1",
+    "@fastify/multipart": "^10.1.6",
+    "@fastify/rate-limit": "^11.2.1",
+    "@nandoos/contracts": "workspace:*",
+    "@neondatabase/serverless": "^1.2.0",
+    "@vercel/blob": "^2.8.2",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "drizzle-kit": "^0.31.11",
+    "oxlint": "^1.89.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  }
+}

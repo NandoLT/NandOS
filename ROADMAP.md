@@ -155,7 +155,7 @@ Themes iniciales propuestos:
 NandoOS/
 ├── apps/
 │   ├── web/                  # React + Vite
-│   └── api/                  # Fastify, se activa más adelante
+│   └── api/                  # Fastify, activo para administración y datos
 │
 ├── packages/
 │   ├── contracts/            # DTOs y esquemas compartidos
@@ -175,7 +175,7 @@ NandoOS/
 
 Se utilizarán los nombres `apps/web` y `apps/api` en lugar de `frontend` y `backend`, porque son aplicaciones desplegables independientes.
 
-El backend tendrá directorio reservado, pero no se implementará hasta que exista un caso de uso real. El MVP se centrará en `apps/web`.
+El frontend público sigue siendo el MVP visual; el panel privado activa ahora `apps/api` porque requiere persistencia remota y autenticación real.
 
 ### Organización del frontend
 
@@ -204,7 +204,7 @@ apps/web/src/
 
 La organización será modular y orientada a funcionalidades, evitando una carpeta global de componentes, hooks y utilidades sin contexto.
 
-### Organización del backend futuro
+### Organización del backend
 
 ```text
 apps/api/src/
@@ -235,7 +235,7 @@ No se compartirá un paquete de dominio entre frontend y backend hasta que exist
 
 - `pnpm workspaces` para gestionar el monorepo.
 - React + TypeScript + Vite para `apps/web`.
-- Fastify + TypeScript para `apps/api`, en una fase posterior.
+- Fastify + TypeScript para `apps/api`.
 - Emotion.
 - Zustand.
 - TanStack Query únicamente para datos remotos.
@@ -257,10 +257,10 @@ portfolio-api → apps/api
 ```
 
 - `portfolio-web`: frontend React + Vite.
-- `portfolio-api`: backend Fastify + TypeScript, cuando exista una necesidad real.
+- `portfolio-api`: backend Fastify + TypeScript.
 - Ambos proyectos compartirán repositorio, paquetes y configuración, pero podrán desplegarse y revertirse de forma independiente.
 - Se utilizarán Related Projects o rewrites para conectar previews y evitar URLs de API hardcodeadas.
-- Inicialmente solo se desplegará `portfolio-web`.
+- `portfolio-web` y `portfolio-api` se desplegarán de forma independiente cuando queden configurados los proveedores y secretos.
 
 No se utilizará inicialmente Vercel Services para juntar ambos servicios en un único proyecto, porque es una funcionalidad beta y no es necesaria para el MVP.
 
@@ -287,7 +287,7 @@ localStorage → ventanas, posiciones, theme elegido, volumen y preferencias del
 Neon         → perfil, experiencia, proyectos, themes disponibles y configuración de NandOS
 ```
 
-El backend y la base de datos se añadirán cuando haya contenido dinámico, contacto, administración o edición de themes.
+La administración activa el backend y la base de datos para el contenido profesional; los themes editables desde el panel quedan como mejora posterior.
 
 ### Frontend
 
@@ -296,7 +296,7 @@ El backend y la base de datos se añadirán cuando haya contenido dinámico, con
 - Vite.
 - Emotion para tokens y estilos dinámicos.
 - Zustand para estado de sesión e interacción.
-- TanStack Query únicamente para estado remoto cuando exista API.
+- TanStack Query para el contenido remoto servido por el API.
 - Vitest.
 - React Testing Library.
 - Playwright.
@@ -305,10 +305,10 @@ Arquitectura frontend orientada a módulos y casos de uso, inspirada en hexagona
 
 - `domain`: reglas puras, sin React ni APIs del navegador.
 - `application`: casos de uso.
-- `infrastructure`: localStorage, APIs del navegador y futuro cliente HTTP.
+- `infrastructure`: localStorage, APIs del navegador y cliente HTTP.
 - `ui`: componentes y composición React.
 
-### Backend futuro
+### Backend
 
 - Fastify + TypeScript.
 - API separada del frontend.
@@ -386,3 +386,17 @@ Arquitectura frontend orientada a módulos y casos de uso, inspirada en hexagona
 Boot → escritorio → abrir About Me → mover ventana → minimizar → restaurar → recargar página → recuperar sesión.
 
 Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, la persistencia local, los themes y el contenido profesional estén sólidos.
+
+## Fase actual — panel de administración y contenido dinámico
+
+- Mantener separados el acceso de demostración `Invitado` y la identidad real del administrador. El acceso administrativo se inicia desde la pantalla de login, pero la sesión se valida siempre en el backend.
+- No desplegar credenciales por defecto. Crear la primera cuenta con una clave bootstrap aleatoria configurada en entorno, exigir contraseña de al menos 12 caracteres y permitir cambiar usuario y contraseña desde el panel.
+- La sesión administrativa usa cookie `HttpOnly`, `Secure` en producción y vencimiento; validar el origen en escrituras, limitar intentos y revocar sesiones al cambiar credenciales.
+- Migrar a contenido remoto las secciones públicas editables: perfil, textos introductorios, experiencia, proyectos, habilidades, contacto y CV.
+- Guardar los datos como un agregado JSONB de portfolio, con borrador y versión publicada. El visitante solo recibe la versión publicada; el administrador puede guardar cambios y publicarlos explícitamente.
+- Conservar revisiones publicadas y versiones anteriores de CV para facilitar correcciones y volver a seleccionar un archivo.
+- Neon/PostgreSQL y Drizzle para registros y metadatos; Vercel Blob para PDF públicos descargables. Validar tipo de archivo y límite de 4 MB antes de almacenar.
+- Desplegar `apps/api` como Fastify en un proyecto Vercel separado y mantener `apps/web` estático. Un proxy `/api` en el proyecto web conserva el mismo origen del navegador y evita depender de cookies de terceros entre dominios `vercel.app`.
+- Variables de entorno: API (`DATABASE_URL`, `FRONTEND_ORIGIN`, `ADMIN_BOOTSTRAP_KEY`, `BLOB_READ_WRITE_TOKEN`); web (`NANDOS_API_ORIGIN`; `VITE_API_URL` se deja vacío al usar el proxy). Aplicar migraciones antes de habilitar el panel y configurar correctamente Production/Preview.
+- Las preferencias de interacción del visitante siguen en `localStorage`; nunca se trasladan a la base de datos del portfolio.
+- Próximas mejoras del panel: historial/restauración de revisiones de contenido, vista previa antes de publicar, configuración editorial de themes y auditoría de cambios.

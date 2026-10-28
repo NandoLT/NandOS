@@ -31,7 +31,15 @@ export default async function handler(request, response) {
     return
   }
 
-  const upstreamUrl = new URL(request.url ?? '/api', apiOrigin)
+  const incomingUrl = new URL(request.url ?? '/api', 'http://nandos.internal')
+  const routePath = request.query?.__nandos_path ?? incomingUrl.searchParams.get('__nandos_path')
+  if (routePath !== undefined && routePath !== null && typeof routePath !== 'string') {
+    response.status(400).json({ error: 'Ruta del API no válida.' })
+    return
+  }
+  const upstreamUrl = new URL(routePath ? `/api/${routePath}` : incomingUrl.pathname, apiOrigin)
+  incomingUrl.searchParams.delete('__nandos_path')
+  upstreamUrl.search = incomingUrl.search
   if (upstreamUrl.origin !== apiOrigin.origin || !upstreamUrl.pathname.startsWith('/api/')) {
     response.status(400).json({ error: 'Ruta del API no válida.' })
     return

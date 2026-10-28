@@ -29,6 +29,8 @@ El primer acceso administrativo aparece desde el login de Invitado. Si aún no e
 
 En Vercel, el proyecto `nandos-api` usa `apps/api` como Root Directory y `nand-os` usa `apps/web`. En ambos proyectos activa **Include source files outside of the Root Directory** para que se empaquete el contrato compartido `packages/contracts`.
 
+`src/index.ts` exporta una función HTTP por defecto que espera a que Fastify termine de configurarse antes de atender peticiones. La inicialización se comparte entre peticiones concurrentes de una misma instancia. Al ejecutar ese archivo directamente en local, abre el servidor en `PORT` (3001 por defecto); al importarlo como función, no abre un puerto.
+
 En Production, `nandos-api` necesita `DATABASE_URL` (Neon), `BLOB_READ_WRITE_TOKEN` (Blob), `FRONTEND_ORIGIN=https://nand-os.vercel.app` y `ADMIN_BOOTSTRAP_KEY`. Neon y Blob inyectan automáticamente sus variables al conectar los recursos. La clave inicial debe ser aleatoria, larga y guardarse como variable sensible; tras crear tu cuenta de administrador, elimínala. En `nand-os`, define `NANDOS_API_ORIGIN=https://nandos-api.vercel.app` y deja `VITE_API_URL` vacío para que el navegador use el proxy del mismo origen.
 
 Aplica las migraciones antes de habilitar el acceso administrativo. Si se añade un dominio propio, actualiza `FRONTEND_ORIGIN` y `NANDOS_API_ORIGIN` con los orígenes HTTPS definitivos. Configura Preview con orígenes y ramas de base de datos separados antes de probar cambios desde previews.

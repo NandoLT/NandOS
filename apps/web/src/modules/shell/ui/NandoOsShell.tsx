@@ -61,8 +61,8 @@ const DesktopIcon = styled.button<{ $position: DesktopPosition; $selected: boole
 
   &:active { cursor: grabbing; }
 
-  span:first-of-type { font-size: 28px; }
-  span:last-of-type { font-size: 12px; line-height: 1.2; }
+  span:first-of-type { display: grid; place-items: center; height: 32px; font-size: 28px; line-height: 1; }
+  span:last-of-type { font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
 `
 
 const ContextMenu = styled.div`
@@ -625,7 +625,9 @@ function DesktopShortcut({
       }}
       onContextMenu={onContextMenu}
     >
-      <span aria-hidden="true">{icon}</span>
+      <span aria-hidden="true">
+        {icon.startsWith('/') ? <img src={icon} alt="" width="32" height="32" draggable={false} /> : icon}
+      </span>
       <span>{label}</span>
     </DesktopIcon>
   )
@@ -792,23 +794,30 @@ export function NandoOsShell() {
   )
   if (screen === 'shutdown') return <ShutdownScreen onRestart={() => setScreen('boot')} />
 
-  const downloadCv = (language: 'es' | 'en') => {
-    const documentMetadata = portfolioContent.cvDocuments[language]
+  const accessCv = (language: 'es' | 'en', action: 'download' | 'open') => {
+    const documentMetadata = portfolioContent.cvDocuments[language] ?? DEFAULT_PORTFOLIO_CONTENT.cvDocuments[language]
     const filename = documentMetadata?.filename ?? (language === 'es'
       ? 'CV_Fernando_Lopez_Trejo_ES.pdf'
       : 'CV_Fernando_Lopez_Trejo_EN.pdf')
     const link = document.createElement('a')
     link.href = documentMetadata?.url ?? `/cv/${filename}`
-    link.download = filename
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    if (action === 'download') link.download = filename
     document.body.append(link)
     link.click()
     link.remove()
-    setNotice(`Descargando CV (${language.toUpperCase()}).`)
+    setNotice(action === 'download'
+      ? `Descargando CV (${language.toUpperCase()}).`
+      : `Abriendo CV (${language.toUpperCase()}) en una nueva pestaña.`)
   }
+
+  const downloadCv = (language: 'es' | 'en') => accessCv(language, 'download')
+  const openCv = (language: 'es' | 'en') => accessCv(language, 'open')
 
   const launchApp = (id: AppId) => {
     if (id === 'cv-viewer') {
-      downloadCv('es')
+      openCv('es')
       return
     }
     if (
@@ -846,8 +855,8 @@ export function NandoOsShell() {
       entries: [
         { label: 'Mis documentos', icon: '📁', onActivate: () => launchApp('file-explorer') },
         { label: 'Este equipo', icon: '🖥️', onActivate: () => launchApp('file-explorer') },
-        { label: 'CV (Español)', icon: '📄', onActivate: () => downloadCv('es') },
-        { label: 'CV (English)', icon: '📄', onActivate: () => downloadCv('en') },
+        { label: 'CV (Español)', icon: '📄', onActivate: () => openCv('es') },
+        { label: 'CV (English)', icon: '📄', onActivate: () => openCv('en') },
       ],
     },
     {
@@ -969,7 +978,7 @@ export function NandoOsShell() {
     icon: string
   }> = [
     { id: 'about', label: 'About Me', icon: '👤' },
-    { id: 'cv', label: 'CV', icon: '📄' },
+    { id: 'cv', label: 'CV_Fernando_Lopez', icon: '/pdf-document.svg' },
     { id: 'file-explorer', label: 'Este equipo', icon: '📁' },
     { id: 'recycle-bin', label: 'Papelera de reciclaje', icon: '🗑️' },
   ]

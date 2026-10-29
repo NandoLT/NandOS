@@ -56,6 +56,16 @@ La experiencia debe ser memorable y técnicamente demostrable, pero siempre perm
 
 ## Catálogo de aplicaciones
 
+### Pulido de experiencia — validado en local
+
+- Acceso inmediato «Entrar como invitado», conservando el formulario de demostración.
+- Boot completo en la primera visita y al reiniciar explícitamente; movimiento reducido omite la espera de la animación.
+- Accesos de escritorio a Proyectos y Contacto, con migración de las posiciones anteriores.
+- Menús navegables con flechas, Enter y Escape; foco de vuelta al acceso al cerrar una ventana.
+- En móvil: rejilla desplazable, controles ampliados, ventanas adaptadas a la altura visible, un toque para abrir y pulsación larga para acciones.
+- «Log off Invitado» junto a «Apagar»: vuelve al login, cierra las ventanas y conserva carpetas, papelera, posiciones y tema. Ambas acciones comparten columnas de icono y texto alineadas, sin puntos suspensivos.
+- Iteración validada en local por Fernando y autorizada para subir al repositorio.
+
 Las aplicaciones se registran en un `App Registry` común para alimentar el escritorio, el menú Start, el explorador y la barra de tareas.
 
 ### Aplicaciones funcionales prioritarias

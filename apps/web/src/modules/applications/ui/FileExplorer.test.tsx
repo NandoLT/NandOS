@@ -1,11 +1,32 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders as render } from '../../../test/render'
 import { FileExplorer } from './FileExplorer'
+import { touchPointer } from '../../../test/touch'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('FileExplorer', () => {
+  it('opens a folder with one touch', () => {
+    render(<FileExplorer onOpenAbout={vi.fn()} onDownloadCv={vi.fn()} onNotify={vi.fn()} />)
+    const folder = screen.getByRole('button', { name: 'Carpeta Escritorio' })
+    touchPointer(folder, 'pointerdown')
+    touchPointer(folder, 'pointerup')
+    fireEvent.click(folder)
+    expect(screen.getByLabelText('Ruta actual')).toHaveTextContent('Este equipo › Escritorio')
+  })
+
+  it('shows actions on a long touch without opening the folder on release', () => {
+    vi.useFakeTimers()
+    render(<FileExplorer onOpenAbout={vi.fn()} onDownloadCv={vi.fn()} onNotify={vi.fn()} />)
+    const folder = screen.getByRole('button', { name: 'Carpeta Escritorio' })
+    touchPointer(folder, 'pointerdown')
+    act(() => vi.advanceTimersByTime(500))
+    touchPointer(folder, 'pointerup')
+    fireEvent.click(folder)
+    expect(screen.getByRole('menu', { name: 'Acciones para Escritorio' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Ruta actual')).toHaveTextContent(/^📍 Este equipo$/)
+  })
   it('selects an item with a single click without opening it', () => {
     render(<FileExplorer onOpenAbout={vi.fn()} onDownloadCv={vi.fn()} onNotify={vi.fn()} />)
 

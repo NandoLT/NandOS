@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import styled from '@emotion/styled'
+import { prefersReducedMotion } from '../../../shared/lib/input-preferences'
 
 const Screen = styled.main`
   display: grid;
@@ -217,6 +218,15 @@ const Hint = styled.p`
   font-size: 12px;
 `
 
+const QuickLoginButton = styled(LoginButton)`
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 20px;
+  color: var(--os-accent-text);
+  background: var(--os-accent);
+  font-weight: 700;
+`
+
 const ErrorMessage = styled.p`
   margin: 0;
   grid-column: 2;
@@ -237,6 +247,10 @@ export function BootScreen({ onComplete }: { onComplete: () => void }) {
   const [visibleLines, setVisibleLines] = useState(0)
 
   useEffect(() => {
+    if (prefersReducedMotion()) {
+      onComplete()
+      return
+    }
     const intervalId = window.setInterval(() => {
       setVisibleLines((count) => Math.min(count + 1, startupLines.length))
     }, 390)
@@ -303,6 +317,9 @@ export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onA
               <Subheading>Escribe la contraseña para iniciar sesión.</Subheading>
             </div>
           </LoginWelcome>
+          <QuickLoginButton type="button" autoFocus onClick={onLogin}>
+            Entrar como invitado
+          </QuickLoginButton>
           <LoginForm onSubmit={handleSubmit}>
             <label htmlFor="guest-name">Usuario:</label>
             <input id="guest-name" type="text" value="Invitado" readOnly />
@@ -316,7 +333,6 @@ export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onA
                 setPassword(event.target.value)
                 setHasError(false)
               }}
-              autoFocus
             />
             {hasError && <ErrorMessage role="alert">Contraseña incorrecta. Prueba con 12345.</ErrorMessage>}
             <LoginButton type="submit">Aceptar</LoginButton>
@@ -339,9 +355,10 @@ const shutdownLines = [
 ]
 
 export function ShutdownScreen({ onRestart }: { onRestart: () => void }) {
-  const [visibleLines, setVisibleLines] = useState(0)
+  const [visibleLines, setVisibleLines] = useState(() => prefersReducedMotion() ? shutdownLines.length : 0)
 
   useEffect(() => {
+    if (prefersReducedMotion()) return
     const intervalId = window.setInterval(() => {
       setVisibleLines((count) => {
         if (count >= shutdownLines.length - 1) window.clearInterval(intervalId)

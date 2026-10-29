@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
+import { taskbarHeight } from '../../../shared/lib/input-preferences'
 import type {
   DesktopPosition,
   DesktopSystemItemId,
@@ -34,6 +36,7 @@ type ShellState = {
   permanentlyDeleteUserItem: (id: string) => void
   emptyRecycleBin: () => void
   setStartMenuOpen: (isOpen: boolean) => void
+  endGuestSession: () => void
 }
 
 const defaultBounds: WindowBounds = {
@@ -48,6 +51,8 @@ const defaultDesktopPositions: Record<DesktopSystemItemId, DesktopPosition> = {
   cv: { x: 116, y: 24 },
   'file-explorer': { x: 18, y: 108 },
   'recycle-bin': { x: 18, y: 192 },
+  projects: { x: 122, y: 108 },
+  contact: { x: 122, y: 192 },
 }
 
 const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
@@ -262,15 +267,33 @@ export const useShellStore = create<ShellState>()(
       emptyRecycleBin: () => set({ recycleBinItems: [] }),
 
       setStartMenuOpen: (isOpen) => set({ isStartMenuOpen: isOpen }),
+      endGuestSession: () => set({
+        windows: [], activeWindowId: null, nextZIndex: 10, isStartMenuOpen: false,
+      }),
     }),
     {
       name: 'nandoos:shell-session',
-      version: 3,
+      version: 4,
       migrate: (persistedState, _version) => {
         const persisted = persistedState as Partial<ShellState>
+        const desktopPositions = { ...defaultDesktopPositions, ...persisted.desktopPositions }
+        const occupied = [
+          ...Object.entries(desktopPositions)
+            .filter(([id]) => (id !== 'projects' && id !== 'contact') || persisted.desktopPositions?.[id])
+            .map(([, position]) => position),
+          ...(persisted.userDesktopItems ?? []),
+        ]
+        for (const id of ['projects', 'contact'] as const) {
+          if (persisted.desktopPositions?.[id]) continue
+          const position = findNearestDesktopGridPosition(defaultDesktopPositions[id], {
+            width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight(),
+          }, occupied)
+          desktopPositions[id] = position
+          occupied.push(position)
+        }
         return {
           ...persisted,
-          desktopPositions: { ...defaultDesktopPositions, ...persisted.desktopPositions },
+          desktopPositions,
           userDesktopItems: persisted.userDesktopItems ?? [],
           recycleBinItems: persisted.recycleBinItems ?? [],
         } as ShellState

@@ -13,6 +13,7 @@ const GRID = {
 type DesktopBounds = {
   width: number
   height: number
+  taskbarHeight?: number
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -38,7 +39,7 @@ export function findNearestDesktopGridPosition(
   const maxRow = Math.max(
     0,
     Math.floor(
-      (bounds.height - GRID.taskbarHeight - GRID.originY - GRID.iconHeight) / GRID.rowHeight
+      (bounds.height - (bounds.taskbarHeight ?? GRID.taskbarHeight) - GRID.originY - GRID.iconHeight) / GRID.rowHeight
     )
   )
   const occupiedCells = new Set(

@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react'
 import styled from '@emotion/styled'
 import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import { usePortfolioContent } from '../../portfolio/application/usePortfolioContent'
+import { useTouchPress } from '../../../shared/lib/useTouchPress'
 
 type ExplorerItem = {
   name: string
@@ -103,6 +104,8 @@ const FileItem = styled.button<{ $selected: boolean }>`
   color: ${({ $selected }) => ($selected ? 'var(--os-selected-text)' : 'var(--os-window-text)')};
   background: ${({ $selected }) => ($selected ? 'var(--os-selected)' : 'transparent')};
   cursor: default;
+  touch-action: pan-y;
+  user-select: none;
 
   &:hover,
   &:focus-visible {
@@ -165,6 +168,7 @@ type FileExplorerProps = {
 }
 
 export function FileExplorer({ onOpenAbout, onDownloadCv, onNotify }: FileExplorerProps) {
+  const touchPress = useTouchPress()
   const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
   const [currentPath, setCurrentPath] = useState('Este equipo')
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
@@ -203,7 +207,7 @@ export function FileExplorer({ onOpenAbout, onDownloadCv, onNotify }: FileExplor
     if (item.action === 'roadmap') onNotify('Este documento se abrirá en una próxima iteración.')
   }
 
-  const showItemContextMenu = (event: ReactMouseEvent<HTMLButtonElement>, item: ExplorerItem) => {
+  const showItemContextMenu = (event: Pick<ReactMouseEvent, 'preventDefault' | 'stopPropagation' | 'clientX' | 'clientY'>, item: ExplorerItem) => {
     event.preventDefault()
     event.stopPropagation()
     setSelectedItem(item.name)
@@ -220,27 +224,39 @@ export function FileExplorer({ onOpenAbout, onDownloadCv, onNotify }: FileExplor
         <ToolbarButton type="button" onClick={goBack} disabled={pathParts.length === 1} aria-label="Volver">
           ← Atrás
         </ToolbarButton>
-        <span>Haz doble clic para abrir una carpeta</span>
+        <span>Doble clic para abrir · un toque en pantallas táctiles</span>
       </Toolbar>
       <Address aria-label="Ruta actual">📍 {pathParts.join('  ›  ')}</Address>
       {items.length > 0 ? (
         <FileGrid>
           {items.map((item) => (
             <FileItem
+              id={`explorer-item-${encodeURIComponent(item.name)}`}
               key={item.name}
               type="button"
               $selected={selectedItem === item.name}
               aria-pressed={selectedItem === item.name}
               aria-label={`${item.kind === 'folder' ? 'Carpeta' : 'Abrir'} ${item.name}`}
-              onClick={() => {
+              onPointerDown={(event) => touchPress.start(event, () => showItemContextMenu(event, item))}
+              onPointerMove={touchPress.move}
+              onPointerUp={touchPress.cancel}
+              onPointerCancel={touchPress.cancel}
+              onClick={(event) => {
+                event.stopPropagation()
+                if (touchPress.consumeHold()) return
                 setSelectedItem(item.name)
                 setContextMenu(null)
+                if (touchPress.isTouch()) openItem(item)
               }}
-              onDoubleClick={() => openItem(item)}
+              onDoubleClick={() => { if (!touchPress.isTouch()) openItem(item) }}
               onContextMenu={(event) => showItemContextMenu(event, item)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') openItem(item)
-                if (event.key === 'Escape') setContextMenu(null)
+                if (event.key === 'Enter') { event.preventDefault(); openItem(item) }
+                if (event.key === 'Escape' && contextMenu) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setContextMenu(null)
+                }
               }}
             >
               <span aria-hidden="true">{item.icon}</span>
@@ -258,6 +274,13 @@ export function FileExplorer({ onOpenAbout, onDownloadCv, onNotify }: FileExplor
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setContextMenu(null)
+            document.getElementById(`explorer-item-${encodeURIComponent(contextMenu.item.name)}`)?.focus()
+          }}
         >
           <ItemContextMenuAction
             role="menuitem"

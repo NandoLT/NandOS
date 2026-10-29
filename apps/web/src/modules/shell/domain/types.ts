@@ -1,6 +1,6 @@
 export type WindowId = 'about' | 'file-explorer' | 'recycle-bin' | 'settings' | 'experience' | 'projects' | 'skills' | 'contact'
 
-export type DesktopSystemItemId = 'about' | 'file-explorer' | 'recycle-bin' | 'cv'
+export type DesktopSystemItemId = 'about' | 'file-explorer' | 'recycle-bin' | 'cv' | 'projects' | 'contact'
 
 export type DesktopPosition = {
   x: number

@@ -6,6 +6,7 @@ export function GlobalStyles({ theme }: { theme: NandoOsTheme }) {
     <Global
       styles={css`
         :root {
+          --os-taskbar-height: 42px;
           --os-desktop: ${theme.colors.desktop};
           --os-desktop-text: ${theme.colors.desktopText};
           --os-desktop-selection: ${theme.colors.desktopSelection};
@@ -79,6 +80,11 @@ export function GlobalStyles({ theme }: { theme: NandoOsTheme }) {
 
         button {
           font: inherit;
+        }
+
+        @media (max-width: 640px), (pointer: coarse) {
+          :root { --os-taskbar-height: 56px; }
+          button, input, select { min-height: 44px; }
         }
 
         @media (prefers-reduced-motion: reduce) {

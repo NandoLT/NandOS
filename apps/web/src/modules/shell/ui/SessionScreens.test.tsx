@@ -1,8 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { GuestLogin } from './SessionScreens'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { BootScreen, GuestLogin } from './SessionScreens'
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('guest login', () => {
+  it('offers immediate guest access while preserving the demonstration login', () => {
+    const onLogin = vi.fn()
+    render(<GuestLogin onLogin={onLogin} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar como invitado' }))
+    expect(onLogin).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Contraseña:')).toHaveValue('')
+  })
+
+  it('skips the boot waiting time when reduced motion is requested', () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })))
+    const onComplete = vi.fn()
+    render(<BootScreen onComplete={onComplete} />)
+    expect(onComplete).toHaveBeenCalledOnce()
+  })
   it('accepts the demonstration password and rejects other values', () => {
     const onLogin = vi.fn()
     render(<GuestLogin onLogin={onLogin} />)

@@ -13,6 +13,8 @@ describe('shell store', () => {
         cv: { x: 116, y: 24 },
         'file-explorer': { x: 18, y: 108 },
         'recycle-bin': { x: 18, y: 192 },
+        projects: { x: 122, y: 108 },
+        contact: { x: 122, y: 192 },
       },
       userDesktopItems: [],
       recycleBinItems: [],
@@ -103,5 +105,46 @@ describe('shell store', () => {
 
     expect(useShellStore.getState().userDesktopItems).toHaveLength(0)
     expect(useShellStore.getState().recycleBinItems).toHaveLength(0)
+  })
+
+  it('logs off without deleting the visitor folders, trash or icon positions', () => {
+    const store = useShellStore.getState()
+    store.createDesktopFolder({ x: 240, y: 100 })
+    store.createDesktopFolder({ x: 240, y: 200 })
+    store.moveUserItemToRecycleBin(useShellStore.getState().userDesktopItems[0].id)
+    store.moveDesktopItem('cv', { x: 330, y: 24 })
+    store.openWindow('projects')
+    store.setStartMenuOpen(true)
+    const before = useShellStore.getState()
+
+    store.endGuestSession()
+
+    const after = useShellStore.getState()
+    expect(after.windows).toEqual([])
+    expect(after.activeWindowId).toBeNull()
+    expect(after.isStartMenuOpen).toBe(false)
+    expect(after.userDesktopItems).toEqual(before.userDesktopItems)
+    expect(after.recycleBinItems).toEqual(before.recycleBinItems)
+    expect(after.desktopPositions).toEqual(before.desktopPositions)
+  })
+
+  it('places new system shortcuts in free cells when migrating an existing desktop', async () => {
+    localStorage.setItem('nandoos:shell-session', JSON.stringify({
+      version: 3,
+      state: {
+        desktopPositions: {
+          about: { x: 18, y: 24 }, cv: { x: 116, y: 24 },
+          'file-explorer': { x: 18, y: 108 }, 'recycle-bin': { x: 18, y: 192 },
+        },
+        userDesktopItems: [{ id: 'existing-folder', name: 'Mi carpeta', x: 122, y: 108, kind: 'folder', origin: 'user', icon: '📁' }],
+      },
+    }))
+
+    await useShellStore.persist.rehydrate()
+
+    const state = useShellStore.getState()
+    expect(state.desktopPositions.projects).not.toEqual({ x: 122, y: 108 })
+    expect(state.desktopPositions.contact).not.toEqual(state.desktopPositions.projects)
+    expect(state.userDesktopItems[0].name).toBe('Mi carpeta')
   })
 })

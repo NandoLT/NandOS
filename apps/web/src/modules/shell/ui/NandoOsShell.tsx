@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   FocusEvent as ReactFocusEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react'
@@ -19,6 +20,8 @@ import { apiRequest } from '../../portfolio/infrastructure/http-client'
 import { AdminDashboard } from '../../admin/ui/AdminDashboard'
 import { AdminLogin } from '../../admin/ui/AdminLogin'
 import { useThemeStore } from '../../../shared/styles/theme.store'
+import { rememberBoot, shouldPlayBoot, taskbarHeight } from '../../../shared/lib/input-preferences'
+import { useTouchPress } from '../../../shared/lib/useTouchPress'
 import { useShellStore } from '../application/shell.store'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds } from '../domain/types'
@@ -27,11 +30,26 @@ import { BootScreen, GuestLogin, ShutdownScreen } from './SessionScreens'
 
 const Desktop = styled.main`
   position: relative;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   background-color: var(--os-desktop);
   background-image: var(--os-desktop-pattern);
   background-size: var(--os-desktop-pattern-size);
+`
+
+const DesktopShortcuts = styled.section`
+  display: contents;
+  @media (max-width: 640px) {
+    position: absolute;
+    inset: 0 0 var(--os-taskbar-height);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    align-content: start;
+    gap: 8px;
+    padding: 16px 8px;
+    overflow: auto;
+  }
 `
 
 const DesktopIcon = styled.button<{ $position: DesktopPosition; $selected: boolean; $dragging: boolean }>`
@@ -63,6 +81,14 @@ const DesktopIcon = styled.button<{ $position: DesktopPosition; $selected: boole
 
   span:first-of-type { display: grid; place-items: center; height: 32px; font-size: 28px; line-height: 1; }
   span:last-of-type { font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
+  @media (max-width: 640px) {
+    position: relative;
+    top: auto;
+    left: auto;
+    justify-self: center;
+    touch-action: pan-y;
+    cursor: pointer;
+  }
 `
 
 const ContextMenu = styled.div`
@@ -150,7 +176,7 @@ const Taskbar = styled.footer`
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 42px;
+  height: var(--os-taskbar-height);
   padding: 3px;
   border-top: var(--os-raised-border);
   background: var(--os-taskbar);
@@ -158,6 +184,7 @@ const Taskbar = styled.footer`
 `
 
 const TaskbarButton = styled.button<{ $active?: boolean }>`
+  flex-shrink: 0;
   min-width: 74px;
   height: 31px;
   padding: 3px 8px;
@@ -173,9 +200,18 @@ const TaskbarButton = styled.button<{ $active?: boolean }>`
   &:focus-visible { outline: 2px dotted var(--os-accent); outline-offset: -5px; }
 `
 
+const TaskbarWindows = styled.nav`
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+`
+
 const StartMenu = styled.div`
   position: absolute;
-  bottom: 39px;
+  bottom: calc(var(--os-taskbar-height) - 3px);
   left: 3px;
   z-index: 1100;
   display: grid;
@@ -188,8 +224,8 @@ const StartMenu = styled.div`
   background: var(--os-menu);
   box-shadow: 3px 3px var(--os-shadow);
 
-  @media (max-width: 520px) {
-    max-height: calc(100vh - 52px);
+  max-height: calc(100dvh - var(--os-taskbar-height) - 12px);
+  @media (max-width: 640px) {
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -247,6 +283,7 @@ const MenuCategoryButton = styled.button`
   background: transparent;
   text-align: left;
   cursor: pointer;
+  @media (max-width: 640px), (pointer: coarse) { min-height: 44px; }
 
   &:hover,
   &:focus-visible,
@@ -311,7 +348,7 @@ const MenuItem = styled.button<{ $disabled?: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   min-height: 34px;
   padding: 7px 8px;
   border: 0;
@@ -320,6 +357,16 @@ const MenuItem = styled.button<{ $disabled?: boolean }>`
   background: transparent;
   text-align: left;
   cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
+  @media (max-width: 640px), (pointer: coarse) { min-height: 44px; }
+
+  & > span[aria-hidden='true'] {
+    display: grid;
+    place-items: center;
+    flex: 0 0 30px;
+    height: 26px;
+    font-size: 22px;
+    line-height: 1;
+  }
 
   &:hover,
   &:focus-visible {
@@ -361,6 +408,7 @@ const MenuDivider = styled.div`
 `
 
 const Tray = styled.div`
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -371,6 +419,7 @@ const Tray = styled.div`
   border-radius: var(--os-control-radius);
   background: var(--os-taskbar);
   font-size: 12px;
+  @media (max-width: 640px), (pointer: coarse) { height: 44px; padding: 0 2px; gap: 0; }
 `
 
 const TrayControl = styled.button`
@@ -384,6 +433,7 @@ const TrayControl = styled.button`
   background: transparent;
   font-size: 14px;
   cursor: pointer;
+  @media (max-width: 640px), (pointer: coarse) { min-width: 44px; height: 44px; }
 
   &:hover,
   &:focus-visible {
@@ -420,7 +470,7 @@ const TrayTime = styled(TrayControl)`
 const Notice = styled.div`
   position: absolute;
   right: 18px;
-  bottom: 58px;
+  bottom: calc(var(--os-taskbar-height) + 16px);
   z-index: 1200;
   max-width: min(340px, calc(100vw - 36px));
   padding: 10px 12px;
@@ -435,6 +485,23 @@ type DesktopContextTarget =
   | { kind: 'desktop'; position: DesktopPosition }
   | { kind: 'system'; id: DesktopSystemItemId; label: string }
   | { kind: 'user'; id: string; label: string }
+
+type DesktopContextEvent = Pick<ReactMouseEvent, 'clientX' | 'clientY' | 'preventDefault' | 'stopPropagation'>
+
+function moveMenuFocus(event: ReactKeyboardEvent<HTMLElement>) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return false
+  const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]
+  if (!items.length) return false
+  const current = items.indexOf(document.activeElement as HTMLButtonElement)
+  const next = event.key === 'Home' ? 0
+    : event.key === 'End' ? items.length - 1
+    : event.key === 'ArrowDown' ? (current + 1) % items.length
+    : current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length
+  event.preventDefault()
+  event.stopPropagation()
+  items[next]?.focus()
+  return true
+}
 
 type DesktopContextMenuState = {
   x: number
@@ -474,6 +541,13 @@ type StartMenuCategory = {
 function getMenuFlyoutPlacement(anchor: HTMLElement): MenuFlyoutPlacement {
   const bounds = anchor.getBoundingClientRect()
   const gutter = 8
+  if (window.innerWidth <= 640) {
+    const maxHeight = Math.min(520, window.innerHeight - taskbarHeight() - gutter * 2)
+    return {
+      left: gutter, top: Math.max(gutter, window.innerHeight - taskbarHeight() - maxHeight - gutter),
+      width: window.innerWidth - gutter * 2, maxHeight,
+    }
+  }
   const width = Math.min(250, window.innerWidth - gutter * 2)
   const hasRoomOnRight = window.innerWidth - bounds.right >= width + gutter
   const requestedLeft = hasRoomOnRight ? bounds.right - 2 : bounds.left - width + 2
@@ -499,7 +573,7 @@ type DesktopShortcutProps = {
   onOpen: () => void
   onMove: (position: DesktopPosition) => void
   onDropToRecycleBin: () => void
-  onContextMenu: (event: ReactMouseEvent<HTMLButtonElement>) => void
+  onContextMenu: (event: DesktopContextEvent) => void
 }
 
 function DesktopShortcut({
@@ -522,6 +596,7 @@ function DesktopShortcut({
     moved: boolean
   } | null>(null)
   const suppressClick = useRef(false)
+  const touchPress = useTouchPress()
   const [dragPosition, setDragPosition] = useState<DesktopPosition | null>(null)
   const visiblePosition = dragPosition ?? position
 
@@ -531,8 +606,15 @@ function DesktopShortcut({
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return
-    event.preventDefault()
+    if (event.pointerType !== 'touch') event.preventDefault()
+    event.currentTarget.focus()
+    suppressClick.current = false
     onSelect()
+    touchPress.start(event, () => {
+      drag.current = null
+      setDragPosition(null)
+      onContextMenu(event)
+    })
     drag.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -540,10 +622,12 @@ function DesktopShortcut({
       origin: position,
       moved: false,
     }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    touchPress.move(event)
+    if (window.innerWidth <= 640) return
     const currentDrag = drag.current
     if (!currentDrag || currentDrag.pointerId !== event.pointerId) return
 
@@ -555,7 +639,7 @@ function DesktopShortcut({
     const surface = event.currentTarget.closest('[data-desktop-surface="true"]')
     const bounds = surface?.getBoundingClientRect()
     const maxX = Math.max(0, (bounds?.width ?? window.innerWidth) - 96)
-    const maxY = Math.max(0, (bounds?.height ?? window.innerHeight) - 42 - 82)
+    const maxY = Math.max(0, (bounds?.height ?? window.innerHeight) - taskbarHeight() - 82)
     setDragPosition({
       x: Math.max(0, Math.min(maxX, currentDrag.origin.x + deltaX)),
       y: Math.max(0, Math.min(maxY, currentDrag.origin.y + deltaY)),
@@ -563,6 +647,7 @@ function DesktopShortcut({
   }
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    touchPress.cancel()
     const currentDrag = drag.current
     if (!currentDrag || currentDrag.pointerId !== event.pointerId) return
     drag.current = null
@@ -602,20 +687,23 @@ function DesktopShortcut({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={() => {
+        touchPress.cancel()
         drag.current = null
         setDragPosition(null)
       }}
       onClick={(event) => {
         event.stopPropagation()
+        if (touchPress.consumeHold()) return
         if (suppressClick.current) {
           suppressClick.current = false
           return
         }
         onSelect()
+        if (touchPress.isTouch()) onOpen()
       }}
       onDoubleClick={(event) => {
         event.stopPropagation()
-        onOpen()
+        if (!touchPress.isTouch()) onOpen()
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
@@ -636,14 +724,14 @@ function DesktopShortcut({
 type SessionScreen = 'boot' | 'login' | 'admin-login' | 'admin' | 'desktop' | 'shutdown'
 
 export function NandoOsShell() {
-  const [screen, setScreen] = useState<SessionScreen>('boot')
+  const [screen, setScreen] = useState<SessionScreen>(() => shouldPlayBoot() ? 'boot' : 'login')
   const [adminUsername, setAdminUsername] = useState<string | null>(null)
   const [clock, setClock] = useState(() => new Date())
   const [viewport, setViewport] = useState<WindowBounds>({
     x: 0,
     y: 0,
     width: window.innerWidth,
-    height: window.innerHeight - 42,
+    height: window.innerHeight - taskbarHeight(),
   })
   const [notice, setNotice] = useState<string | null>(null)
   const [selectedDesktopItem, setSelectedDesktopItem] = useState<string | null>(null)
@@ -681,6 +769,7 @@ export function NandoOsShell() {
     permanentlyDeleteUserItem,
     emptyRecycleBin,
     setStartMenuOpen,
+    endGuestSession,
   } = useShellStore()
   const { data: portfolioContent = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
 
@@ -724,13 +813,25 @@ export function NandoOsShell() {
     if (isStartMenuOpen) startMenuRef.current?.focus()
   }, [isStartMenuOpen])
 
-  const showLogin = useCallback(() => setScreen(adminUsername ? 'admin' : 'login'), [adminUsername])
+  const showLogin = useCallback(() => {
+    rememberBoot()
+    setScreen(adminUsername ? 'admin' : 'login')
+  }, [adminUsername])
   const startDesktop = useCallback(() => setScreen('desktop'), [])
   const startShutdown = useCallback(() => {
     closeStartMenu()
     setNotice(null)
     setScreen('shutdown')
   }, [closeStartMenu])
+
+  const logOffGuest = () => {
+    closeStartMenu()
+    endGuestSession()
+    setContextMenu(null)
+    setProtectedItem(null)
+    setNotice(null)
+    setScreen('login')
+  }
 
   useEffect(() => {
     let active = true
@@ -747,16 +848,18 @@ export function NandoOsShell() {
   useEffect(() => {
     const clockTimer = window.setInterval(() => setClock(new Date()), 1000)
     const handleResize = () => {
-      setViewport({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - 42 })
+      setViewport({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - taskbarHeight() })
       if (openStartCategoryAnchorRef.current) {
         setOpenStartCategoryPlacement(getMenuFlyoutPlacement(openStartCategoryAnchorRef.current))
       }
     }
 
     window.addEventListener('resize', handleResize)
+    window.visualViewport?.addEventListener('resize', handleResize)
     return () => {
       window.clearInterval(clockTimer)
       window.removeEventListener('resize', handleResize)
+      window.visualViewport?.removeEventListener('resize', handleResize)
     }
   }, [])
 
@@ -794,6 +897,8 @@ export function NandoOsShell() {
   )
   if (screen === 'shutdown') return <ShutdownScreen onRestart={() => setScreen('boot')} />
 
+  const openShellWindow = openWindow
+
   const accessCv = (language: 'es' | 'en', action: 'download' | 'open') => {
     const documentMetadata = portfolioContent.cvDocuments[language] ?? DEFAULT_PORTFOLIO_CONTENT.cvDocuments[language]
     const filename = documentMetadata?.filename ?? (language === 'es'
@@ -824,7 +929,7 @@ export function NandoOsShell() {
       id === 'about' || id === 'file-explorer' || id === 'recycle-bin' || id === 'settings' ||
       id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
     ) {
-      openWindow(id)
+      openShellWindow(id)
     }
   }
 
@@ -913,7 +1018,25 @@ export function NandoOsShell() {
     setOpenStartCategory(categoryId)
   }
 
-  const showContextMenu = (event: ReactMouseEvent, target: DesktopContextTarget) => {
+  const focusFirstFlyoutItem = () => {
+    window.requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-start-flyout] [data-menu-entry]')?.focus())
+  }
+
+  const returnToStartCategory = () => {
+    setOpenStartCategory(null)
+    document.querySelector<HTMLButtonElement>(`[data-start-category="${openStartCategory}"]`)?.focus()
+  }
+
+  const handleFlyoutKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (moveMenuFocus(event)) return
+    if (event.key === 'Escape' || event.key === 'ArrowLeft') {
+      event.preventDefault()
+      event.stopPropagation()
+      returnToStartCategory()
+    }
+  }
+
+  const showContextMenu = (event: DesktopContextEvent, target: DesktopContextTarget) => {
     event.preventDefault()
     event.stopPropagation()
     closeStartMenu()
@@ -934,7 +1057,7 @@ export function NandoOsShell() {
       return
     }
     if (target.id === 'cv') downloadCv('es')
-    else openWindow(target.id)
+    else openShellWindow(target.id)
   }
 
   const deleteDesktopTarget = (target: DesktopContextTarget) => {
@@ -951,7 +1074,7 @@ export function NandoOsShell() {
     if (target.kind !== 'desktop') return
     const position = findNearestDesktopGridPosition(
       target.position,
-      { width: window.innerWidth, height: window.innerHeight },
+      { width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight() },
       [...Object.values(desktopPositions), ...userDesktopItems]
     )
     createDesktopFolder(position)
@@ -967,7 +1090,7 @@ export function NandoOsShell() {
     ]
     return findNearestDesktopGridPosition(
       position,
-      { width: window.innerWidth, height: window.innerHeight },
+      { width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight() },
       occupiedPositions
     )
   }
@@ -981,11 +1104,23 @@ export function NandoOsShell() {
     { id: 'cv', label: 'CV_Fernando_Lopez', icon: '/pdf-document.svg' },
     { id: 'file-explorer', label: 'Este equipo', icon: '📁' },
     { id: 'recycle-bin', label: 'Papelera de reciclaje', icon: '🗑️' },
+    { id: 'projects', label: 'Proyectos', icon: '🗂️' },
+    { id: 'contact', label: 'Contacto', icon: '✉️' },
   ]
 
   return (
     <Desktop
       data-desktop-surface="true"
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return
+        if (contextMenu || protectedItem) {
+          event.preventDefault()
+          event.stopPropagation()
+          setContextMenu(null)
+          setProtectedItem(null)
+          document.querySelector<HTMLButtonElement>(`[data-desktop-id="${selectedDesktopItem}"]`)?.focus()
+        }
+      }}
       onClick={() => {
         if (isStartMenuOpen) closeStartMenu()
         setOpenStartCategory(null)
@@ -993,7 +1128,8 @@ export function NandoOsShell() {
         setSelectedDesktopItem(null)
       }}
       onContextMenu={(event) => {
-        if (event.target !== event.currentTarget) return
+        if (event.target !== event.currentTarget &&
+          !(event.target instanceof HTMLElement && event.target.dataset.desktopBackground === 'true')) return
         const surfaceBounds = event.currentTarget.getBoundingClientRect()
         showContextMenu(event, {
           kind: 'desktop',
@@ -1004,6 +1140,7 @@ export function NandoOsShell() {
         })
       }}
     >
+      <DesktopShortcuts data-desktop-background="true" aria-label="Accesos del escritorio">
       {systemShortcuts.map((shortcut) => (
         <DesktopShortcut
           key={shortcut.id}
@@ -1016,7 +1153,7 @@ export function NandoOsShell() {
             setSelectedDesktopItem(shortcut.id)
             setContextMenu(null)
           }}
-          onOpen={() => shortcut.id === 'cv' ? downloadCv('es') : openWindow(shortcut.id)}
+          onOpen={() => shortcut.id === 'cv' ? downloadCv('es') : openShellWindow(shortcut.id)}
           onMove={(position) => moveDesktopItem(shortcut.id, snapDesktopShortcut(shortcut.id, position))}
           onDropToRecycleBin={() => {
             setSelectedDesktopItem(shortcut.id)
@@ -1055,10 +1192,13 @@ export function NandoOsShell() {
         />
       ))}
 
+      </DesktopShortcuts>
+
       {windows.map((windowState) => (
         <WindowFrame
           key={windowState.id}
           windowState={windowState}
+          isActive={activeWindowId === windowState.id}
           viewport={viewport}
           onFocus={() => focusWindow(windowState.id)}
           onClose={() => closeWindow(windowState.id)}
@@ -1078,7 +1218,7 @@ export function NandoOsShell() {
             <AboutWindow />
           ) : windowState.id === 'file-explorer' ? (
             <FileExplorer
-              onOpenAbout={() => openWindow('about')}
+              onOpenAbout={() => openShellWindow('about')}
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
@@ -1110,6 +1250,7 @@ export function NandoOsShell() {
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
+          onKeyDown={moveMenuFocus}
         >
           {contextMenu.target.kind === 'desktop' ? (
             <ContextMenuItem role="menuitem" type="button" onClick={() => createFolderFromContext(contextMenu.target)}>
@@ -1117,7 +1258,7 @@ export function NandoOsShell() {
             </ContextMenuItem>
           ) : (
             <>
-              <ContextMenuItem role="menuitem" type="button" onClick={() => openDesktopTarget(contextMenu.target)}>
+              <ContextMenuItem role="menuitem" type="button" autoFocus onClick={() => openDesktopTarget(contextMenu.target)}>
                 Abrir
               </ContextMenuItem>
               <ContextDivider />
@@ -1136,7 +1277,12 @@ export function NandoOsShell() {
 
       {protectedItem && (
         <ProtectedOverlay>
-          <ProtectedDialog role="alertdialog" aria-modal="true" aria-labelledby="protected-title">
+          <ProtectedDialog role="alertdialog" aria-modal="true" aria-labelledby="protected-title" onKeyDown={(event) => {
+            if (event.key === 'Tab') {
+              event.preventDefault()
+              event.currentTarget.querySelector('button')?.focus()
+            }
+          }}>
             <ProtectedTitle id="protected-title">No se puede eliminar este elemento</ProtectedTitle>
             <ProtectedMessage>
               <span aria-hidden="true">🚫</span>
@@ -1146,7 +1292,10 @@ export function NandoOsShell() {
               </div>
             </ProtectedMessage>
             <ProtectedActions>
-              <TaskbarButton type="button" autoFocus onClick={() => setProtectedItem(null)}>
+              <TaskbarButton type="button" autoFocus onClick={() => {
+                setProtectedItem(null)
+                document.querySelector<HTMLButtonElement>(`[data-desktop-id="${selectedDesktopItem}"]`)?.focus()
+              }}>
                 Aceptar
               </TaskbarButton>
             </ProtectedActions>
@@ -1162,9 +1311,19 @@ export function NandoOsShell() {
           tabIndex={-1}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
+            if (moveMenuFocus(event)) return
             if (event.key === 'Escape') {
+              event.preventDefault()
+              event.stopPropagation()
               closeStartMenu()
               startMenuButtonRef.current?.focus()
+            }
+            if (event.key === 'ArrowRight') {
+              const category = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-start-category]')
+              if (!category?.dataset.startCategory) return
+              event.preventDefault()
+              openStartMenuCategory(category.dataset.startCategory, category)
+              focusFirstFlyoutItem()
             }
           }}
           onScroll={() => {
@@ -1182,16 +1341,21 @@ export function NandoOsShell() {
             {startMenuCategories.map((category) => (
               <MenuCategoryGroup
                 key={category.id}
-                onMouseEnter={(event) => openStartMenuCategory(category.id, event.currentTarget)}
-                onMouseLeave={() => setOpenStartCategory(null)}
+                onMouseEnter={(event) => {
+                  if (window.innerWidth > 640) openStartMenuCategory(category.id, event.currentTarget)
+                }}
+                onMouseLeave={() => { if (window.innerWidth > 640) setOpenStartCategory(null) }}
               >
                 <MenuCategoryButton
+                  data-start-category={category.id}
                   type="button"
                   aria-haspopup="menu"
                   aria-expanded={openStartCategory === category.id}
                   aria-controls={`start-flyout-${category.id}`}
-                  onFocus={(event) => openStartMenuCategory(category.id, event.currentTarget)}
-                  onClick={(event) => openStartMenuCategory(category.id, event.currentTarget)}
+                  onClick={(event) => {
+                    openStartMenuCategory(category.id, event.currentTarget)
+                    if (event.detail === 0) focusFirstFlyoutItem()
+                  }}
                 >
                   <MenuCategoryIcon aria-hidden="true">{category.icon}</MenuCategoryIcon>
                   <span>{category.label}</span>
@@ -1199,9 +1363,11 @@ export function NandoOsShell() {
                 </MenuCategoryButton>
                 {openStartCategory === category.id && openStartCategoryPlacement && createPortal(
                   <MenuFlyout
+                    data-start-flyout
                     id={`start-flyout-${category.id}`}
                     role="group"
                     aria-label={category.label}
+                    onKeyDown={handleFlyoutKeyDown}
                     style={{
                       left: `${openStartCategoryPlacement.left}px`,
                       top: `${openStartCategoryPlacement.top}px`,
@@ -1209,12 +1375,16 @@ export function NandoOsShell() {
                       maxHeight: `${openStartCategoryPlacement.maxHeight}px`,
                     }}
                   >
+                    {viewport.width <= 640 && (
+                      <MenuItem type="button" onClick={returnToStartCategory}>← Volver al menú</MenuItem>
+                    )}
                     <MenuSectionHeading>{category.label}</MenuSectionHeading>
                     {category.entries.map((entry, index) => {
                       const tooltipId = `start-tooltip-${category.id}-${index}`
 
                       return (
                         <MenuItem
+                          data-menu-entry
                           key={entry.label}
                           type="button"
                           $disabled={entry.disabled}
@@ -1253,10 +1423,17 @@ export function NandoOsShell() {
             <MenuDivider />
             <MenuItem
               type="button"
-              {...menuTooltipProps('start-tooltip-shutdown', 'Cerrar la sesión de NandOS.')}
+              {...menuTooltipProps('start-tooltip-logoff', 'Cerrar la sesión de Invitado y volver al inicio de sesión.')}
+              onClick={logOffGuest}
+            >
+              <span aria-hidden="true">🔑</span> <span>Log off Invitado</span>
+            </MenuItem>
+            <MenuItem
+              type="button"
+              {...menuTooltipProps('start-tooltip-shutdown', 'Apagar NandOS.')}
               onClick={startShutdown}
             >
-              <span aria-hidden="true">⏻</span> Apagar…
+              <span aria-hidden="true">⏻</span> <span>Apagar</span>
             </MenuItem>
           </MenuContent>
         </StartMenu>
@@ -1281,6 +1458,7 @@ export function NandoOsShell() {
           $active={isStartMenuOpen}
           ref={startMenuButtonRef}
           aria-label="Abrir menú de aplicaciones"
+          data-start-button
           onClick={() => {
             if (isStartMenuOpen) closeStartMenu()
             else {
@@ -1294,6 +1472,7 @@ export function NandoOsShell() {
             Start
           </StartButtonContent>
         </TaskbarButton>
+        <TaskbarWindows aria-label="Aplicaciones abiertas">
         {windows.map((windowState) => (
           <TaskbarButton
             key={windowState.id}
@@ -1308,6 +1487,7 @@ export function NandoOsShell() {
             {windowState.icon} {windowState.title}
           </TaskbarButton>
         ))}
+        </TaskbarWindows>
         <Tray aria-label="Bandeja del sistema">
           <TrayControl
             type="button"

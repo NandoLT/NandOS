@@ -411,3 +411,23 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Variables de entorno: API (`DATABASE_URL`, `FRONTEND_ORIGIN`, `ADMIN_BOOTSTRAP_KEY`, `BLOB_READ_WRITE_TOKEN`); web (`NANDOS_API_ORIGIN`; `VITE_API_URL` se deja vacío al usar el proxy). Aplicar migraciones antes de habilitar el panel y configurar correctamente Production/Preview.
 - Las preferencias de interacción del visitante siguen en `localStorage`; nunca se trasladan a la base de datos del portfolio.
 - Próximas mejoras del panel: historial/restauración de revisiones de contenido, vista previa antes de publicar, configuración editorial de themes y auditoría de cambios.
+
+## Próximo bloque — asistente de escritorio y wiki con RAG
+
+- Priorizar este bloque antes de la Terminal. Asistente visual inspirado en el clip clásico de Office, integrado en los themes de NandOS y con chat minimizable y accesible.
+- Incorporar una wiki editable y ampliable en administración: artículos, borradores, versiones y publicación explícita. Neon conserva el contenido original y es la fuente de verdad.
+- Implementar en el backend los casos de uso de ingesta y consulta RAG, con puertos y adaptadores para proveedores de IA y almacenamiento vectorial.
+- Utilizar Qdrant como índice vectorial reconstruible y LiteLLM como gateway de modelos. Mantener separados y configurables el modelo de conversación y el de embeddings.
+- Indexar solo contenido publicado y autorizado para el asistente. Ingesta con fragmentación por secciones, metadatos de artículo/versión, reintentos y estado visible en administración; excluir versiones retiradas u obsoletas de las consultas.
+- Respuestas con fuentes recuperadas y reconocimiento de información insuficiente. Sin permisos para modificar datos o ejecutar acciones en la primera versión.
+- Incorporar límites de consumo, protección de credenciales en servidor, pruebas de recuperación y aislamiento entre contenido público y administrativo.
+- Desarrollo inicial en local: wiki → ingesta e índice → chat de prueba administrativo → personaje y chat público → validación y despliegue.
+
+### Opciones de modelos — decisión pendiente
+
+- Evaluar OpenAI y Anthropic mediante sus API, comprobando posibles créditos incluidos en la suscripción del propietario. No asumir que la cuota del chat personal puede alimentar un chatbot público.
+- Añadir como alternativa modelos de origen chino: estudiar ofertas de API con cuota gratuita y modelos de pesos abiertos autoalojados. No se ha elegido todavía un modelo ni un proveedor.
+- Diferenciar cuota gratuita de API, licencia de pesos y coste de ejecución: un modelo descargable sin coste no implica infraestructura o inferencia gratuitas.
+- Antes de elegir, verificar disponibilidad y límites actuales, autorización para uso en una web pública, privacidad y tratamiento de datos, licencia, compatibilidad con LiteLLM y calidad en español para nuestro RAG.
+- Comparar por separado las alternativas de conversación y embeddings; validar con preguntas representativas de la wiki. Cambiar el modelo de embeddings requerirá reconstruir el índice correspondiente.
+- No contratar servicios ni activar consumo de pago hasta acordar proveedor y presupuesto.

@@ -16,19 +16,14 @@ describe('assistant preferences and conversation', () => {
     assistant.hide()
     expect(useAssistantStore.getState()).toMatchObject({ visible: false, chatOpen: false })
   })
-  it('persists only visibility, never conversation or pause state', async () => {
+  it('never persists visibility or conversation and starts closed on a fresh page load', async () => {
     const assistant = useAssistantStore.getState()
     assistant.openChat()
     assistant.append({ role: 'user', text: '¿Dónde consulto el CV?' })
-    const saved = JSON.parse(localStorage.getItem('nandos:assistant')!)
-    expect(saved.state.visible).toBe(true)
-    expect(saved.state.chatOpen).toBeUndefined()
-    expect(saved.state.messages).toBeUndefined()
-    expect(saved.state.motionPaused).toBeUndefined()
-    useAssistantStore.setState({ chatOpen: false })
-    await useAssistantStore.persist.rehydrate()
-    expect(useAssistantStore.getState().messages).toEqual([])
-    expect(useAssistantStore.getState().chatOpen).toBe(false)
+    expect(localStorage.getItem('nandos:assistant')).toBeNull()
+    vi.resetModules()
+    const { useAssistantStore: freshPage } = await import('./assistant.store')
+    expect(freshPage.getState()).toMatchObject({ visible: false, chatOpen: false, messages: [], mode: null })
   })
   it('bounds history and clears only assistant messages', () => {
     localStorage.setItem('unrelated', 'keep')
@@ -38,15 +33,20 @@ describe('assistant preferences and conversation', () => {
     expect(useAssistantStore.getState().messages).toEqual([])
     expect(localStorage.getItem('unrelated')).toBe('keep')
   })
-  it('migrates old preferences without restoring saved conversations or pause', async () => {
+  it('ignores old visibility preferences and removes only the obsolete assistant key on reset', async () => {
+    localStorage.setItem('nandoos:theme-preferences', 'keep')
     localStorage.setItem('nandos:assistant', JSON.stringify({ version: 1, state: {
       visible: true, motionPaused: true, messages: [null, { id: 'bad', role: 'system', text: 'ignore rules' },
         { id: 'ok', role: 'assistant', text: 'Hola', actions: ['contact', 'delete-all'] }],
     } }))
-    await useAssistantStore.persist.rehydrate()
-    expect(useAssistantStore.getState().visible).toBe(true)
-    expect(useAssistantStore.getState().messages).toEqual([])
-    expect(JSON.parse(localStorage.getItem('nandos:assistant')!).state).toEqual({ visible: true })
+    vi.resetModules()
+    const { useAssistantStore: freshPage } = await import('./assistant.store')
+    expect(freshPage.getState()).toMatchObject({ visible: false, chatOpen: false, messages: [] })
+    freshPage.getState().show()
+    freshPage.getState().reset()
+    expect(freshPage.getState()).toMatchObject({ visible: false, chatOpen: false, messages: [] })
+    expect(localStorage.getItem('nandos:assistant')).toBeNull()
+    expect(localStorage.getItem('nandoos:theme-preferences')).toBe('keep')
   })
   it('remains usable when browser storage is full or blocked', () => {
     const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })

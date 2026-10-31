@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
 import type { ChatMessage, QuestionSource } from '../domain/conversation'
 
 type AssistantState = {
@@ -14,16 +13,11 @@ type AssistantState = {
   beginQuestion(text: string, source: QuestionSource): void
   append(message: Omit<ChatMessage, 'id'>): void
   clear(): void
+  reset(): void
 }
 
-// A full/blocked browser storage must never prevent using the assistant.
-const storage = createJSONStorage(() => ({
-  getItem(name: string) { try { return localStorage.getItem(name) } catch { return null } },
-  setItem(name: string, value: string) { try { localStorage.setItem(name, value) } catch { /* in-memory session remains usable */ } },
-  removeItem(name: string) { try { localStorage.removeItem(name) } catch { /* best effort */ } },
-}))
-
-export const useAssistantStore = create<AssistantState>()(persist((set) => ({
+// Session-only: a page reload never restores the avatar or conversation.
+export const useAssistantStore = create<AssistantState>()((set) => ({
   visible: false, chatOpen: false, messages: [], mode: null,
   show: () => set({ visible: true }),
   hide: () => set({ visible: false, chatOpen: false, messages: [], mode: null }),
@@ -36,12 +30,9 @@ export const useAssistantStore = create<AssistantState>()(persist((set) => ({
   })),
   append: (message) => set((state) => ({ messages: [...state.messages, { ...message, id: crypto.randomUUID() }].slice(-40) })),
   clear: () => set({ messages: [], mode: null }),
-}), {
-  name: 'nandos:assistant', version: 2, storage,
-  partialize: ({ visible }) => ({ visible }),
-  migrate: (persisted) => ({ visible: Boolean(persisted && typeof persisted === 'object' && 'visible' in persisted && persisted.visible === true) }),
-  merge: (persisted, current) => {
-    const data = persisted && typeof persisted === 'object' ? persisted as Partial<AssistantState> : {}
-    return { ...current, visible: data.visible === true, chatOpen: false, messages: [], mode: null }
+  reset: () => {
+    set({ visible: false, chatOpen: false, messages: [], mode: null })
+    // Retire only our old persisted preferences, never other desktop settings.
+    try { localStorage.removeItem('nandos:assistant') } catch { /* Storage may be blocked. */ }
   },
 }))

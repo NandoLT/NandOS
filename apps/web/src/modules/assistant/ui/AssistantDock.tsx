@@ -78,7 +78,10 @@ export default function AssistantDock({ content, viewport, onLaunchApp, service 
     controller.current?.select(conversation.pending ? 'thinking' : chatOpen && draft.trim() ? 'listening' : 'idle')
   }, [visible, chatOpen, draft, conversation.pending, conversation.replyVersion])
 
-  useEffect(() => () => useAssistantStore.getState().closeChat(), [])
+  useEffect(() => {
+    useAssistantStore.getState().reset()
+    return () => useAssistantStore.getState().reset()
+  }, [])
 
   const send = (value: string, source: QuestionSource = 'conversation') => {
     if (!value.trim() || (conversation.pending && source !== 'faq')) return

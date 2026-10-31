@@ -148,8 +148,12 @@ describe('desktop assistant', () => {
     unmount()
     expect(signal.aborted).toBe(true)
     expect(useAssistantStore.getState().chatOpen).toBe(false)
+    expect(useAssistantStore.getState().visible).toBe(false)
     await act(async () => pending.resolve({ text: 'Respuesta de una sesión anterior' }))
     expect(useAssistantStore.getState().messages).toHaveLength(0)
+    mount()
+    expect(screen.getByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' })).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
   it('removes the introduction on the first question and keeps FAQ outside the scrolling history', async () => {
     const pending = pendingService()

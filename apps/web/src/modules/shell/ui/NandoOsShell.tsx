@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   FocusEvent as ReactFocusEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -27,6 +27,12 @@ import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds } from '../domain/types'
 import { WindowFrame } from './WindowFrame'
 import { BootScreen, GuestLogin, ShutdownScreen } from './SessionScreens'
+
+// An explicit local-only opt-in: no test controls in production.
+const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.search).get('mascot') === '1'
+  ? lazy(() => import('../../assistant/ui/MascotLab'))
+  : null
+const AssistantDock = lazy(() => import('../../assistant/ui/AssistantDock'))
 
 const Desktop = styled.main`
   position: relative;
@@ -1449,6 +1455,10 @@ export function NandoOsShell() {
         </MenuTooltipBubble>,
         document.body
       )}
+
+      <Suspense fallback={null}>
+        {MascotLab ? <MascotLab /> : <AssistantDock content={portfolioContent} viewport={viewport} onLaunchApp={launchApp} />}
+      </Suspense>
 
       {notice && <Notice role="status">{notice}</Notice>}
 

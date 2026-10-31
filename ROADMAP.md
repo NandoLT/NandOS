@@ -421,7 +421,33 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Indexar solo contenido publicado y autorizado para el asistente. Ingesta con fragmentación por secciones, metadatos de artículo/versión, reintentos y estado visible en administración; excluir versiones retiradas u obsoletas de las consultas.
 - Respuestas con fuentes recuperadas y reconocimiento de información insuficiente. Sin permisos para modificar datos o ejecutar acciones en la primera versión.
 - Incorporar límites de consumo, protección de credenciales en servidor, pruebas de recuperación y aislamiento entre contenido público y administrativo.
-- Desarrollo inicial en local: wiki → ingesta e índice → chat de prueba administrativo → personaje y chat público → validación y despliegue.
+- Orden acordado: integrar primero personaje y conversación de demostración en local → wiki en administración → ingesta e índice → consultas de prueba → conectar chat público → validación y despliegue.
+
+### nandBot — integración en el escritorio y chat de demostración
+
+- Acceso fijo en la esquina inferior derecha, por encima de la barra de tareas: icono de ayuda con «¿Tienes dudas?». No abrir conversaciones automáticamente.
+- Primer clic: mostrar la mascota pequeña y transparente (200 px). Encima, miniacciones con bocadillo para abrir/minimizar el chat, pausa de animaciones y ocultar el asistente. La mascota también permite abrir la conversación.
+- Ventana retro reutilizando el marco de NandOS: mover, minimizar al bocadillo, maximizar/restaurar, redimensionar y cerrar con Escape. En móvil se adapta al espacio disponible sin superponer la mascota al chat.
+- Bienvenida: «¡Hola! Soy nandBot, tu asistente en NandOS. Estoy aquí para ayudarte a conocer a Fernando y explorar su escritorio. ¿Qué necesitas?».
+- Preguntas iniciales seleccionables sobre CV, contacto, experiencia, proyectos y funcionamiento de NandOS. Permitir texto libre, Enter para enviar, Shift+Enter para salto de línea y borrar la conversación.
+- Esta iteración usa respuestas deterministas locales, claramente marcadas como demostración sin IA. Para datos profesionales usa el contenido público del portfolio; no añade información inventada. Las respuestas desconocidas explican la limitación.
+- Enlaces de acción explícitos para abrir CV en otra pestaña o navegar a las secciones existentes; nunca ejecutar acciones automáticamente a partir de una respuesta.
+- Animaciones vinculadas a la interacción: reposo, escucha al escribir, pensamiento durante la consulta y gesto de respuesta. Respetar movimiento reducido, pausa y pestaña oculta.
+- Preferencia de visibilidad, pausa e historial acotado (40 mensajes) en `localStorage`, con esquema versionado y validación. El chat permanece cerrado al recargar. No enviar conversaciones a IA, API ni BD en esta fase.
+- Puerto `AssistantService` separado del adaptador de demostración para conectar después el backend RAG con LiteLLM y Qdrant, sin acoplar la interfaz a un proveedor.
+- Wiki futura: editor Markdown con vista previa; cubrir absolutamente todos los elementos y submenús de Start, aplicaciones disponibles y futuras, escritorio, ventanas, configuración y contenido profesional. Borradores/publicación explícita; solo contenido publicado se indexa. Conservar encabezados y metadatos de artículo/versión en la fragmentación para citar fuentes.
+- Desarrollo y revisión local primero. No subir al repositorio ni desplegar hasta validación del propietario.
+
+### Laboratorio local de la mascota (SVG + React)
+
+- Mascota original: miniordenador retro con teclado integrado, sin brazos ni piernas. Referencias: Commodore y expresiones de troko.vercel.app; conservar identidad propia.
+- Conservar como original `apps/web/public/mascot/nandos-mascota.riv` (artboard `RetroPC`, máquina `State Machine 1`, controles `isListening`, `isThinking`, `answerReady`). No modificar el archivo ni ocultar el splash de sus exportaciones gratuitas.
+- Reproducir el diseño propio mediante `SvgMascot`: SVG inline con animaciones nativas del navegador, sin runtime Rive, WASM, WebGL, archivos externos ni pantalla de carga. Esta es la implementación activa para evitar el splash y la dependencia del reproductor.
+- Respiración independiente de la expresión. Puerto del avatar: `select('idle' | 'listening' | 'thinking')` y `answer()` para un gesto de respuesta de una sola ejecución con regreso automático a reposo. Un nuevo disparo reinicia el gesto, sin reiniciar la respiración.
+- Laboratorio opt-in solo en desarrollo: abrir `/?mascot=1` y entrar como invitado. Permite probar estados y pausa; tamaño pequeño fijo (200 px), sin selector de tamaño ni fondo de contraste. No conecta con IA, API ni BD.
+- Carga diferida del laboratorio, pausa con pestaña oculta y movimiento reducido; las pausas congelan también la respuesta. Ocultar el laboratorio cancela las animaciones y libera sus recursos. Mantener una versión estática accesible si el navegador no admite Web Animations.
+- Validar el retorno automático de «Respuesta», tamaño y legibilidad antes de integrar el chat o desplegar. Sin publicación ni subida al repositorio en esta iteración.
+- La prueba Rive original validó los cuatro estados y la transparencia reexportada por el propietario. La versión SVG conserva geometría, colores, teclado y tiempos de esa mascota; sin fondos añadidos ni cambios a los themes del sistema.
 
 ### Opciones de modelos — decisión pendiente
 

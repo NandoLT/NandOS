@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react'
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import styled from '@emotion/styled'
 import type { WindowBounds, WindowState } from '../domain/types'
 
+type FrameState = Omit<WindowState, 'id'> & { id: string }
+
 type WindowFrameProps = {
-  windowState: WindowState
+  windowState: FrameState
   isActive: boolean
   viewport: WindowBounds
   children: ReactNode
+  contentStyle?: CSSProperties
   onFocus: () => void
   onClose: () => void
   onMinimize: () => void
@@ -16,7 +19,7 @@ type WindowFrameProps = {
   onResize: (width: number, height: number) => void
 }
 
-const Frame = styled.section<{ $window: WindowState }>`
+const Frame = styled.section<{ $window: FrameState }>`
   position: absolute;
   top: ${({ $window }) => $window.bounds.y}px;
   left: ${({ $window }) => $window.bounds.x}px;
@@ -131,6 +134,7 @@ export function WindowFrame({
   isActive,
   viewport,
   children,
+  contentStyle,
   onFocus,
   onClose,
   onMinimize,
@@ -253,7 +257,7 @@ export function WindowFrame({
           ×
         </WindowButton>
       </TitleBar>
-      <Content>{children}</Content>
+      <Content style={contentStyle}>{children}</Content>
       <ResizeHandle
         type="button"
         aria-label={`Redimensionar ${windowState.title}`}

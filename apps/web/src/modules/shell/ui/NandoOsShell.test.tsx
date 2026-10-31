@@ -27,9 +27,11 @@ function enterGuest() {
 
 describe('desktop interactions', () => {
   it('resets the assistant to the help launcher after logging off and entering again', async () => {
+    // Flush the lazy dock's initial mount effect before interacting with it.
     enterGuest()
+    await act(async () => {})
     fireEvent.click(await screen.findByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' }))
-    expect(screen.getByRole('img', { name: 'Mascota retro de NandOS' })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'Mascota retro de NandOS' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
     fireEvent.click(screen.getByRole('button', { name: 'Log off Invitado' }))
     fireEvent.click(screen.getByRole('button', { name: 'Entrar como invitado' }))

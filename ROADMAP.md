@@ -447,6 +447,47 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 4. Elegir modelos de conversación/embeddings y configurar LiteLLM, sin activar servicios de pago hasta acordar proveedor y presupuesto.
 5. Conectar el chat al backend RAG, citar fuentes, reconocer información insuficiente y verificar recuperación, seguridad y límites antes del despliegue.
 
+### Wiki — primera revisión local (31 de octubre de 2026)
+
+- Decisión del propietario: validar primero el editor con datos locales de prueba; no conectar ni modificar Neon en esta iteración.
+- Sección «Wiki de nandBot» en administración, carga diferida, editor Markdown seguro con vista previa dividida, barra de formato, categorías, búsqueda y filtros borrador/publicado.
+- Guardar borrador no cambia la versión publicada. Publicación explícita y retirada reversible que conserva el borrador. Se exige guardar antes de publicar. Tras revisión se retiran los botones de previsualización de versiones: la vista previa siempre muestra el borrador.
+- Avisos al descartar cambios, cambiar de sección, salir o recargar; conflictos de revisión conservan el texto local en lugar de sobrescribirlo.
+- Laboratorio solo en desarrollo: `/?wiki=1`, sin autenticación porque usa exclusivamente memoria aislada, sin datos privados ni acceso al backend. Se reinicia al recargar y no usa localStorage para contenidos editoriales.
+- 37 artículos iniciales cubren todos los elementos y submenús de Start y cada aplicación registrada, además de escritorio, ventanas, configuración, CV, contacto y nandBot. Importación idempotente, solo como borradores y sin sobrescribir artículos existentes.
+- Preparados puerto de repositorio, casos de uso de wiki y adaptador Neon/Drizzle; tabla `wiki_articles` independiente del portfolio. Rutas administrativas con las mismas comprobaciones de sesión/Origin y `no-store`. Consulta pública únicamente de versiones publicadas, para futura ingesta.
+- Migración `0001_wiki_articles.sql` generada pero no aplicada. Próximo paso tras validación: persistir y verificar en una rama de desarrollo de Neon. Después ingesta/Qdrant/modelos/LiteLLM, sincronizando publicaciones y retiradas; sin conectar aún el chat a IA.
+- Todo permanece local hasta la validación del propietario; sin commit, push ni despliegue en esta iteración.
+
+### Conexión de wiki a Neon — desarrollo
+
+- Editor validado por el propietario; ya integrado en «Wiki de nandBot» del panel real, con selector de categorías existentes y creación de nuevas al guardar el artículo.
+- Elegida una rama de desarrollo para no afectar producción. Creada `development` (`br-floral-frog-b90yscar`) en `nandos-db` (`shy-truth-31517067`), derivada de `main`, sin borrado automático.
+- Backend local vinculado al proyecto Vercel existente mediante configuración ignorada por Git. Configurado `apps/api/.env` privado, con origen local `http://127.0.0.1:4173`; conexión renovada de development validada sin mostrar secretos.
+- Aplicada exclusivamente `0001_wiki_articles.sql` en development, tras verificar endpoint e historial inicial. Prueba contra Neon superada: creación/lectura persistente, publicación, edición independiente del borrador, conflicto y retirada. Eliminado únicamente el artículo temporal de prueba.
+- Precargados 37 artículos iniciales en Neon development, todos como borradores, sin versiones públicas. Backend local arrancado y proxy de frontend verificado: la cuenta administrativa copiada existe (`configured: true`, `canSetup: false`). Revisión visual con login real pendiente del propietario.
+- Verificación opt-in `test:wiki-db`, limitada a un hostname explícito de desarrollo, con limpieza de su propio artículo temporal. No modifica artículos existentes ni forma parte de `pnpm test`.
+- No crear otra cuenta de administrador, cambiar contraseñas, publicar artículos o desplegar automáticamente en producción. Validar acceso real, guardado y recarga antes de dar la conexión por terminada.
+
+### Publicación de la wiki — producción
+
+- Autorizada la subida al repositorio y publicación del editor en administración.
+- Aplicada en `main` únicamente la migración aditiva `0001_wiki_articles.sql`, en una transacción y verificando primero el historial de Drizzle. Confirmados dos registros de migración, tabla de wiki disponible y conservación de la cuenta y documento de portfolio existentes.
+- Los 37 artículos iniciales se importan desde «Cargar documentación inicial» como borradores, sin sobrescribir contenido. Publicar un artículo sigue siendo una acción editorial explícita; Qdrant, LiteLLM y el chat RAG no se activan en esta entrega.
+
+### Seguridad de administración — pendiente, después del editor de wiki
+
+- Incidencia de credenciales de BD (31 de octubre): se compartió una conexión privada en la conversación. El propietario renovó las credenciales; development quedó validado con `.env` y las variables gestionadas de Neon se renovaron en Vercel. Un redeploy de `nandos-api` con el mismo commit `6db1eb9` restableció producción: consultas reales de administración y portfolio verificadas con HTTP 200, tanto directamente como a través del proxy web. No registrar el valor expuesto ni el nuevo en documentos, comandos, logs o Git. No usar la conexión de development para producción.
+
+- Decisión del propietario: priorizar ahora la wiki; retomar este refuerzo después. Recordatorio solicitado para el 1 de noviembre de 2026, programado a las 10:00 (Europe/Madrid).
+- Mantener credenciales en el cuerpo de un POST por HTTPS; verlas en DevTools es normal y no equivale a que viajen sin cifrar. No sustituir TLS por un hash reutilizable generado en React. El usuario es un identificador normal; la contraseña se almacena como hash con sal en servidor.
+- Estado revisado en código: scrypt con sal aleatoria, comparación constante, tokens de sesión aleatorios con digest en BD, cookie HttpOnly/Secure en producción, comprobación de Origin y revocación de sesiones al cambiar credenciales. No confundir revisión del repositorio con auditoría de la configuración/BD reales de producción.
+- Reforzar coste de scrypt (actual N=32768, r=8, p=1) o evaluar Argon2id. Migración compatible con hashes existentes y actualización progresiva; no cambiar parámetros de forma que se bloquee el acceso actual.
+- Hacer compartido el límite de intentos entre instancias de Vercel; el contador actual es en memoria de cada instancia.
+- Revisar SameSite=None de producción frente a Lax/Strict con el proxy del mismo origen; reducir duración absoluta actual de siete días y añadir caducidad por inactividad según la experiencia deseada.
+- Añadir redacción explícita de contraseñas, claves y tokens en logs, además de las cabeceras que ya se ocultan. Revisar protección CSRF, entradas de autenticación y pruebas de regresión.
+- Recomendar contraseña larga, única y en gestor; valorar doble factor/passkeys con recuperación segura. No cambiar credenciales ni contratar servicios sin aprobación.
+
 ### Laboratorio local de la mascota (SVG + React)
 
 - Mascota original: miniordenador retro con teclado integrado, sin brazos ni piernas. Referencias: Commodore y expresiones de troko.vercel.app; conservar identidad propia.

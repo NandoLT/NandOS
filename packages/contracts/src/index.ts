@@ -248,3 +248,5 @@ export const DEFAULT_PORTFOLIO_CONTENT: PortfolioContent = {
     },
   },
 }
+export * from './wiki.js'
+export * from './wiki-seed.js'

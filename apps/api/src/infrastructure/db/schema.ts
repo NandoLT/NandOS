@@ -12,7 +12,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { PortfolioContent } from '@nandoos/contracts'
+import type { PortfolioContent, WikiContent } from '@nandoos/contracts'
 
 export const adminUsers = pgTable(
   'admin_users',
@@ -36,6 +36,18 @@ export const adminSessions = pgTable('admin_sessions', {
   tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Separate aggregate: portfolio publishing never publishes knowledge articles.
+export const wikiArticles = pgTable('wiki_articles', {
+  id: uuid('id').primaryKey(),
+  draftContent: jsonb('draft_content').$type<WikiContent>().notNull(),
+  publishedContent: jsonb('published_content').$type<WikiContent>(),
+  revision: integer('revision').notNull().default(1),
+  publishedRevision: integer('published_revision'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
 })
 
 export const portfolioDocuments = pgTable('portfolio_documents', {

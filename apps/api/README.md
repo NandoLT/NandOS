@@ -25,7 +25,15 @@ El primer acceso administrativo aparece desde el login de Invitado. Si aún no e
 - El CV es público —como los PDF que ofrece actualmente la web— y se conserva en Vercel Blob. Se aceptan PDF de hasta 4 MB; la lista de versiones y la selección en borrador se guardan en PostgreSQL.
 - El contenido pasa a producción solo después de pulsar «Publicar cambios».
 
-## Vercel
+## Wiki en administración
+
+El panel privado incluye «Wiki de nandBot». Sus artículos se guardan en `wiki_articles`, separados del documento del portfolio, con un borrador y una instantánea publicada independiente. Las mutaciones requieren sesión administrativa y un origen permitido. La lectura pública `/api/wiki/articles` solo devuelve instantáneas publicadas; la ingesta RAG todavía no está conectada.
+
+La migración `0001_wiki_articles.sql` está aplicada en Neon `development` y `main`. Development contiene 37 artículos iniciales en borrador; en producción se importan con «Cargar documentación inicial» dentro de la wiki, sin sobrescribir artículos ni publicar contenido automáticamente. El backend local usa su conexión privada de development en `.env` y `FRONTEND_ORIGIN=http://127.0.0.1:4173`. Para probar la gestión real entra en `http://127.0.0.1:4173/` > Acceso de administración > Wiki de nandBot. En producción, el mismo acceso está en `https://nand-os.vercel.app/`. La ruta `/?wiki=1` sigue siendo un laboratorio aislado en memoria, exclusivo de desarrollo, no la wiki persistente.
+
+La prueba optativa `WIKI_TEST_DATABASE_HOST=<hostname-exacto-de-development> pnpm --filter @nandoos/api test:wiki-db` verifica el adaptador real con un artículo temporal que se elimina al terminar. No se ejecuta con `pnpm test`. El hostname se comprueba antes de escribir y las URLs/contraseñas no se imprimen.
+
+## Despliegue en Vercel
 
 En Vercel, el proyecto `nandos-api` usa `apps/api` como Root Directory y `nand-os` usa `apps/web`. En ambos proyectos activa **Include source files outside of the Root Directory** para que se empaquete el contrato compartido `packages/contracts`.
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import styled from '@emotion/styled'
@@ -17,7 +17,8 @@ import {
   useCvUploadInDraft,
 } from '../application/admin-api'
 
-type AdminTab = 'profile' | 'experience' | 'projects' | 'skills' | 'contact' | 'cv' | 'account'
+const WikiPanel = lazy(() => import('../../wiki/ui/WikiPanel').then((module) => ({ default: module.WikiPanel })))
+type AdminTab = 'profile' | 'experience' | 'projects' | 'skills' | 'contact' | 'cv' | 'wiki' | 'account'
 
 const tabItems: Array<{ id: AdminTab; icon: string; label: string }> = [
   { id: 'profile', icon: '👤', label: 'Perfil' },
@@ -26,6 +27,7 @@ const tabItems: Array<{ id: AdminTab; icon: string; label: string }> = [
   { id: 'skills', icon: '🧠', label: 'Habilidades' },
   { id: 'contact', icon: '✉️', label: 'Contacto' },
   { id: 'cv', icon: '📄', label: 'Currículum' },
+  { id: 'wiki', icon: '📚', label: 'Wiki de nandBot' },
   { id: 'account', icon: '🔐', label: 'Cuenta' },
 ]
 
@@ -398,6 +400,7 @@ export function AdminDashboard({
 }) {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<AdminTab>('profile')
+  const [wikiDirty, setWikiDirty] = useState(false)
   const [draft, setDraft] = useState<PortfolioContent | null>(null)
   const [notice, setNotice] = useState('')
   const [noticeIsError, setNoticeIsError] = useState(false)
@@ -488,7 +491,9 @@ export function AdminDashboard({
   }
 
   const logout = async () => {
+    if (wikiDirty && !window.confirm('La wiki tiene cambios sin guardar. ¿Salir y descartarlos?')) return
     try { await apiRequest('auth/logout', { method: 'POST' }) } catch { /* The server session may already have expired. */ }
+    queryClient.removeQueries({ queryKey: ['admin', 'wiki'] })
     onLogout()
   }
 
@@ -713,18 +718,22 @@ export function AdminDashboard({
           <Body>
             <Sidebar aria-label="Secciones de administración">
               {tabItems.map((tab) => (
-                <NavButton key={tab.id} type="button" $active={activeTab === tab.id} aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}>
+                <NavButton key={tab.id} type="button" $active={activeTab === tab.id} aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => {
+                  if (tab.id === activeTab) return
+                  if (wikiDirty && !window.confirm('La wiki tiene cambios sin guardar. ¿Cambiar de sección y descartarlos?')) return
+                  setActiveTab(tab.id)
+                }}>
                   <span aria-hidden="true">{tab.icon}</span>{tab.label}
                 </NavButton>
               ))}
             </Sidebar>
             <Workspace>
               <Editor aria-label={activeItem?.label ?? 'Contenido de administración'}>
-                {contentQuery.isPending ? <Hint>Cargando contenido desde la base de datos…</Hint> : queryError ? (
+                {activeTab === 'wiki' ? <Suspense fallback={<Hint>Cargando editor Markdown…</Hint>}><WikiPanel onDirtyChange={setWikiDirty} /></Suspense> : contentQuery.isPending ? <Hint>Cargando contenido desde la base de datos…</Hint> : queryError ? (
                   <InlineError role="alert">{errorText} Revisa la configuración del backend y que las migraciones estén aplicadas.</InlineError>
                 ) : currentDraft ? renderActiveTab(currentDraft) : <InlineError role="alert">No hay contenido disponible.</InlineError>}
               </Editor>
-              <ActionBar>
+              {activeTab !== 'wiki' && <ActionBar>
                 <Status role="status" $error={noticeIsError}>
                   {notice || (isDirty ? 'Tienes cambios sin guardar.' : contentQuery.data?.publishedAt ? `Publicado ${formatDate(contentQuery.data.publishedAt)}.` : 'Edición lista.')}
                 </Status>
@@ -736,7 +745,7 @@ export function AdminDashboard({
                     {publishMutation.isPending ? 'Publicando…' : 'Publicar cambios'}
                   </Button>
                 </ActionGroup>}
-              </ActionBar>
+              </ActionBar>}
             </Workspace>
           </Body>
         </Layout>

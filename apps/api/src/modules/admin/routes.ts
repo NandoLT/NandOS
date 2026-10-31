@@ -29,6 +29,7 @@ import {
   selectCvUploadForDraft,
 } from '../portfolio/infrastructure/portfolio-repository.js'
 import { parsePortfolioContent } from '../portfolio/domain/portfolio-content.js'
+import { registerWikiRoutes } from '../wiki/routes.js'
 
 export const ADMIN_SESSION_COOKIE = 'nandos_admin_session'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -102,6 +103,7 @@ function pdfFilename(language: CvLanguage) {
 }
 
 export async function registerAdminRoutes(app: FastifyInstance) {
+  await registerWikiRoutes(app, { requireAdmin, rejectUntrustedOrigin })
   app.get('/api/auth/bootstrap-status', async () => ({
     configured: await hasAdminAccount(),
     canSetup: Boolean(process.env.ADMIN_BOOTSTRAP_KEY && process.env.ADMIN_BOOTSTRAP_KEY.length >= 32),

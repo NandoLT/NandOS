@@ -33,6 +33,8 @@ const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.sea
   ? lazy(() => import('../../assistant/ui/MascotLab'))
   : null
 const AssistantDock = lazy(() => import('../../assistant/ui/AssistantDock'))
+const WikiPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('wiki') === '1'
+  ? lazy(() => import('../../wiki/ui/WikiPreview')) : null
 
 const Desktop = styled.main`
   position: relative;
@@ -730,6 +732,11 @@ function DesktopShortcut({
 type SessionScreen = 'boot' | 'login' | 'admin-login' | 'admin' | 'desktop' | 'shutdown'
 
 export function NandoOsShell() {
+  if (WikiPreview) return <Suspense fallback={<p>Cargando editor de pruebas…</p>}><WikiPreview /></Suspense>
+  return <DesktopShell />
+}
+
+function DesktopShell() {
   const [screen, setScreen] = useState<SessionScreen>(() => shouldPlayBoot() ? 'boot' : 'login')
   const [adminUsername, setAdminUsername] = useState<string | null>(null)
   const [clock, setClock] = useState(() => new Date())

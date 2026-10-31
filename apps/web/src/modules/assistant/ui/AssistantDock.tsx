@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AppId, PortfolioContent } from '@nandoos/contracts'
 import styled from '@emotion/styled'
+import { keyframes } from '@emotion/react'
 import type { WindowBounds } from '../../shell/domain/types'
 import type { MascotController } from '../application/mascot-controller'
-import type { AssistantService } from '../domain/conversation'
+import type { AssistantService, QuestionSource } from '../domain/conversation'
 import { useAssistantStore } from '../application/assistant.store'
 import { useAssistantConversation } from '../application/useAssistantConversation'
 import { demoAssistant } from '../infrastructure/demo-assistant'
@@ -35,12 +36,22 @@ const Mascot = styled.button`
   cursor: pointer; color: inherit;
   &:focus-visible { outline: 2px dotted var(--os-desktop-text); outline-offset: -8px; }
 `
+const fallBounce = keyframes`
+  0% { transform: translateY(calc(-100dvh - 200px)) rotate(-9deg) scale(.94, 1.06); animation-timing-function: cubic-bezier(.55, .05, .85, .5); }
+  48% { transform: translateY(0) rotate(2deg) scale(1.14, .82); animation-timing-function: cubic-bezier(.15, .7, .3, 1); }
+  67% { transform: translateY(-48px) rotate(-3deg) scale(.94, 1.06); animation-timing-function: ease-in; }
+  82% { transform: translateY(0) rotate(1deg) scale(1.07, .93); animation-timing-function: ease-out; }
+  92% { transform: translateY(-10px) rotate(-1deg) scale(.98, 1.02); animation-timing-function: ease-in; }
+  100% { transform: translateY(0) rotate(0) scale(1); }
+`
+const Entrance = styled.div`
+  transform-origin: 50% calc(100% - 32px); animation: ${fallBounce} 1050ms both;
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+`
 
-function ToolIcon({ kind }: { kind: 'chat' | 'pause' | 'play' | 'hide' | 'help' }) {
+function ToolIcon({ kind }: { kind: 'chat' | 'hide' | 'help' }) {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {kind === 'chat' || kind === 'help' ? <><path d="M4 3h16v13H10l-6 5V3Z" />{kind === 'help' ? <><path d="M9 7a3 3 0 0 1 6 0c0 2-3 2-3 4" /><path d="M12 13h.01" /></> : <><path d="M8 8h8M8 12h5" /></>}</> : null}
-    {kind === 'pause' ? <><path d="M8 5v14M16 5v14" /></> : null}
-    {kind === 'play' ? <path d="m8 4 12 8-12 8V4Z" /> : null}
     {kind === 'hide' ? <><path d="m6 6 12 12M18 6 6 18" /></> : null}
   </svg>
 }
@@ -48,7 +59,7 @@ function ToolIcon({ kind }: { kind: 'chat' | 'pause' | 'play' | 'hide' | 'help' 
 interface Props { content: PortfolioContent; viewport: WindowBounds; onLaunchApp(id: AppId): void; service?: AssistantService }
 
 export default function AssistantDock({ content, viewport, onLaunchApp, service = demoAssistant }: Props) {
-  const { visible, chatOpen, messages, motionPaused, show, hide, openChat, closeChat, setMotionPaused } = useAssistantStore()
+  const { visible, chatOpen, messages, mode, show, hide, openChat, closeChat } = useAssistantStore()
   const [draft, setDraft] = useState('')
   const controller = useRef<MascotController | null>(null)
   const launcher = useRef<HTMLButtonElement>(null)
@@ -69,12 +80,14 @@ export default function AssistantDock({ content, viewport, onLaunchApp, service 
 
   useEffect(() => () => useAssistantStore.getState().closeChat(), [])
 
-  const send = (value: string) => {
-    if (!value.trim() || conversation.pending) return
+  const send = (value: string, source: QuestionSource = 'conversation') => {
+    if (!value.trim() || (conversation.pending && source !== 'faq')) return
     setDraft('')
-    void conversation.send(value)
+    void conversation.send(value, source)
   }
   const close = () => {
+    conversation.clear()
+    setDraft('')
     closeChat()
     window.requestAnimationFrame(() => bubble.current?.focus())
   }
@@ -85,24 +98,24 @@ export default function AssistantDock({ content, viewport, onLaunchApp, service 
       {!visible ? <Launcher ref={launcher} type="button" aria-label="¿Tienes dudas? Abrir asistente nandBot" onClick={() => {
         show()
         window.requestAnimationFrame(() => bubble.current?.focus())
-      }}><ToolIcon kind="help" /><span>¿Tienes dudas?</span></Launcher> : <>
+      }}><ToolIcon kind="help" /><span>¿Tienes dudas?</span></Launcher> : <Entrance data-entrance="fall-bounce">
         <Tools role="group" aria-label="Acciones de nandBot">
           <AssistantButton ref={bubble} type="button" aria-label={chatOpen ? 'Minimizar chat' : 'Abrir chat con nandBot'} aria-expanded={chatOpen}
             onClick={() => chatOpen ? close() : openChat()}><ToolIcon kind="chat" /></AssistantButton>
-          <AssistantButton type="button" aria-label={reducedMotion ? 'Movimiento reducido activado' : motionPaused ? 'Reanudar animaciones' : 'Pausar animaciones'}
-            aria-pressed={motionPaused || reducedMotion} disabled={reducedMotion} onClick={() => setMotionPaused(!motionPaused)}><ToolIcon kind={motionPaused || reducedMotion ? 'play' : 'pause'} /></AssistantButton>
           <AssistantButton type="button" aria-label="Ocultar asistente" onClick={() => {
+            conversation.clear()
+            setDraft('')
             hide()
             window.requestAnimationFrame(() => launcher.current?.focus())
           }}><ToolIcon kind="hide" /></AssistantButton>
         </Tools>
         <Mascot type="button" aria-label="Hablar con nandBot" onClick={openChat}>
-          <SvgMascot paused={motionPaused || reducedMotion} onReady={onReady} onStateChange={onStateChange} />
+          <SvgMascot paused={reducedMotion} onReady={onReady} onStateChange={onStateChange} />
         </Mascot>
-      </>}
+      </Entrance>}
     </Dock>
-    {chatOpen && visible ? <AssistantChat viewport={viewport} messages={messages} draft={draft} pending={conversation.pending} error={conversation.error}
+    {chatOpen && visible ? <AssistantChat viewport={viewport} messages={messages} source={mode} draft={draft} pending={conversation.pending} error={conversation.error}
       onDraft={setDraft} onSend={send} onClear={() => { conversation.clear(); setDraft('') }} onClose={close}
-      onLaunchApp={(id) => { closeChat(); onLaunchApp(id) }} /> : null}
+      onLaunchApp={(id) => { conversation.clear(); setDraft(''); closeChat(); onLaunchApp(id) }} /> : null}
   </>
 }

@@ -426,17 +426,26 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 ### nandBot — integración en el escritorio y chat de demostración
 
 - Acceso fijo en la esquina inferior derecha, por encima de la barra de tareas: icono de ayuda con «¿Tienes dudas?». No abrir conversaciones automáticamente.
-- Primer clic: mostrar la mascota pequeña y transparente (200 px). Encima, miniacciones con bocadillo para abrir/minimizar el chat, pausa de animaciones y ocultar el asistente. La mascota también permite abrir la conversación.
+- Primer clic: mostrar la mascota pequeña y transparente (200 px), entrando desde arriba con caída, compresión al aterrizar y dos rebotes amortiguados de estilo cartoon. Encima, solo bocadillo para abrir/minimizar el chat y ocultar el asistente; sin botón de pausa. La mascota también permite abrir la conversación. Omitir la entrada con movimiento reducido.
 - Ventana retro reutilizando el marco de NandOS: mover, minimizar al bocadillo, maximizar/restaurar, redimensionar y cerrar con Escape. En móvil se adapta al espacio disponible sin superponer la mascota al chat.
 - Bienvenida: «¡Hola! Soy nandBot, tu asistente en NandOS. Estoy aquí para ayudarte a conocer a Fernando y explorar su escritorio. ¿Qué necesitas?».
-- Preguntas iniciales seleccionables sobre CV, contacto, experiencia, proyectos y funcionamiento de NandOS. Permitir texto libre, Enter para enviar, Shift+Enter para salto de línea y borrar la conversación.
+- Cada apertura comienza con presentación y preguntas iniciales sobre CV, contacto, experiencia, proyectos y funcionamiento de NandOS. La presentación desaparece con la primera consulta. Permitir texto libre, Enter para enviar, Shift+Enter para salto de línea y borrar la conversación.
+- Preguntas frecuentes siempre accesibles desde un menú flotante anclado al pie del chat, fuera del scroll y sin desplazar el contenido. Las consultas frecuentes reemplazan la consulta/respuesta anterior, incluso cancelando una consulta pendiente. Solo el texto libre acumula conversación; cambiar entre preguntas frecuentes y conversación libre comienza un contexto nuevo.
 - Esta iteración usa respuestas deterministas locales, claramente marcadas como demostración sin IA. Para datos profesionales usa el contenido público del portfolio; no añade información inventada. Las respuestas desconocidas explican la limitación.
 - Enlaces de acción explícitos para abrir CV en otra pestaña o navegar a las secciones existentes; nunca ejecutar acciones automáticamente a partir de una respuesta.
-- Animaciones vinculadas a la interacción: reposo, escucha al escribir, pensamiento durante la consulta y gesto de respuesta. Respetar movimiento reducido, pausa y pestaña oculta.
-- Preferencia de visibilidad, pausa e historial acotado (40 mensajes) en `localStorage`, con esquema versionado y validación. El chat permanece cerrado al recargar. No enviar conversaciones a IA, API ni BD en esta fase.
+- Animaciones vinculadas a la interacción: reposo, escucha al escribir, pensamiento durante la consulta y gesto de respuesta. Respetar movimiento reducido y pestaña oculta, sin controles de pausa visibles en el asistente integrado.
+- Persistir únicamente la preferencia de visibilidad en `localStorage` (esquema v2). No guardar historial, borrador ni pausa. La conversación vive en memoria (máximo 40 mensajes de texto libre) y se reinicia al cerrar, minimizar, ocultar o salir de sesión; cancelar consultas pendientes para impedir respuestas de sesiones anteriores. Migrar las preferencias antiguas descartando el historial previo. No enviar conversaciones a IA, API ni BD en esta fase.
 - Puerto `AssistantService` separado del adaptador de demostración para conectar después el backend RAG con LiteLLM y Qdrant, sin acoplar la interfaz a un proveedor.
 - Wiki futura: editor Markdown con vista previa; cubrir absolutamente todos los elementos y submenús de Start, aplicaciones disponibles y futuras, escritorio, ventanas, configuración y contenido profesional. Borradores/publicación explícita; solo contenido publicado se indexa. Conservar encabezados y metadatos de artículo/versión en la fragmentación para citar fuentes.
 - Desarrollo y revisión local primero. No subir al repositorio ni desplegar hasta validación del propietario.
+
+### Siguientes pasos tras depurar la interacción de nandBot
+
+1. Wiki en administración: artículos por categorías, editor Markdown y vista previa, borrador/publicado.
+2. Persistencia de la wiki en Neon, separada del portfolio; publicación explícita y documentación de todo Start, aplicaciones actuales/futuras, escritorio, ventanas, configuración e información profesional.
+3. Ingesta backend del Markdown publicado: fragmentación por encabezados, embeddings e índice reconstruible en Qdrant con versiones y fuentes.
+4. Elegir modelos de conversación/embeddings y configurar LiteLLM, sin activar servicios de pago hasta acordar proveedor y presupuesto.
+5. Conectar el chat al backend RAG, citar fuentes, reconocer información insuficiente y verificar recuperación, seguridad y límites antes del despliegue.
 
 ### Laboratorio local de la mascota (SVG + React)
 

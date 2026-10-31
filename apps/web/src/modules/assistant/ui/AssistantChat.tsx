@@ -4,16 +4,18 @@ import styled from '@emotion/styled'
 import { WindowFrame } from '../../shell/ui/WindowFrame'
 import type { WindowBounds } from '../../shell/domain/types'
 import { actionLabels, suggestedQuestions, welcomeMessage } from '../domain/conversation'
-import type { AssistantAction, ChatMessage } from '../domain/conversation'
+import type { AssistantAction, ChatMessage, QuestionSource } from '../domain/conversation'
+import { FaqMenu } from './FaqMenu'
 
 interface Props {
   viewport: WindowBounds
   messages: ChatMessage[]
+  source: QuestionSource | null
   draft: string
   pending: boolean
   error: string | null
   onDraft(value: string): void
-  onSend(value: string): void
+  onSend(value: string, source?: QuestionSource): void
   onClear(): void
   onClose(): void
   onLaunchApp(id: AppId): void
@@ -53,9 +55,9 @@ export const AssistantButton = styled.button`
   &:disabled { opacity: .6; cursor: default; }
   @media (pointer: coarse) { min-height: 44px; }
 `
-const Suggestions = styled.details`
-  margin: 10px 0; summary { cursor: pointer; padding: 5px 0; font-weight: 700; }
-  div { display: grid; gap: 6px; margin-top: 6px; }
+const Suggestions = styled.div`
+  display: grid; gap: 6px; margin: 10px 0;
+  p { margin: 0 0 2px; font-weight: 700; }
   button { text-align: left; line-height: 1.4; }
 `
 const Actions = styled.div`display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px;`
@@ -77,7 +79,7 @@ const apps: Record<AssistantAction, AppId> = {
   cv: 'cv-viewer', contact: 'contact', experience: 'experience', projects: 'projects', settings: 'settings', about: 'about',
 }
 
-export function AssistantChat({ viewport, messages, draft, pending, error, onDraft, onSend, onClear, onClose, onLaunchApp }: Props) {
+export function AssistantChat({ viewport, messages, source, draft, pending, error, onDraft, onSend, onClear, onClose, onLaunchApp }: Props) {
   const [geometry, setGeometry] = useState(() => {
     const width = Math.min(410, viewport.width - 24)
     const height = Math.min(520, viewport.height - 24)
@@ -98,8 +100,8 @@ export function AssistantChat({ viewport, messages, draft, pending, error, onDra
     return () => window.cancelAnimationFrame(frame)
   }, [])
   useEffect(() => {
-    if (history.current) history.current.scrollTop = messages.length || pending || error ? history.current.scrollHeight : 0
-  }, [messages.length, pending, error])
+    if (history.current) history.current.scrollTop = source !== 'faq' && (messages.length || pending || error) ? history.current.scrollHeight : 0
+  }, [source, messages, pending, error])
 
   return <Layer onClick={(event) => event.stopPropagation()} onContextMenu={(event) => event.stopPropagation()}>
     <WindowFrame windowState={{ id: 'assistant', title: 'nandBot · Ayuda', icon: '💬', ...geometry, bounds, isMinimized: false, zIndex: 1 }}
@@ -113,20 +115,23 @@ export function AssistantChat({ viewport, messages, draft, pending, error, onDra
       <Layout>
         <Notice><strong>Demo local · sin IA</strong> — respuestas preparadas. La wiki se conectará más adelante.</Notice>
         <History ref={history} role="log" aria-label="Conversación con nandBot" aria-live="polite" aria-relevant="additions text" tabIndex={0}>
-          <Message><strong>nandBot</strong><p>{welcomeMessage}</p></Message>
+          {!messages.length && !pending ? <>
+            <Message><strong>nandBot</strong><p>{welcomeMessage}</p></Message>
+            <Suggestions aria-label="Preguntas sugeridas">
+              <p>Puedes empezar por aquí:</p>
+              {suggestedQuestions.map((question) => <AssistantButton key={question} type="button" onClick={() => onSend(question, 'faq')}>{question}</AssistantButton>)}
+            </Suggestions>
+          </> : null}
           {messages.map((message) => <Message key={message.id} $user={message.role === 'user'}>
             <strong>{message.role === 'user' ? 'Tú' : 'nandBot'}</strong><p>{message.text}</p>
             {message.role === 'assistant' && message.actions?.length ? <Actions>
               {message.actions.map((action) => <AssistantButton key={action} type="button" onClick={() => onLaunchApp(apps[action])}>{actionLabels[action]}</AssistantButton>)}
             </Actions> : null}
           </Message>)}
-          <Suggestions open={messages.length === 0}>
-            <summary>Preguntas sugeridas</summary>
-            <div>{suggestedQuestions.map((question) => <AssistantButton key={question} type="button" disabled={pending} onClick={() => onSend(question)}>{question}</AssistantButton>)}</div>
-          </Suggestions>
           {pending && <p role="status">nandBot está pensando…</p>}
           {error && <p role="alert">{error}</p>}
         </History>
+        <FaqMenu onSelect={(question) => onSend(question, 'faq')} layoutKey={`${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}:${viewport.width}:${viewport.height}`} />
         <Composer onSubmit={(event) => { event.preventDefault(); onSend(draft) }}>
           <label htmlFor="nandbot-question">Tu pregunta</label>
           <textarea id="nandbot-question" ref={input} placeholder="Escribe tu pregunta…" value={draft} maxLength={1000} rows={2}
@@ -139,7 +144,7 @@ export function AssistantChat({ viewport, messages, draft, pending, error, onDra
             }} />
           <Footer><AssistantButton type="button" disabled={!messages.length && !pending} onClick={onClear}>Borrar conversación</AssistantButton>
             <AssistantButton type="submit" disabled={pending || !draft.trim()}>{pending ? 'Pensando…' : 'Enviar'}</AssistantButton></Footer>
-          <Footer><small id="nandbot-privacy">Historial solo en este navegador. No envíes información sensible.</small><small>Enter: enviar · ⇧ Enter: salto</small></Footer>
+          <Footer><small id="nandbot-privacy">La conversación se borra al cerrar. No envíes información sensible.</small><small>Enter: enviar · ⇧ Enter: salto</small></Footer>
         </Composer>
       </Layout>
     </WindowFrame>

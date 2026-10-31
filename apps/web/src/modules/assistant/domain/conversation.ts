@@ -4,6 +4,7 @@ export const assistantActions = ['cv', 'contact', 'experience', 'projects', 'set
 export type AssistantAction = typeof assistantActions[number]
 export type AssistantReply = { text: string; actions?: AssistantAction[] }
 export type ChatMessage = AssistantReply & { id: string; role: 'user' | 'assistant' }
+export type QuestionSource = 'faq' | 'conversation'
 
 /** Replace this adapter with the backend RAG client, without coupling the UI to a model. */
 export interface AssistantService {

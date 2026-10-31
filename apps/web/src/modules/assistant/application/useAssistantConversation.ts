@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PortfolioContent } from '@nandoos/contracts'
-import type { AssistantService } from '../domain/conversation'
+import type { AssistantService, QuestionSource } from '../domain/conversation'
 import { useAssistantStore } from './assistant.store'
 
 export function useAssistantConversation(service: AssistantService, content: PortfolioContent) {
@@ -11,12 +11,14 @@ export function useAssistantConversation(service: AssistantService, content: Por
 
   useEffect(() => () => { request.current?.abort(); request.current = null }, [])
 
-  async function send(value: string) {
+  async function send(value: string, source: QuestionSource = 'conversation') {
     const question = value.trim().slice(0, 1000)
-    if (!question || request.current) return false
+    if (!question || (request.current && source !== 'faq')) return false
+    // A new FAQ replaces even an in-flight FAQ, without allowing a stale reply through.
+    request.current?.abort()
     const current = new AbortController()
     request.current = current
-    useAssistantStore.getState().append({ role: 'user', text: question })
+    useAssistantStore.getState().beginQuestion(question, source)
     setPending(true)
     setError(null)
     try {

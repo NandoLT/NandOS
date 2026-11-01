@@ -491,6 +491,13 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Mantener solo posiciones de iconos, carpetas del visitante y papelera en la persistencia del shell; el tema conserva su almacenamiento independiente. Migración v5 y lectura con lista explícita de preferencias para ignorar también ventanas almacenadas por versiones anteriores, sin borrar todo el almacenamiento local.
 - Validado en pruebas de persistencia y en navegador: abrir Proyectos, recargar, volver a entrar como Invitado y comprobar que no quedan ventanas abiertas ni minimizadas, conservando los datos del escritorio.
 
+### Calidad: cero avisos de lint
+
+- Eliminar la variable no utilizada del manejo de errores del asistente, sin alterar los mensajes ni la cancelación de peticiones.
+- Web y API ejecutan `oxlint --deny-warnings`; sus compilaciones pasan primero ese control. No silenciar warnings, desactivar reglas ni ocultar deprecaciones.
+- El proxy usa `URLSearchParams` directamente en lugar de `request.query`, evitando el parser auxiliar del runtime y rechazando rutas reescritas duplicadas. Conservar cuerpos de petición y cookies.
+- Validación local: cero avisos de lint, tipos y compilación correctos, 126 pruebas (110 web y 16 API), también con deprecaciones configuradas como errores durante las pruebas. Comprobado por separado que un warning de muestra hace fallar el control de calidad. Pendiente subir esta corrección y confirmar los nuevos logs de Vercel; los registros de despliegues anteriores no se modifican.
+
 ### Seguridad de administración — pendiente, después del editor de wiki
 
 - Incidencia de credenciales de BD (31 de octubre): se compartió una conexión privada en la conversación. El propietario renovó las credenciales; development quedó validado con `.env` y las variables gestionadas de Neon se renovaron en Vercel. Un redeploy de `nandos-api` con el mismo commit `6db1eb9` restableció producción: consultas reales de administración y portfolio verificadas con HTTP 200, tanto directamente como a través del proxy web. No registrar el valor expuesto ni el nuevo en documentos, comandos, logs o Git. No usar la conexión de development para producción.

@@ -26,7 +26,7 @@ export function useAssistantConversation(service: AssistantService, content: Por
       if (request.current !== current || current.signal.aborted) return false
       useAssistantStore.getState().append({ role: 'assistant', ...reply })
       setReplyVersion((version) => version + 1)
-    } catch (reason) {
+    } catch {
       if (request.current === current && !current.signal.aborted) {
         setError('No he podido responder. Puedes volver a intentarlo; tu pregunta sigue en la conversación.')
       }

@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "build": "pnpm lint && tsc -b && vite build",
+    "lint": "oxlint --deny-warnings",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "preview": "vite preview"

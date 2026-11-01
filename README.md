@@ -12,6 +12,12 @@ pnpm dev
 
 Configura antes `apps/api/.env` a partir de `apps/api/.env.example`. `pnpm dev` arranca la web y el API. La web conserva el contenido inicial si el API no está configurado; el panel privado requiere Neon y sus migraciones.
 
+## Comprobaciones sin avisos
+
+`pnpm lint` rechaza tanto errores como warnings en web y API. La compilación de cada aplicación ejecuta primero ese mismo control, también cuando la invoca Vercel. No se silencian diagnósticos ni se desactivan reglas para obtener una salida limpia. Antes de subir una entrega, ejecutar lint, tipos, pruebas y compilación.
+
+El proxy web extrae la ruta reescrita con `URL` y `URLSearchParams`, sin acceder al parser auxiliar `request.query` del runtime. Las pruebas cubren este contrato, rutas duplicadas, peticiones autenticadas y cookies. Para comprobar localmente las deprecaciones como fallos: `NODE_OPTIONS=--throw-deprecation pnpm --filter @nandoos/web exec vitest run tests/api-proxy.test.js`.
+
 ## Laboratorio local de la wiki
 
 Para revisar el editor sin credenciales ni conexión a Neon:

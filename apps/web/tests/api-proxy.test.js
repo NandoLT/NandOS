@@ -19,6 +19,40 @@ afterEach(() => {
 })
 
 describe('Vercel API proxy', () => {
+  it('reads the route from the URL without invoking the runtime query parser', async () => {
+    vi.stubEnv('NANDOS_API_ORIGIN', 'https://nandos-api.vercel.app')
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"ok":true}'))
+    vi.stubGlobal('fetch', fetchMock)
+    const request = {
+      url: '/api/proxy?__nandos_path=wiki%2Farticles&lang=es',
+      method: 'GET',
+      headers: {},
+      get query() { throw new Error('The legacy runtime query parser must not be used') },
+    }
+    const response = createResponse()
+
+    await handler(request, response)
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock.mock.calls[0][0].href).toBe('https://nandos-api.vercel.app/api/wiki/articles?lang=es')
+    expect(response.statusCode).toBe(200)
+  })
+
+  it('rejects ambiguous rewritten paths before making an upstream request', async () => {
+    vi.stubEnv('NANDOS_API_ORIGIN', 'https://nandos-api.vercel.app')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const response = createResponse()
+
+    await handler({
+      url: '/api/proxy?__nandos_path=health&__nandos_path=auth%2Fsession',
+      method: 'GET', headers: {},
+    }, response)
+
+    expect(response.statusCode).toBe(400)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['/api/proxy?__nandos_path=health', undefined, '/api/health'],
     ['/api/proxy?__nandos_path=auth%2Fbootstrap-status&lang=es', undefined, '/api/auth/bootstrap-status?lang=es'],

@@ -32,11 +32,14 @@ export default async function handler(request, response) {
   }
 
   const incomingUrl = new URL(request.url ?? '/api', 'http://nandos.internal')
-  const routePath = request.query?.__nandos_path ?? incomingUrl.searchParams.get('__nandos_path')
-  if (routePath !== undefined && routePath !== null && typeof routePath !== 'string') {
+  // Reading request.query invokes a runtime helper that can use legacy URL parsing.
+  // Parse the rewrite parameter directly and reject ambiguous repeated values.
+  const routePaths = incomingUrl.searchParams.getAll('__nandos_path')
+  if (routePaths.length > 1) {
     response.status(400).json({ error: 'Ruta del API no válida.' })
     return
   }
+  const [routePath] = routePaths
   const upstreamUrl = new URL(routePath ? `/api/${routePath}` : incomingUrl.pathname, apiOrigin)
   incomingUrl.searchParams.delete('__nandos_path')
   upstreamUrl.search = incomingUrl.search

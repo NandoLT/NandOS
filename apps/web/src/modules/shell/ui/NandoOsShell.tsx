@@ -33,6 +33,7 @@ const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.sea
   ? lazy(() => import('../../assistant/ui/MascotLab'))
   : null
 const AssistantDock = lazy(() => import('../../assistant/ui/AssistantDock'))
+const WikiReader = lazy(() => import('../../wiki/ui/WikiReader').then((module) => ({ default: module.WikiReader })))
 const WikiPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('wiki') === '1'
   ? lazy(() => import('../../wiki/ui/WikiPreview')) : null
 
@@ -774,6 +775,7 @@ function DesktopShell() {
     toggleMaximize,
     moveWindow,
     resizeWindow,
+    setHelpReading,
     moveDesktopItem,
     moveUserDesktopItem,
     createDesktopFolder,
@@ -785,6 +787,9 @@ function DesktopShell() {
     endGuestSession,
   } = useShellStore()
   const { data: portfolioContent = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
+  const handleHelpReadingChange = useCallback((reading: boolean) => {
+    setHelpReading(reading, viewport)
+  }, [setHelpReading, viewport])
 
   const showMenuTooltip = (id: string, text: string, element: HTMLButtonElement) => {
     const bounds = element.getBoundingClientRect()
@@ -830,7 +835,10 @@ function DesktopShell() {
     rememberBoot()
     setScreen(adminUsername ? 'admin' : 'login')
   }, [adminUsername])
-  const startDesktop = useCallback(() => setScreen('desktop'), [])
+  const startDesktop = useCallback(() => {
+    endGuestSession()
+    setScreen('desktop')
+  }, [endGuestSession])
   const startShutdown = useCallback(() => {
     closeStartMenu()
     setNotice(null)
@@ -1240,6 +1248,8 @@ function DesktopShell() {
               selectedThemeId={selectedThemeId}
               onSelectTheme={setSelectedThemeId}
             />
+          ) : windowState.id === 'help' ? (
+            <Suspense fallback={<p role="status">Cargando ayuda de NandOS…</p>}><WikiReader onReadingChange={handleHelpReadingChange} /></Suspense>
           ) : windowState.id === 'recycle-bin' ? (
             <RecycleBin
               items={recycleBinItems}
@@ -1417,10 +1427,7 @@ function DesktopShell() {
             ))}
             <MenuItem
               type="button"
-              $disabled
-              aria-disabled="true"
-              {...menuTooltipProps('start-tooltip-help', 'La ayuda de NandOS estará disponible próximamente.')}
-              onClick={() => setNotice('La ayuda de NandOS estará disponible próximamente.')}
+              onClick={() => { openShellWindow('help'); closeStartMenu() }}
             >
               <span aria-hidden="true">❔</span> Ayuda
             </MenuItem>

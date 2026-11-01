@@ -151,7 +151,7 @@ export function WindowFrame({
       focused !== document.body && !frameRef.current?.contains(focused)) {
       openerRef.current = focused
     }
-    frameRef.current?.focus()
+    frameRef.current?.focus({ preventScroll: true })
   }, [isActive, windowState.isMinimized])
 
   const leaveWindow = (action: () => void) => {

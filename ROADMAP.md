@@ -475,11 +475,27 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Aplicada en `main` únicamente la migración aditiva `0001_wiki_articles.sql`, en una transacción y verificando primero el historial de Drizzle. Confirmados dos registros de migración, tabla de wiki disponible y conservación de la cuenta y documento de portfolio existentes.
 - Los 37 artículos iniciales se importan desde «Cargar documentación inicial» como borradores, sin sobrescribir contenido. Publicar un artículo sigue siendo una acción editorial explícita; Qdrant, LiteLLM y el chat RAG no se activan en esta entrega.
 
+### Ayuda como lector público de la wiki
+
+- Implementado en local Start > Ayuda: ventana de «Ayuda de NandOS» con presentación de la wiki, selección de sección/artículo y lectura de Markdown seguro. Carga diferida del lector para no cargar el renderizador en el arranque del escritorio.
+- Ajuste visual solicitado: eliminar «¿Por dónde empezamos?», su explicación y las tarjetas de artículos. La navegación se realiza exclusivamente mediante los selectores; mantener presentación, Inicio, Actualizar y lectura Markdown.
+- Ajuste de tamaño: Ayuda usa 420 px en la presentación y hasta 600 px al leer, limitada al escritorio visible por encima de la barra de tareas. Recolocar posiciones antiguas fuera de pantalla y mantener el maximizado. El artículo tiene scroll vertical propio y el foco de la ventana no desplaza el escritorio.
+- Consultar únicamente las instantáneas de `GET /api/wiki/articles`, separadas del caché administrativo. Sin borradores ni semillas como alternativa, con estados de carga, vacío y error, reintento y actualización de publicaciones/retiradas. No añadir edición para visitantes ni activar RAG en esta iteración.
+- Reutilizar el marco de ventanas para movimiento, tamaño, maximizado, minimizado, restauración y cierre. Diseño compatible con los temas y vista móvil.
+- Actualizar la documentación inicial de Start y añadir guía de Ayuda sin cambiar IDs ya importados. La importación idempotente no sobrescribe artículos existentes; revisar esos textos en administración antes de publicarlos.
+- Validación conjunta de la entrega: 124 pruebas (108 web y 16 API). Comprobados en navegador portada compacta, expansión al leer, scroll independiente del artículo, límite por encima de la barra de tareas en pantalla baja, Markdown, minimizado/restauración, maximizado y disposición móvil. Sin cambios editoriales ni publicaciones en la BD. Revisado en local y autorizado por el propietario para subir al repositorio el 1 de noviembre de 2026.
+
+### Reinicio de ventanas de Invitado
+
+- Recargar la página y volver a entrar como Invitado debe mostrar el escritorio sin ventanas, también si estaban minimizadas. Reiniciar el estado de ventanas al entrar, igual que tras Log off.
+- Mantener solo posiciones de iconos, carpetas del visitante y papelera en la persistencia del shell; el tema conserva su almacenamiento independiente. Migración v5 y lectura con lista explícita de preferencias para ignorar también ventanas almacenadas por versiones anteriores, sin borrar todo el almacenamiento local.
+- Validado en pruebas de persistencia y en navegador: abrir Proyectos, recargar, volver a entrar como Invitado y comprobar que no quedan ventanas abiertas ni minimizadas, conservando los datos del escritorio.
+
 ### Seguridad de administración — pendiente, después del editor de wiki
 
 - Incidencia de credenciales de BD (31 de octubre): se compartió una conexión privada en la conversación. El propietario renovó las credenciales; development quedó validado con `.env` y las variables gestionadas de Neon se renovaron en Vercel. Un redeploy de `nandos-api` con el mismo commit `6db1eb9` restableció producción: consultas reales de administración y portfolio verificadas con HTTP 200, tanto directamente como a través del proxy web. No registrar el valor expuesto ni el nuevo en documentos, comandos, logs o Git. No usar la conexión de development para producción.
 
-- Decisión del propietario: priorizar ahora la wiki; retomar este refuerzo después. Recordatorio solicitado para el 1 de noviembre de 2026, programado a las 10:00 (Europe/Madrid).
+- Decisión del propietario: priorizar ahora la wiki; retomar este refuerzo después. Recordatorio pospuesto por el propietario al 5 de noviembre de 2026 a las 10:00 (Europe/Madrid).
 - Mantener credenciales en el cuerpo de un POST por HTTPS; verlas en DevTools es normal y no equivale a que viajen sin cifrar. No sustituir TLS por un hash reutilizable generado en React. El usuario es un identificador normal; la contraseña se almacena como hash con sal en servidor.
 - Estado revisado en código: scrypt con sal aleatoria, comparación constante, tokens de sesión aleatorios con digest en BD, cookie HttpOnly/Secure en producción, comprobación de Origin y revocación de sesiones al cambiar credenciales. No confundir revisión del repositorio con auditoría de la configuración/BD reales de producción.
 - Reforzar coste de scrypt (actual N=32768, r=8, p=1) o evaluar Argon2id. Migración compatible con hashes existentes y actualización progresiva; no cambiar parámetros de forma que se bloquee el acceso actual.

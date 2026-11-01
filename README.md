@@ -35,6 +35,16 @@ Development contiene los 37 artículos iniciales, todos como borradores. En prod
 
 Nunca pegues conexiones completas ni contraseñas en el chat o el repositorio. Si se expone una clave, renueva el rol en cada rama donde esa clave siga siendo válida. La rotación de `development` no rota `main`. Para producción, actualiza `DATABASE_URL` en Vercel con la conexión de `main` y haz un redeploy del backend con el mismo código para activar la nueva configuración; no reutilices la conexión local. Los cambios de contraseña deben hacerlos directamente los responsables de las credenciales.
 
+## Sesión local de Invitado
+
+La sesión de Invitado siempre empieza sin ventanas abiertas, tanto al recargar y entrar de nuevo como después de Log off. Las ventanas, el foco y el orden de apilado son estado en memoria; no se recuperan del almacenamiento local. Se conservan las carpetas del visitante, la papelera, las posiciones de iconos y el tema. La migración de preferencias v5 descarta únicamente los antiguos campos de ventanas, sin borrar los datos del escritorio.
+
+## Ayuda y wiki pública
+
+Start > Ayuda abre el lector de la wiki en una ventana del escritorio, con portada, selector de sección y de artículo, y Markdown formateado. Consulta exclusivamente `GET /api/wiki/articles`: no hay acceso a borradores ni documentación de ejemplo como alternativa. Inicio vuelve a la portada; Actualizar vuelve a consultar lo publicado. Se distinguen carga, biblioteca vacía y error de conexión con reintento. La ventana admite los controles habituales de minimizar, restaurar, maximizar, mover, redimensionar y cerrar.
+
+Los cambios editoriales se gestionan en Administración > Wiki de nandBot. Publicar hace el artículo accesible en Ayuda y en la API pública; guardar un borrador no altera esa versión. La documentación inicial describe Ayuda y añade su propia guía, pero su importación no sobrescribe textos ya editados: los artículos existentes sobre Start deben revisarse manualmente. Esto no conecta aún el chatbot con Qdrant ni LiteLLM.
+
 ## Estructura del monorepo
 
 - `apps/web`: frontend React + Vite.

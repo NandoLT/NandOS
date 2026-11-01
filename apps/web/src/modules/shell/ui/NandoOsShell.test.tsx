@@ -26,6 +26,41 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  it('starts a new guest login with no previous windows while preserving visitor folders and icons', () => {
+    const store = useShellStore.getState()
+    store.createDesktopFolder({ x: 330, y: 200 })
+    store.moveDesktopItem('cv', { x: 330, y: 24 })
+    store.openWindow('projects')
+    store.openWindow('help')
+    store.minimizeWindow('help')
+    enterGuest()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Aplicaciones abiertas' })).queryAllByRole('button')).toEqual([])
+    expect(useShellStore.getState().windows).toEqual([])
+    expect(useShellStore.getState().userDesktopItems).toHaveLength(1)
+    expect(useShellStore.getState().desktopPositions.cv).toEqual({ x: 330, y: 24 })
+  })
+
+  it('opens Help as a wiki window from Start and restores the same window from the taskbar', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => ({
+      ok: true, json: async () => url.endsWith('/wiki/articles')
+        ? { articles: [] } : { content: DEFAULT_PORTFOLIO_CONTENT, authenticated: false },
+    })))
+    enterGuest()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
+    const help = screen.getByRole('button', { name: 'Ayuda' })
+    expect(help).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(help)
+    expect(screen.queryByRole('navigation', { name: 'Menú Start' })).not.toBeInTheDocument()
+    const frame = screen.getByRole('dialog', { name: 'Ayuda de NandOS' })
+    expect(await within(frame).findByRole('heading', { name: 'Wiki de NandOS' })).toBeInTheDocument()
+    fireEvent.click(within(frame).getByRole('button', { name: 'Minimizar' }))
+    expect(useShellStore.getState().windows.find((window) => window.id === 'help')?.isMinimized).toBe(true)
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Aplicaciones abiertas' })).getByRole('button', { name: /Ayuda de NandOS/ }))
+    expect(screen.getByRole('dialog', { name: 'Ayuda de NandOS' })).toBeVisible()
+    expect(useShellStore.getState().windows.filter((window) => window.id === 'help')).toHaveLength(1)
+  })
+
   it('resets the assistant to the help launcher after logging off and entering again', async () => {
     // Flush the lazy dock's initial mount effect before interacting with it.
     enterGuest()

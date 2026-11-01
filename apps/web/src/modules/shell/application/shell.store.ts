@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
+import { fitHelpWindowBounds } from '../domain/help-window-bounds'
 import { taskbarHeight } from '../../../shared/lib/input-preferences'
 import type {
   DesktopPosition,
@@ -28,6 +29,7 @@ type ShellState = {
   toggleMaximize: (id: WindowId, maximizedBounds: WindowBounds) => void
   moveWindow: (id: WindowId, x: number, y: number) => void
   resizeWindow: (id: WindowId, width: number, height: number) => void
+  setHelpReading: (reading: boolean, viewport: WindowBounds) => void
   moveDesktopItem: (id: DesktopSystemItemId, position: DesktopPosition) => void
   moveUserDesktopItem: (id: string, position: DesktopPosition) => void
   createDesktopFolder: (position: DesktopPosition) => void
@@ -64,12 +66,14 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   projects: { title: 'Proyectos', icon: '🗂️' },
   skills: { title: 'Habilidades', icon: '🧠' },
   contact: { title: 'Contacto', icon: '✉️' },
+  help: { title: 'Ayuda de NandOS', icon: '📖' },
 }
 
 function createWindow(id: WindowId, zIndex: number): WindowState {
   const isExplorer = id === 'file-explorer'
   const isRecycleBin = id === 'recycle-bin'
   const isSettings = id === 'settings'
+  const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
   const bounds = isExplorer
     ? { ...defaultBounds, width: 680, height: 440 }
@@ -77,9 +81,13 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
       ? { ...defaultBounds, width: 620, height: 400 }
       : isSettings
         ? { ...defaultBounds, width: 700, height: 480 }
-        : isPortfolioSection
-          ? { ...defaultBounds, width: 720, height: 500 }
-          : defaultBounds
+        : isHelp
+          ? fitHelpWindowBounds({ ...defaultBounds, width: 760 }, {
+            x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - taskbarHeight(),
+          }, false)
+          : isPortfolioSection
+            ? { ...defaultBounds, width: 720, height: 500 }
+            : defaultBounds
 
   return {
     id,
@@ -206,6 +214,19 @@ export const useShellStore = create<ShellState>()(
           desktopPositions: { ...state.desktopPositions, [id]: position },
         })),
 
+      setHelpReading: (reading, viewport) => set((state) => {
+        const current = state.windows.find((window) => window.id === 'help')
+        if (!current) return state
+        const previousBounds = fitHelpWindowBounds(current.isMaximized ? current.previousBounds : current.bounds, viewport, reading)
+        const bounds = current.isMaximized
+          ? { x: 4, y: 4, width: viewport.width - 8, height: viewport.height - 8 }
+          : previousBounds
+        const unchanged = (['x', 'y', 'width', 'height'] as const).every((key) =>
+          current.bounds[key] === bounds[key] && current.previousBounds[key] === previousBounds[key])
+        if (unchanged) return state
+        return { windows: state.windows.map((window) => window.id === 'help' ? { ...window, bounds, previousBounds } : window) }
+      }),
+
       moveUserDesktopItem: (id, position) =>
         set((state) => ({
           userDesktopItems: state.userDesktopItems.map((item) =>
@@ -273,7 +294,7 @@ export const useShellStore = create<ShellState>()(
     }),
     {
       name: 'nandoos:shell-session',
-      version: 4,
+      version: 5,
       migrate: (persistedState, _version) => {
         const persisted = persistedState as Partial<ShellState>
         const desktopPositions = { ...defaultDesktopPositions, ...persisted.desktopPositions }
@@ -292,16 +313,23 @@ export const useShellStore = create<ShellState>()(
           occupied.push(position)
         }
         return {
-          ...persisted,
           desktopPositions,
           userDesktopItems: persisted.userDesktopItems ?? [],
           recycleBinItems: persisted.recycleBinItems ?? [],
-        } as ShellState
+        }
+      },
+      // Whitelist durable desktop data even if an old/current-version payload
+      // still contains windows. A page reload never restores a guest session.
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<ShellState> | undefined
+        return {
+          ...currentState,
+          desktopPositions: { ...currentState.desktopPositions, ...persisted?.desktopPositions },
+          userDesktopItems: persisted?.userDesktopItems ?? currentState.userDesktopItems,
+          recycleBinItems: persisted?.recycleBinItems ?? currentState.recycleBinItems,
+        }
       },
       partialize: (state) => ({
-        windows: state.windows,
-        activeWindowId: state.activeWindowId,
-        nextZIndex: state.nextZIndex,
         desktopPositions: state.desktopPositions,
         userDesktopItems: state.userDesktopItems,
         recycleBinItems: state.recycleBinItems,

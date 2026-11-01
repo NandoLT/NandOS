@@ -52,6 +52,41 @@ describe('shell store', () => {
     ])
   })
 
+  it('opens one reusable help window with room for the public wiki', () => {
+    const store = useShellStore.getState()
+    store.openWindow('help')
+    store.minimizeWindow('help')
+    store.openWindow('help')
+    expect(useShellStore.getState().windows).toMatchObject([
+      { id: 'help', title: 'Ayuda de NandOS', icon: '📖', isMinimized: false, bounds: { width: 760, height: 420 } },
+    ])
+    expect(useShellStore.getState().activeWindowId).toBe('help')
+  })
+
+  it('grows help for reading without extending below the desktop, then shrinks for home', () => {
+    const store = useShellStore.getState()
+    const viewport = { x: 0, y: 0, width: 1280, height: 678 }
+    store.openWindow('help')
+    store.setHelpReading(true, viewport)
+    const [reading] = useShellStore.getState().windows
+    expect(reading.bounds.height).toBe(600)
+    expect(reading.bounds.y + reading.bounds.height).toBeLessThanOrEqual(670)
+    store.setHelpReading(false, viewport)
+    expect(useShellStore.getState().windows[0].bounds.height).toBe(420)
+  })
+
+  it('does not unmaximize help when the selected article changes', () => {
+    const store = useShellStore.getState()
+    const viewport = { x: 0, y: 0, width: 1280, height: 678 }
+    store.openWindow('help')
+    const maximized = { x: 4, y: 4, width: 1272, height: 670 }
+    store.toggleMaximize('help', maximized)
+    store.setHelpReading(true, viewport)
+    expect(useShellStore.getState().windows[0]).toMatchObject({ isMaximized: true, bounds: maximized })
+    store.toggleMaximize('help', maximized)
+    expect(useShellStore.getState().windows[0]).toMatchObject({ isMaximized: false, bounds: { height: 600 } })
+  })
+
   it('adds the CV shortcut position when migrating a previous desktop session', async () => {
     localStorage.setItem('nandoos:shell-session', JSON.stringify({
       state: {
@@ -126,6 +161,50 @@ describe('shell store', () => {
     expect(after.userDesktopItems).toEqual(before.userDesktopItems)
     expect(after.recycleBinItems).toEqual(before.recycleBinItems)
     expect(after.desktopPositions).toEqual(before.desktopPositions)
+  })
+
+  it('persists desktop preferences but never open or minimized windows', () => {
+    const store = useShellStore.getState()
+    store.createDesktopFolder({ x: 240, y: 100 })
+    store.moveDesktopItem('cv', { x: 330, y: 24 })
+    store.openWindow('projects')
+    store.openWindow('help')
+    store.minimizeWindow('projects')
+    store.setStartMenuOpen(true)
+    const saved = JSON.parse(localStorage.getItem('nandoos:shell-session')!).state
+    expect(saved).not.toHaveProperty('windows')
+    expect(saved).not.toHaveProperty('activeWindowId')
+    expect(saved).not.toHaveProperty('nextZIndex')
+    expect(saved).not.toHaveProperty('isStartMenuOpen')
+    expect(saved.userDesktopItems).toHaveLength(1)
+    expect(saved.desktopPositions.cv).toEqual({ x: 330, y: 24 })
+  })
+
+  it.each([4, 5])('ignores old session windows in stored version %i while preserving desktop data', async (version) => {
+    const store = useShellStore.getState()
+    store.createDesktopFolder({ x: 240, y: 100 })
+    store.createDesktopFolder({ x: 240, y: 200 })
+    store.moveUserItemToRecycleBin(useShellStore.getState().userDesktopItems[0].id)
+    store.moveDesktopItem('cv', { x: 330, y: 24 })
+    store.openWindow('projects')
+    store.openWindow('help')
+    store.minimizeWindow('help')
+    const previous = useShellStore.getState()
+    useShellStore.setState({ windows: [], activeWindowId: null, nextZIndex: 10, isStartMenuOpen: false })
+    localStorage.setItem('nandoos:shell-session', JSON.stringify({ version, state: {
+      windows: previous.windows, activeWindowId: 'projects', nextZIndex: 99, isStartMenuOpen: true,
+      desktopPositions: previous.desktopPositions, userDesktopItems: previous.userDesktopItems,
+      recycleBinItems: previous.recycleBinItems,
+    } }))
+    await useShellStore.persist.rehydrate()
+    const restored = useShellStore.getState()
+    expect(restored.windows).toEqual([])
+    expect(restored.activeWindowId).toBeNull()
+    expect(restored.nextZIndex).toBe(10)
+    expect(restored.isStartMenuOpen).toBe(false)
+    expect(restored.desktopPositions).toEqual(previous.desktopPositions)
+    expect(restored.userDesktopItems).toEqual(previous.userDesktopItems)
+    expect(restored.recycleBinItems).toEqual(previous.recycleBinItems)
   })
 
   it('places new system shortcuts in free cells when migrating an existing desktop', async () => {

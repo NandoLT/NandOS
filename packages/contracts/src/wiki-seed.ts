@@ -17,7 +17,8 @@ El acceso de administración es independiente y requiere credenciales reales. Nu
 - **Documentos:** Mis documentos, Este equipo y CV en español o inglés.
 - **Configuración:** panel de ajustes, Apariencia y temas, y Sistema (próximamente).
 - **Buscar:** Archivos o carpetas… y En Internet… (próximamente).
-- **Ayuda** y **Ejecutar…:** deshabilitados por ahora.
+- **Ayuda:** abre la wiki pública, con secciones y artículos publicados para leer.
+- **Ejecutar…:** deshabilitado por ahora.
 - **Log off Invitado:** volver al acceso.
 - **Apagar:** finalizar la experiencia con una animación.
 
@@ -35,7 +36,9 @@ CV (Español) y CV (English) abren el PDF correspondiente en una pestaña nueva.
 Sistema está deshabilitado. En el panel también aparece Accesibilidad como opción futura; no promete ajustes operativos todavía. El tema elegido se guarda en este navegador, no cambia el aspecto para otros visitantes.`],
   ['Start > Buscar, Ayuda y Ejecutar', 'Menú Start', `Buscar contiene Archivos o carpetas… y En Internet…. Ambas opciones están deshabilitadas. La segunda está asociada a la futura aplicación Nando Browser.
 
-Ayuda y Ejecutar… también son futuras. Para orientación actual puedes abrir nandBot desde el acceso de dudas situado abajo a la derecha. No hay ejecución de comandos reales del equipo.`],
+Ayuda abre una ventana con la presentación de la wiki, un selector de sección y otro de artículo. Muestra el Markdown formateado de las versiones publicadas; nunca los borradores. Inicio vuelve a la presentación y Actualizar consulta la documentación de nuevo.
+
+Ejecutar… sigue siendo una opción futura. También puedes abrir nandBot desde el acceso de dudas situado abajo a la derecha. No hay ejecución de comandos reales del equipo.`],
   ['Log off Invitado y Apagar', 'Sesión', `Log off Invitado cierra la sesión visual y vuelve al login. Al entrar de nuevo, nandBot empieza oculto y aparece otra vez el botón de dudas; no se recupera una conversación anterior.
 
 Apagar muestra una secuencia retro de parada de servicios. El navegador puede impedir que la web cierre una pestaña abierta manualmente; en ese caso ciérrala tú. Ninguna de estas acciones apaga tu equipo real.`],
@@ -83,6 +86,13 @@ Actualmente las respuestas son locales y guiadas. La conexión a Qdrant, modelos
 La wiki tiene artículos separados por categorías. Guardar borrador conserva una edición privada. Publicar crea la versión pública del artículo. Editar después no altera esa versión hasta volver a publicar. Retirar publicación elimina la versión pública y conserva el borrador.
 
 La carga de documentación inicial solo crea borradores y no sobrescribe artículos ya importados. Solo las versiones publicadas podrán alimentar la futura ingesta; nunca los borradores ni las credenciales.`],
+  ['Ayuda: consultar la wiki', 'Menú Start', `Abre Start > Ayuda para consultar la documentación pública de NandOS en una ventana del escritorio. Puedes moverla, minimizarla, maximizarla, redimensionarla y cerrarla como las demás ventanas.
+
+La portada presenta la wiki. Usa los selectores Sección y Artículo para elegir qué leer; no hay un listado adicional de tarjetas. El contenido Markdown se muestra con encabezados, listas, tablas y enlaces. Los enlaces se abren en una pestaña nueva.
+
+Inicio vuelve a la portada. Actualizar vuelve a consultar las versiones publicadas para recoger cambios o retiradas. Si no hay artículos publicados, verás un aviso; los borradores no se muestran como alternativa. Ante un error de conexión, vuelve a intentarlo con Actualizar.
+
+La wiki es de solo lectura para los visitantes. Editar, guardar, publicar o retirar artículos corresponde al panel de administración. No incluyas secretos en contenido publicado: sus versiones son públicas. Este lector no activa el RAG de nandBot.`],
 ]
 
 // App IDs also provide an explicit coverage contract with the front-end registry.

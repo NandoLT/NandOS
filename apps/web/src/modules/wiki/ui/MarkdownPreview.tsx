@@ -8,7 +8,7 @@ const Document = styled.div`
   line-height: 1.65;
   font-size: 14px;
   h1, h2, h3 { line-height: 1.25; margin: 1.2em 0 .6em; }
-  h1:first-child { margin-top: 0; }
+  h1:first-of-type { margin-top: 0; }
   h1 { font-size: 25px; } h2 { font-size: 21px; }
   a { color: #064fa0; text-decoration: underline; }
   pre { padding: 12px; overflow-x: auto; background: #f0f2f4; border: 1px solid #ccd1d5; }

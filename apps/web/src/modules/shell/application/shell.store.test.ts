@@ -142,6 +142,30 @@ describe('shell store', () => {
     expect(useShellStore.getState().recycleBinItems).toHaveLength(0)
   })
 
+  it('renames only a visitor folder and persists the trimmed name across reloads', async () => {
+    const store = useShellStore.getState()
+    store.createDesktopFolder({ x: 330, y: 200 })
+    const [folder] = useShellStore.getState().userDesktopItems
+    expect(store.renameUserDesktopItem(folder.id, '  Mis apuntes  ')).toBeNull()
+    expect(useShellStore.getState().userDesktopItems[0]).toEqual({ ...folder, name: 'Mis apuntes' })
+    await useShellStore.persist.rehydrate()
+    expect(useShellStore.getState().userDesktopItems[0].name).toBe('Mis apuntes')
+    expect(store.renameUserDesktopItem('about', 'Otro nombre')).toBeTruthy()
+    expect(useShellStore.getState().userDesktopItems).toHaveLength(1)
+  })
+
+  it('rejects empty, invalid and duplicate folder names without changing the desktop', () => {
+    const store = useShellStore.getState()
+    store.createDesktopFolder({ x: 330, y: 200 })
+    store.createDesktopFolder({ x: 430, y: 200 })
+    const before = useShellStore.getState().userDesktopItems
+    for (const name of ['  ', '.', '..', 'carpeta/otra', 'carpeta\\otra', 'x'.repeat(81), 'nueva CARPETA (2)']) {
+      expect(store.renameUserDesktopItem(before[0].id, name)).toBeTruthy()
+      expect(useShellStore.getState().userDesktopItems).toEqual(before)
+    }
+    expect(store.renameUserDesktopItem(before[0].id, before[0].name)).toBeNull()
+  })
+
   it('logs off without deleting the visitor folders, trash or icon positions', () => {
     const store = useShellStore.getState()
     store.createDesktopFolder({ x: 240, y: 100 })

@@ -26,6 +26,135 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  function createVisitorFolder() {
+    useShellStore.getState().createDesktopFolder({ x: 330, y: 200 })
+    enterGuest()
+    return screen.getByRole('button', { name: 'Nueva carpeta. Doble clic para abrir' })
+  }
+
+  it('renames a visitor folder from its context menu and saves with Enter', () => {
+    const folder = createVisitorFolder()
+    fireEvent.contextMenu(folder)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cambiar nombre' }))
+    const input = screen.getByRole('textbox', { name: 'Nombre de la carpeta' })
+    expect(input).toHaveFocus()
+    expect(input).toHaveValue('Nueva carpeta')
+    fireEvent.change(input, { target: { value: 'Mis notas' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByRole('button', { name: 'Mis notas. Doble clic para abrir' })).toHaveFocus()
+    expect(useShellStore.getState().userDesktopItems[0].name).toBe('Mis notas')
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('cancels renaming with Escape and saves on blur', () => {
+    const folder = createVisitorFolder()
+    fireEvent.keyDown(folder, { key: 'F2' })
+    const input = screen.getByRole('textbox', { name: 'Nombre de la carpeta' })
+    fireEvent.change(input, { target: { value: 'Descartar' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(useShellStore.getState().userDesktopItems[0].name).toBe('Nueva carpeta')
+    fireEvent.keyDown(folder, { key: 'F2' })
+    const next = screen.getByRole('textbox', { name: 'Nombre de la carpeta' })
+    fireEvent.change(next, { target: { value: 'Guardada' } })
+    fireEvent.blur(next)
+    expect(useShellStore.getState().userDesktopItems[0].name).toBe('Guardada')
+  })
+
+  it('keeps editing an invalid name without saving it', () => {
+    const folder = createVisitorFolder()
+    fireEvent.keyDown(folder, { key: 'F2' })
+    const input = screen.getByRole('textbox', { name: 'Nombre de la carpeta' })
+    fireEvent.change(input, { target: { value: '  ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByRole('alert')).toHaveTextContent(/nombre/i)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(useShellStore.getState().userDesktopItems[0].name).toBe('Nueva carpeta')
+  })
+
+  it('edits the label after two paused clicks but preserves a normal double click', () => {
+    vi.useFakeTimers()
+    const folder = createVisitorFolder()
+    fireEvent.click(within(folder).getByText('Nueva carpeta'), { detail: 1 })
+    act(() => vi.advanceTimersByTime(700))
+    fireEvent.click(within(folder).getByText('Nueva carpeta'), { detail: 1 })
+    expect(screen.getByRole('textbox', { name: 'Nombre de la carpeta' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+    fireEvent.click(folder, { detail: 1 })
+    fireEvent.click(folder, { detail: 2 })
+    fireEvent.doubleClick(folder)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByText('«Nueva carpeta» está vacía.')).toBeInTheDocument()
+  })
+
+  it('does not offer renaming for protected system shortcuts', () => {
+    enterGuest()
+    const system = screen.getByRole('button', { name: 'Proyectos. Doble clic para abrir' })
+    fireEvent.contextMenu(system)
+    expect(screen.queryByRole('menuitem', { name: 'Cambiar nombre' })).not.toBeInTheDocument()
+    fireEvent.keyDown(system, { key: 'F2' })
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('does not confuse a fast double click on the name with renaming', () => {
+    vi.useFakeTimers()
+    const folder = createVisitorFolder()
+    const label = within(folder).getByText('Nueva carpeta')
+    fireEvent.click(label, { detail: 1 })
+    act(() => vi.advanceTimersByTime(100))
+    fireEvent.click(label, { detail: 2 })
+    fireEvent.doubleClick(label)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByText('«Nueva carpeta» está vacía.')).toBeInTheDocument()
+  })
+
+  it('allows selecting the icon first and editing its name after a longer pause', () => {
+    vi.useFakeTimers()
+    const folder = createVisitorFolder()
+    fireEvent.click(folder, { detail: 1 })
+    act(() => vi.advanceTimersByTime(5000))
+    fireEvent.click(within(folder).getByText('Nueva carpeta'), { detail: 1 })
+    expect(screen.getByRole('textbox', { name: 'Nombre de la carpeta' })).toHaveFocus()
+  })
+
+  it('recognizes label clicks retargeted to the button by pointer capture', () => {
+    vi.useFakeTimers()
+    const folder = createVisitorFolder()
+    const label = within(folder).getByText('Nueva carpeta')
+    vi.spyOn(label, 'getBoundingClientRect').mockReturnValue({
+      x: 330, y: 240, left: 330, top: 240, right: 410, bottom: 260,
+      width: 80, height: 20, toJSON: () => ({}),
+    })
+    fireEvent.click(folder, { detail: 1, clientX: 370, clientY: 215 })
+    act(() => vi.advanceTimersByTime(700))
+    fireEvent.click(folder, { detail: 1, clientX: 370, clientY: 250 })
+    expect(screen.getByRole('textbox', { name: 'Nombre de la carpeta' })).toHaveFocus()
+  })
+
+  it('rejects a duplicate name in the editor and cancels an invalid name on blur', () => {
+    useShellStore.getState().createDesktopFolder({ x: 430, y: 200 })
+    const folder = createVisitorFolder()
+    fireEvent.keyDown(folder, { key: 'F2' })
+    const input = screen.getByRole('textbox', { name: 'Nombre de la carpeta' })
+    fireEvent.change(input, { target: { value: 'Nueva carpeta (2)' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByRole('alert')).toHaveTextContent('Ya existe una carpeta con ese nombre.')
+    fireEvent.blur(input)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(useShellStore.getState().userDesktopItems.map((item) => item.name)).toEqual(['Nueva carpeta', 'Nueva carpeta (2)'])
+  })
+
+  it('drags a visitor folder without opening its name editor', () => {
+    const folder = createVisitorFolder()
+    for (const [type, x, y] of [['pointerdown', 340, 210], ['pointermove', 450, 300], ['pointerup', 450, 300]] as const) {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y })
+      Object.defineProperties(event, { pointerType: { value: 'mouse' }, pointerId: { value: 1 } })
+      fireEvent(folder, event)
+    }
+    fireEvent.click(folder)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(useShellStore.getState().userDesktopItems[0]).not.toMatchObject({ x: 330, y: 200 })
+  })
+
   it('starts a new guest login with no previous windows while preserving visitor folders and icons', () => {
     const store = useShellStore.getState()
     store.createDesktopFolder({ x: 330, y: 200 })

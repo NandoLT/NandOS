@@ -33,6 +33,7 @@ type ShellState = {
   moveDesktopItem: (id: DesktopSystemItemId, position: DesktopPosition) => void
   moveUserDesktopItem: (id: string, position: DesktopPosition) => void
   createDesktopFolder: (position: DesktopPosition) => void
+  renameUserDesktopItem: (id: string, name: string) => string | null
   moveUserItemToRecycleBin: (id: string) => void
   restoreUserItemFromRecycleBin: (id: string) => void
   permanentlyDeleteUserItem: (id: string) => void
@@ -256,6 +257,24 @@ export const useShellStore = create<ShellState>()(
 
           return { userDesktopItems: [...state.userDesktopItems, folder] }
         }),
+
+      renameUserDesktopItem: (id, value) => {
+        const items = get().userDesktopItems
+        if (!items.some((item) => item.id === id && item.origin === 'user')) {
+          return 'Solo se pueden renombrar carpetas creadas por el usuario.'
+        }
+        const name = value.trim()
+        if (!name || name === '.' || name === '..') return 'Escribe un nombre para la carpeta.'
+        if (name.length > 80) return 'El nombre no puede superar los 80 caracteres.'
+        if (/[<>:"/\\|?*]/u.test(name) || [...name].some((character) => character.charCodeAt(0) < 32)) {
+          return 'El nombre contiene caracteres no permitidos.'
+        }
+        if (items.some((item) => item.id !== id && item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+          return 'Ya existe una carpeta con ese nombre.'
+        }
+        set({ userDesktopItems: items.map((item) => item.id === id ? { ...item, name } : item) })
+        return null
+      },
 
       moveUserItemToRecycleBin: (id) =>
         set((state) => {

@@ -27,6 +27,7 @@ import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds } from '../domain/types'
 import { WindowFrame } from './WindowFrame'
 import { BootScreen, GuestLogin, ShutdownScreen } from './SessionScreens'
+import { DesktopFolderNameEditor } from './DesktopFolderNameEditor'
 
 // An explicit local-only opt-in: no test controls in production.
 const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.search).get('mascot') === '1'
@@ -583,6 +584,10 @@ type DesktopShortcutProps = {
   onMove: (position: DesktopPosition) => void
   onDropToRecycleBin: () => void
   onContextMenu: (event: DesktopContextEvent) => void
+  renaming?: boolean
+  onStartRename?: () => void
+  onRename?: (name: string) => string | null
+  onEndRename?: () => void
 }
 
 function DesktopShortcut({
@@ -596,7 +601,13 @@ function DesktopShortcut({
   onMove,
   onDropToRecycleBin,
   onContextMenu,
+  renaming = false,
+  onStartRename,
+  onRename,
+  onEndRename,
 }: DesktopShortcutProps) {
+  const labelRef = useRef<HTMLSpanElement>(null)
+  const lastShortcutClick = useRef<number | null>(null)
   const drag = useRef<{
     pointerId: number
     startX: number
@@ -608,6 +619,10 @@ function DesktopShortcut({
   const touchPress = useTouchPress()
   const [dragPosition, setDragPosition] = useState<DesktopPosition | null>(null)
   const visiblePosition = dragPosition ?? position
+
+  useEffect(() => {
+    if (!selected) lastShortcutClick.current = null
+  }, [selected])
 
   useEffect(() => {
     if (!drag.current) setDragPosition(null)
@@ -662,6 +677,7 @@ function DesktopShortcut({
     drag.current = null
 
     if (currentDrag.moved) {
+      lastShortcutClick.current = null
       suppressClick.current = true
       const finalPosition = dragPosition ?? {
         x: currentDrag.origin.x + event.clientX - currentDrag.startX,
@@ -684,6 +700,7 @@ function DesktopShortcut({
   }
 
   return (
+    <>
     <DesktopIcon
       data-desktop-id={itemId}
       $position={visiblePosition}
@@ -707,26 +724,55 @@ function DesktopShortcut({
           suppressClick.current = false
           return
         }
+        if (!touchPress.isTouch() && onStartRename && !renaming) {
+          const now = Date.now()
+          const elapsed = lastShortcutClick.current === null ? 0 : now - lastShortcutClick.current
+          // Pointer capture used for dragging can retarget the click to the
+          // button even when the pointer was released over its text label.
+          const labelBounds = labelRef.current?.getBoundingClientRect()
+          const clickedLabel = labelRef.current?.contains(event.target as Node) || (
+            labelBounds && labelBounds.width > 0 && labelBounds.height > 0 && event.detail > 0 &&
+            event.clientX >= labelBounds.left && event.clientX <= labelBounds.right &&
+            event.clientY >= labelBounds.top && event.clientY <= labelBounds.bottom
+          )
+          if (clickedLabel && selected && event.detail < 2 && elapsed >= 500) {
+            lastShortcutClick.current = null
+            onStartRename()
+            return
+          }
+          lastShortcutClick.current = event.detail < 2 ? now : null
+        }
         onSelect()
         if (touchPress.isTouch()) onOpen()
       }}
       onDoubleClick={(event) => {
         event.stopPropagation()
+        lastShortcutClick.current = null
         if (!touchPress.isTouch()) onOpen()
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') {
+        if (event.key === 'F2' && onStartRename) {
+          event.preventDefault()
+          onStartRename()
+        } else if (event.key === 'Enter') {
           event.preventDefault()
           onOpen()
         }
       }}
-      onContextMenu={onContextMenu}
+      onContextMenu={(event) => {
+        lastShortcutClick.current = null
+        onContextMenu(event)
+      }}
     >
       <span aria-hidden="true">
         {icon.startsWith('/') ? <img src={icon} alt="" width="32" height="32" draggable={false} /> : icon}
       </span>
-      <span>{label}</span>
+      <span ref={labelRef} style={renaming ? { visibility: 'hidden' } : undefined}>{label}</span>
     </DesktopIcon>
+    {renaming && onRename && onEndRename && (
+      <DesktopFolderNameEditor anchorRef={labelRef} name={label} onSave={onRename} onClose={onEndRename} />
+    )}
+    </>
   )
 }
 
@@ -749,6 +795,7 @@ function DesktopShell() {
   })
   const [notice, setNotice] = useState<string | null>(null)
   const [selectedDesktopItem, setSelectedDesktopItem] = useState<string | null>(null)
+  const [renamingDesktopItem, setRenamingDesktopItem] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<DesktopContextMenuState | null>(null)
   const [protectedItem, setProtectedItem] = useState<string | null>(null)
   const [openStartCategory, setOpenStartCategory] = useState<string | null>(null)
@@ -779,6 +826,7 @@ function DesktopShell() {
     moveDesktopItem,
     moveUserDesktopItem,
     createDesktopFolder,
+    renameUserDesktopItem,
     moveUserItemToRecycleBin,
     restoreUserItemFromRecycleBin,
     permanentlyDeleteUserItem,
@@ -846,6 +894,8 @@ function DesktopShell() {
   }, [closeStartMenu])
 
   const logOffGuest = () => {
+    setRenamingDesktopItem(null)
+    setSelectedDesktopItem(null)
     closeStartMenu()
     endGuestSession()
     setContextMenu(null)
@@ -1062,7 +1112,7 @@ function DesktopShell() {
     event.stopPropagation()
     closeStartMenu()
     const menuWidth = 210
-    const menuHeight = target.kind === 'desktop' ? 60 : 90
+    const menuHeight = target.kind === 'desktop' ? 60 : target.kind === 'user' ? 125 : 90
     setContextMenu({
       x: Math.max(4, Math.min(event.clientX, window.innerWidth - menuWidth - 4)),
       y: Math.max(4, Math.min(event.clientY, window.innerHeight - menuHeight - 4)),
@@ -1100,6 +1150,12 @@ function DesktopShell() {
     )
     createDesktopFolder(position)
     setContextMenu(null)
+  }
+
+  const beginRename = (id: string) => {
+    setContextMenu(null)
+    setSelectedDesktopItem(id)
+    setRenamingDesktopItem(id)
   }
 
   const snapDesktopShortcut = (itemId: string, position: DesktopPosition) => {
@@ -1195,6 +1251,10 @@ function DesktopShell() {
           icon={item.icon}
           label={item.name}
           selected={selectedDesktopItem === item.id}
+          renaming={renamingDesktopItem === item.id}
+          onStartRename={() => beginRename(item.id)}
+          onRename={(name) => renameUserDesktopItem(item.id, name)}
+          onEndRename={() => setRenamingDesktopItem(null)}
           onSelect={() => {
             setSelectedDesktopItem(item.id)
             setContextMenu(null)
@@ -1284,6 +1344,13 @@ function DesktopShell() {
               <ContextMenuItem role="menuitem" type="button" autoFocus onClick={() => openDesktopTarget(contextMenu.target)}>
                 Abrir
               </ContextMenuItem>
+              {contextMenu.target.kind === 'user' && (
+                <ContextMenuItem role="menuitem" type="button" onClick={() => {
+                  if (contextMenu.target.kind === 'user') beginRename(contextMenu.target.id)
+                }}>
+                  Cambiar nombre
+                </ContextMenuItem>
+              )}
               <ContextDivider />
               <ContextMenuItem
                 role="menuitem"

@@ -491,6 +491,14 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Mantener todos los cambios en local, sin commit, push ni despliegue. Web local en 127.0.0.1:4173 y API en 3001 con sincronización habilitada. Revisión visual completada el 4 de noviembre con la sesión administrativa iniciada por Fernando: estado inicial Actualizado, transición a Sincronizando con botones deshabilitados y retorno a Actualizado; tres artículos publicados, tres indexados y tres fragmentos. GET/POST del flujo con HTTP 200 y consola sin avisos ni errores. No editar ni publicar artículos, ni solicitar o leer la contraseña. El chat público continúa en demostración.
 - Validación final de esta entrega: 174 pruebas (116 web, 45 API y 13 infraestructura), tipos, lint sin warnings/errores y compilación correctos. Incluye comprobación HTTP del cliente sin secretos, HTTP 409 por ingestas concurrentes y protección real de las rutas sin sesión.
 
+### Publicación de la ingesta y sincronización — 4 de noviembre de 2026
+
+- Subida autorizada por Fernando y realizada en `d916d9e`. Frontend desplegado; detectado y reproducido el fallo de la segunda compilación TypeScript del API en Vercel: la interfaz global `Response` puede quedar vacía cuando los tipos de Node detectan un entorno worker sin declaraciones DOM.
+- Validar explícitamente el contrato mínimo de las respuestas HTTP como datos desconocidos, sin depender de esa interfaz ambiental ni desactivar la comprobación de tipos. Conservar restricciones de origen, autenticación, rechazo de redirecciones y errores sin datos privados.
+- Añadir una prueba de respuestas inválidas y una compilación de regresión con los mismos tipos ambientales conflictivos, ejecutada tanto en `typecheck` como en `build`. No añadir dependencias, migraciones ni cambios de credenciales.
+- Corrección comprobada con 175 pruebas (116 web, 46 API y 13 infraestructura) y los dos entornos de tipos: compilación habitual y reproducción del fallo de Vercel.
+- La sincronización de IA continúa habilitada solo en local; producción muestra «Sin configurar» hasta acordar alojamiento para Qdrant y LiteLLM. El chat público sigue en demostración.
+
 ### Wiki — primera revisión local (31 de octubre de 2026)
 
 - Decisión del propietario: validar primero el editor con datos locales de prueba; no conectar ni modificar Neon en esta iteración.

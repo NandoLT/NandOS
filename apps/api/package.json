@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "pnpm lint && tsc -b",
+    "build": "pnpm lint && tsc -b && pnpm typecheck:fetch",
     "lint": "oxlint --deny-warnings",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false && pnpm typecheck:fetch",
+    "typecheck:fetch": "tsc --ignoreConfig --noEmit --strict --skipLibCheck --target ES2023 --lib ES2023 --types node --module NodeNext --moduleResolution NodeNext src/modules/knowledge/infrastructure/local-ai-http.ts fixtures/fetch-global-regression.d.ts",
     "test": "node --import tsx --test src/**/*.test.ts",
     "test:wiki-db": "node --import tsx scripts/verify-wiki-database.ts",
     "wiki:knowledge": "node --import tsx scripts/wiki-knowledge.ts",

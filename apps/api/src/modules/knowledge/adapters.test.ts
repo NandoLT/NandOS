@@ -12,6 +12,15 @@ const snapshot = { fingerprint: 'a'.repeat(64), profile: embeddingProfile.id, ar
 const uuid = '10000000-0000-4000-8000-000000000001'
 const collection = 'nandos_wiki_dev_' + uuid.replaceAll('-', '')
 
+test('local HTTP validates the response contract without relying on the ambient Response interface', async () => {
+  for (const malformed of [null, {}, { ok: true, status: 200, json: 'PRIVATE_INVALID' }]) {
+    const http = createLocalAiHttp({ qdrantKey: 'private-qdrant', litellmKey: 'private-litellm' },
+      async () => malformed as unknown as Response)
+    await assert.rejects(http('qdrant', '/aliases'), (error: unknown) => error instanceof KnowledgeError &&
+      error.message.includes('HTTP no válida') && !error.message.includes('PRIVATE'))
+  }
+})
+
 test('LiteLLM validates dimensions, finite nonzero values and unique indices, preserving response order', async () => {
   const good = createLiteLlmEmbeddings(async () => ({ data: [{ index: 1, embedding: vector }, { index: 0, embedding: vector }] }))
   assert.deepEqual(await good.embed(['CV', 'Contacto']), [vector, vector])

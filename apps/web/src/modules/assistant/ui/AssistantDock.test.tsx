@@ -54,7 +54,9 @@ describe('desktop assistant', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir chat con nandBot' }))
     expect(screen.getByRole('dialog', { name: 'nandBot · Ayuda' })).toBeInTheDocument()
     expect(screen.getByText(/¡Hola! Soy nandBot/)).toBeInTheDocument()
-    expect(screen.getByText(/Demo local · sin IA/)).toBeInTheDocument()
+    expect(screen.getByText('Chatbot en proceso')).toBeInTheDocument()
+    expect(screen.getByText(/Demostración sin IA/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ información' })).toHaveAttribute('aria-haspopup', 'dialog')
     expect(screen.getByRole('button', { name: '¿Dónde consulto el CV?' })).toBeInTheDocument()
   })
   it('animates thinking and answering, and only opens an app when the visitor clicks its action', async () => {

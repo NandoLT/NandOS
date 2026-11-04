@@ -6,6 +6,7 @@ import type { WindowBounds } from '../../shell/domain/types'
 import { actionLabels, suggestedQuestions, welcomeMessage } from '../domain/conversation'
 import type { AssistantAction, ChatMessage, QuestionSource } from '../domain/conversation'
 import { FaqMenu } from './FaqMenu'
+import { AssistantDevelopmentNotice } from './AssistantDevelopmentNotice'
 
 interface Props {
   viewport: WindowBounds
@@ -28,10 +29,6 @@ const Layer = styled.div`
 const Layout = styled.div`
   display: flex; flex-direction: column; height: 100%; min-height: 0;
   color: var(--os-window-text); font-size: 12px;
-`
-const Notice = styled.p`
-  flex-shrink: 0; margin: 0; padding: 8px 10px; border-bottom: 1px solid var(--os-divider);
-  line-height: 1.4; background: var(--os-notice); color: var(--os-window-text);
 `
 const History = styled.div`
   flex: 1; min-height: 0; overflow: auto; padding: 12px;
@@ -113,7 +110,7 @@ export function AssistantChat({ viewport, messages, source, draft, pending, erro
       onResize={(width, height) => setGeometry((current) => ({ ...current, bounds: { ...bounds, width: Math.max(340, width), height: Math.max(360, height) } }))}
       contentStyle={{ padding: 0, overflow: 'hidden' }}>
       <Layout>
-        <Notice><strong>Demo local · sin IA</strong> — respuestas preparadas. La wiki se conectará más adelante.</Notice>
+        <AssistantDevelopmentNotice />
         <History ref={history} role="log" aria-label="Conversación con nandBot" aria-live="polite" aria-relevant="additions text" tabIndex={0}>
           {!messages.length && !pending ? <>
             <Message><strong>nandBot</strong><p>{welcomeMessage}</p></Message>

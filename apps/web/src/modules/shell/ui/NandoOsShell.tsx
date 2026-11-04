@@ -16,7 +16,6 @@ import { SettingsWindow } from '../../applications/ui/SettingsWindow'
 import { AboutWindow } from '../../portfolio/ui/AboutWindow'
 import { PortfolioSectionWindow } from '../../portfolio/ui/PortfolioSectionWindow'
 import { usePortfolioContent } from '../../portfolio/application/usePortfolioContent'
-import { apiRequest } from '../../portfolio/infrastructure/http-client'
 import { AdminDashboard } from '../../admin/ui/AdminDashboard'
 import { AdminLogin } from '../../admin/ui/AdminLogin'
 import { useThemeStore } from '../../../shared/styles/theme.store'
@@ -881,8 +880,8 @@ function DesktopShell() {
 
   const showLogin = useCallback(() => {
     rememberBoot()
-    setScreen(adminUsername ? 'admin' : 'login')
-  }, [adminUsername])
+    setScreen('login')
+  }, [])
   const startDesktop = useCallback(() => {
     endGuestSession()
     setScreen('desktop')
@@ -905,15 +904,18 @@ function DesktopShell() {
   }
 
   useEffect(() => {
-    let active = true
-    apiRequest<{ authenticated: boolean; username?: string }>('auth/session')
-      .then((session) => {
-        if (!active || !session.authenticated || !session.username) return
-        setAdminUsername(session.username)
-        setScreen((current) => current === 'boot' || current === 'login' ? 'admin' : current)
-      })
-      .catch(() => undefined)
-    return () => { active = false }
+    // A cookie alone must never choose administration. Fresh documents start
+    // at login; history can also restore this entire React tree from bfcache.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      setAdminUsername(null)
+      setRenamingDesktopItem(null)
+      setContextMenu(null)
+      setProtectedItem(null)
+      setScreen('login')
+    }
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
   }, [])
 
   useEffect(() => {

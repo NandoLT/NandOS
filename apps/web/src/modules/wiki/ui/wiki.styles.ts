@@ -37,6 +37,21 @@ export const Layout = styled.div`
   @media(max-width: 1000px) { grid-template-columns: 205px minmax(0, 1fr); }
   @media(max-width: 740px) { grid-template-columns: 1fr; }
 `
+export const SyncCard = styled.section`
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+  padding: 14px; border: 1px solid var(--os-border); background: var(--os-surface-alt); min-width: 0;
+  > div:first-of-type { display: grid; gap: 6px; min-width: 0; flex: 1 1 360px; }
+  p { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+  small { display: block; color: var(--os-muted); font-size: 11px; line-height: 1.5; }
+`
+export const SyncHeading = styled.div`
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+`
+export const SyncBadge = styled.span<{ $state?: string }>`
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid ${({ $state }) => $state === 'updated' ? 'var(--os-accent)' : 'var(--os-border)'};
+  color: var(--os-window-text); background: var(--os-surface);
+`
 export const Library = styled.aside`
   display: flex; flex-direction: column; min-width: 0; padding: 13px; gap: 10px;
   border-right: 1px solid var(--os-border); background: var(--os-toolbar);

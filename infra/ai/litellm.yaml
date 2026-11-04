@@ -1,0 +1,14 @@
+model_list:
+  - model_name: nandos-embeddings
+    litellm_params:
+      # OpenAI-compatible protocol to local Ollama, not an OpenAI service.
+      model: openai/qwen3-embedding:0.6b
+      api_base: http://ollama:11434/v1
+      api_key: ollama
+    model_info:
+      mode: embedding
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

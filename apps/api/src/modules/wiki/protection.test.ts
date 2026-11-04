@@ -10,5 +10,8 @@ test('real application protects wiki administration before accessing Neon', asyn
     assert.equal(response.headers['cache-control'], 'private, no-store')
     const denied = await app.inject({ method: 'POST', url: '/api/admin/wiki/seed', headers: { origin: 'https://untrusted.test' } })
     assert.equal(denied.statusCode, 403)
+    assert.equal((await app.inject('/api/admin/wiki/synchronization')).statusCode, 401)
+    assert.equal((await app.inject({ method: 'POST', url: '/api/admin/wiki/synchronization',
+      headers: { origin: 'https://untrusted.test' } })).statusCode, 403)
   } finally { await app.close() }
 })

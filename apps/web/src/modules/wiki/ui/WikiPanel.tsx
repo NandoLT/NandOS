@@ -1,10 +1,11 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { WikiArticle, WikiContent } from '@nandoos/contracts'
-import { wikiApi } from '../application/wiki-api'
+import { wikiApi, wikiSynchronizationKey } from '../application/wiki-api'
 import type { WikiEditorRepository } from '../application/wiki-api'
 import { MarkdownPreview } from './MarkdownPreview'
 import { WikiCategoryField } from './WikiCategoryField'
+import { WikiSynchronization } from './WikiSynchronization'
 import * as S from './wiki.styles'
 
 const empty = (): WikiContent => ({ title: '', category: 'General', markdown: '' })
@@ -71,11 +72,13 @@ export function WikiPanel({ repository = wikiApi, onDirtyChange }: {
           return previous.some((a) => a.id === article.id) ? previous.map((a) => a.id === article.id ? article : a) : [...previous, article]
         })
       } else void client.invalidateQueries({ queryKey })
+      if (action === 'publish' || action === 'withdraw')
+        void client.invalidateQueries({ queryKey: wikiSynchronizationKey(repository.scope) })
       setHasError(false)
       setNotice(action === 'seed' ? `${result.created} artículos añadidos como borrador. No se han sobrescrito los existentes.`
         : action === 'save' ? 'Borrador guardado. La versión publicada no ha cambiado.'
-        : action === 'publish' ? 'Artículo publicado. Esta es la versión que podrá alimentar al asistente cuando conectemos la ingesta.'
-        : 'Publicación retirada. Se conserva el borrador; la futura ingesta deberá sincronizar esta retirada.')
+        : action === 'publish' ? 'Artículo publicado. Sincroniza la wiki para actualizar el índice de nandBot.'
+        : 'Publicación retirada. Se conserva el borrador; sincroniza la wiki para actualizar el índice.')
     },
     onError: (error: Error) => { setHasError(true); setNotice(error.message) },
   })
@@ -83,6 +86,7 @@ export function WikiPanel({ repository = wikiApi, onDirtyChange }: {
   async function reload() {
     if (dirty && !window.confirm('Recargar descarta tus cambios sin guardar. ¿Continuar?')) return
     const result = await query.refetch()
+    void client.invalidateQueries({ queryKey: wikiSynchronizationKey(repository.scope) })
     if (result.data) select(result.data.find((a) => a.id === selected?.id) ?? null, true)
   }
   function insert(before: string, after = '') {
@@ -113,6 +117,7 @@ export function WikiPanel({ repository = wikiApi, onDirtyChange }: {
       <div><strong>{articles.filter((a) => !a.published).length}</strong><span>Solo borrador · privados</span></div>
       <div><strong>{articles.filter((a) => a.published).length}</strong><span>Con versión publicada</span></div>
     </S.Stats>
+    <WikiSynchronization scope={repository.scope} repository={repository.synchronization} />
     {query.isError && <S.Notice $error role="alert">No se pudo cargar la wiki: {query.error.message} Comprueba la sesión, el API y la migración de wiki.</S.Notice>}
     {notice && <S.Notice $error={hasError} role={hasError ? 'alert' : 'status'}>{notice}</S.Notice>}
     <S.Layout>
@@ -159,7 +164,7 @@ export function WikiPanel({ repository = wikiApi, onDirtyChange }: {
           </S.Preview>}
         </S.Panes>
         <S.Footer>
-          <small>{draft.markdown.length.toLocaleString('es-ES')} / 120.000 caracteres · Markdown seguro, sin ejecutar HTML.<br />Guarda el borrador antes de publicar. Solo lo publicado podrá alimentar al asistente; la ingesta todavía no está conectada.</small>
+          <small>{draft.markdown.length.toLocaleString('es-ES')} / 120.000 caracteres · Markdown seguro, sin ejecutar HTML.<br />Guarda antes de publicar y sincroniza las publicaciones con el índice. El chat sigue en demostración.</small>
           <S.Actions>
             {selected?.published && <S.Button type="button" disabled={busy || dirty} onClick={() => {
               if (window.confirm('¿Retirar la versión pública? El borrador se conservará.')) mutation.mutate('withdraw')

@@ -11,6 +11,33 @@ import { WikiPanel } from './WikiPanel'
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('Wiki editor', () => {
+  it('invalidates synchronization on publication/withdrawal but not on private draft saves', async () => {
+    const repository = createPreviewWikiRepository()
+    const original = await repository.create({ title: 'Guía', category: 'Ayuda', markdown: '# Texto' })
+    await repository.publish(original.id, original.revision)
+    const publishedKey = async () => JSON.stringify((await repository.list()).map((a) => [a.id, a.publishedRevision, a.published]))
+    let indexed = await publishedKey()
+    const status = vi.fn(async () => ({ state: indexed === await publishedKey() ? 'updated' as const : 'outdated' as const,
+      publishedArticles: 1, indexedArticles: 1, indexedChunks: 1 }))
+    repository.synchronization = { status, async synchronize() { indexed = await publishedKey(); return status() } }
+    renderWithProviders(<WikiPanel repository={repository} />)
+    const user = userEvent.setup()
+    await screen.findByText('Actualizado')
+    await user.click(await screen.findByRole('button', { name: /Guía Ayuda Publicado/ }))
+    fireEvent.change(screen.getByLabelText('Contenido Markdown'), { target: { value: '# Edición privada' } })
+    await user.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await waitFor(async () => expect((await repository.list())[0]!.draft.markdown).toBe('# Edición privada'))
+    expect(screen.getByText('Actualizado')).toBeInTheDocument()
+    expect(status).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Publicar artículo' }))
+    await screen.findByText('Desactualizado')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sincronizar wiki' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Sincronizar wiki' }))
+    await screen.findByText('Actualizado')
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await user.click(screen.getByRole('button', { name: 'Retirar publicación' }))
+    await screen.findByText('Desactualizado')
+  })
   it('offers all existing categories in a real selector when creating an article', async () => {
     const repository = createPreviewWikiRepository()
     await repository.seed()

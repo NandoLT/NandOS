@@ -5,9 +5,21 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "dev": "pnpm --filter @nandoos/contracts build && pnpm --parallel --filter @nandoos/web --filter @nandoos/api dev",
-    "build": "pnpm --recursive --if-present run build",
-    "lint": "pnpm --recursive --if-present run lint",
+    "build": "pnpm lint:ai && pnpm --recursive --if-present run build",
+    "lint": "pnpm lint:ai && pnpm --recursive --if-present run lint",
+    "lint:ai": "node scripts/ai/lint.mjs",
     "typecheck": "pnpm --filter @nandoos/contracts build && pnpm --recursive --if-present run typecheck",
-    "test": "pnpm --filter @nandoos/contracts build && pnpm --recursive --if-present run test"
+    "test": "pnpm --filter @nandoos/contracts build && pnpm test:ai && pnpm --recursive --if-present run test",
+    "test:ai": "node --test --test-isolation=none scripts/ai/*.test.mjs",
+    "ai:init": "node scripts/ai/cli.mjs init",
+    "ai:check": "node scripts/ai/cli.mjs check",
+    "ai:up": "node scripts/ai/cli.mjs up",
+    "ai:pull": "node scripts/ai/cli.mjs pull-model",
+    "ai:ps": "node scripts/ai/cli.mjs ps",
+    "ai:down": "node scripts/ai/cli.mjs down",
+    "ai:verify": "node scripts/ai/verify.mjs",
+    "ai:ingest": "pnpm --filter @nandoos/api wiki:knowledge ingest",
+    "ai:index": "pnpm --filter @nandoos/api wiki:knowledge status",
+    "ai:search": "pnpm --filter @nandoos/api wiki:knowledge search"
   }
 }

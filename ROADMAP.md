@@ -82,6 +82,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Paint / Pixel Studio.
 - Internal Browser.
 - Mail / Contact.
+- mIRC / IRC Chat: cliente IRC real integrado mediante iframe en una ventana de NandOS, con inspiración visual en mIRC.
 - Media Player.
 - Calendar / Timeline.
 - Calculator.
@@ -94,6 +95,15 @@ Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se 
 > Paint estará disponible próximamente.
 
 El popover debe funcionar con hover, teclado y toque en móvil.
+
+### mIRC / IRC Chat — aplicación futura
+
+- Añadir una experiencia IRC funcional dentro de una ventana del sistema mediante un cliente web embebido en un `iframe`: elección de nick, conexión a una red, canales, lista de usuarios, mensajes privados y comandos admitidos por el cliente elegido.
+- mIRC es un cliente nativo de Windows; no se ejecutará su `.exe` directamente en el iframe. Mantenerlo como referencia de la experiencia retro y evaluar un cliente IRC web compatible con incrustación, como Kiwi IRC. Cliente, red y canal quedan pendientes de elección; no prometer paridad con todas las funciones del mIRC nativo.
+- Registrar la aplicación en el catálogo común y mostrarla inicialmente desactivada con el popover «mIRC estará disponible próximamente». Al implementarla, conservar los controles de ventana habituales y cargar el cliente externo solo al abrir la aplicación; informar antes de conectar con servicios de terceros.
+- Validar licencia, permiso de incrustación, HTTPS y conexión IRC mediante WebSocket seguro o pasarela compatible, permisos mínimos del iframe y políticas de contenido. No trasladar credenciales administrativas al cliente ni guardar contraseñas IRC en `localStorage` o URLs. Esta idea permanece en backlog y no modifica la prioridad actual de wiki/RAG.
+
+Referencias: [mIRC para Windows](https://www.mirc.com/about.html) y [documentación de incrustación de Kiwi IRC](https://kiwiirc.com/embedding).
 
 ## Persistencia: dos responsabilidades separadas
 
@@ -446,6 +456,40 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 3. Ingesta backend del Markdown publicado: fragmentación por encabezados, embeddings e índice reconstruible en Qdrant con versiones y fuentes.
 4. Elegir modelos de conversación/embeddings y configurar LiteLLM, sin activar servicios de pago hasta acordar proveedor y presupuesto.
 5. Conectar el chat al backend RAG, citar fuentes, reconocer información insuficiente y verificar recuperación, seguridad y límites antes del despliegue.
+
+### Embeddings e infraestructura local — validación inicial (2 de noviembre de 2026)
+
+- Elección inicial: Qwen3-Embedding 0.6B Q8_0 mediante Ollama, alias LiteLLM `nandos-embeddings`, 1024 dimensiones y distancia coseno. Modelo multilingüe y Apache 2.0, sin proveedor de pago; validar rendimiento y recuperación en español antes de darlo por definitivo. El modelo de conversación queda pendiente.
+- Servicios opt-in con Compose, imágenes oficiales versionadas (Qdrant v1.20.0, LiteLLM v1.106.6 y Ollama 0.40.13), volúmenes propios y autenticación local. Qdrant y LiteLLM ligados a 127.0.0.1; Ollama solo en la red interna y con cloud deshabilitado. Sin base de datos adicional para LiteLLM ni cambios en Neon o Vercel.
+- Comandos `ai:init`, `ai:check`, `ai:up`, `ai:pull`, `ai:ps`, `ai:verify` y `ai:down`. Claves locales aleatorias en `infra/ai/.env`, permisos 600, excluidas de Git, sin sobrescritura ni impresión. Opción `--sudo` limitada a Docker; no modificar grupos, permisos del socket ni ejecutar pnpm como administrador.
+- Preparada una prueba opt-in de extremo a extremo con textos sintéticos: autenticación, embeddings y tres búsquedas en español dentro de una colección temporal propia, eliminada al finalizar. Pruebas automáticas con mocks separadas de la ejecución real. No ingerir todavía artículos ni conectar el chat público.
+- Guía en `infra/ai/README.md`. Docker requiere sudo en la terminal del propietario; no se han cambiado grupos ni permisos del socket. El 2 de noviembre Fernando confirmó la ejecución real satisfactoria de `pnpm ai:verify`: autenticación, vectores de 1024 dimensiones, tres búsquedas en español y eliminación de la colección temporal. Wiki y Neon permanecen sin cambios. Esta comprobación la ejecutó el propietario, no el agente mediante acceso al daemon.
+- Validación de esta preparación: Compose correcto, claves locales privadas e ignoradas por Git, 13 pruebas nuevas de infraestructura junto a las 126 existentes, tipos y compilación correctos, y lint sin warnings ni errores. Sin nuevos paquetes de ejecución ni cambios en la API pública.
+- Siguiente entrega: ingesta del Markdown publicado desde Neon development, fragmentación por encabezados, metadatos de artículo/revisión, embeddings mediante LiteLLM e índice reconstruible en Qdrant. Después validar búsquedas sobre la wiki real, sincronización de retiradas y estado en administración. Las tres búsquedas sintéticas no sustituyen una evaluación de calidad ni de rendimiento con ese corpus; el chat público sigue en modo demostración.
+
+### Ingesta de wiki — primera entrega local (4 de noviembre de 2026)
+
+- Módulo backend `knowledge` con dominio de corpus/fragmentos, puertos de fuente publicada/embeddings/índice, casos de uso de planificación, ingesta, estado y recuperación, y adaptadores HTTP locales LiteLLM/Qdrant. Reutiliza la consulta de instantáneas publicadas del repositorio de wiki; no lee borradores en ese camino.
+- Fragmentación determinista por encabezados Markdown ATX/setext, ignorando encabezados dentro de bloques de código. Acotar entradas por bytes UTF-8 sin perder texto ni cortar pares Unicode; mantener artículo, revisión, publicación, categoría y jerarquía de sección para futuras fuentes.
+- Perfil inicial versionado Qwen3-Embedding 0.6B Q8_0/1024/coseno e instrucción de consultas Qwen, con embeddings en lotes de cuatro. El identificador real de pesos de Ollama todavía requiere control manual: no detectar automáticamente cambios bajo la misma etiqueta.
+- Índice reconstruible mediante colección candidata propia y cambio de alias en una única operación tras completar fragmentos/manifiesto y releer las publicaciones. Huella de corpus para omitir ingestas sin cambios, comprobación de recuentos/dimensiones, bloqueo local contra escritores simultáneos y limpieza exclusiva de candidatos confirmados sin alias. Conservar snapshots completos anteriores para recuperación manual; definir retención/limpieza antes de producción.
+- Una nueva ingesta reemplaza el conjunto activo, incluidas revisiones retiradas y corpus vacío. La búsqueda contrasta IDs de fragmentos con las publicaciones vigentes de Neon antes de devolver texto/fuentes, sin alternativa de borradores ni payloads arbitrarios del índice.
+- Comandos opt-in `ai:ingest --dry-run`, `ai:ingest`, `ai:index` y `ai:search`. Configuración privada explícita, destino Neon development exacto con TLS, servicios de IA fijos en loopback y prohibición de ejecución en Vercel/production. Sin nuevas rutas HTTP, paquetes, migraciones, credenciales ni proveedores de pago.
+- Validación real: ingesta vacía y posterior índice de tres artículos/tres fragmentos; repetición detectada como «sin cambios»; estado sincronizado; búsquedas de CV, contacto y temas con su guía esperada en primera posición. Se observaron fallos intermitentes de consulta durante comprobaciones iniciales; las comprobaciones posteriores fueron satisfactorias sin cambiar credenciales ni registrar errores privados. No confundir estas tres preguntas con una evaluación amplia de calidad, rendimiento o resiliencia.
+- Publicación editorial autorizada expresamente por Fernando: únicamente las tres semillas sin editar de CV, contacto y temas en development. El resto permanece sin publicar; no sobrescribir borradores ni tocar main/producción. Los comandos de ingesta son de solo lectura sobre Neon.
+- TDD: 20 casos nuevos de dominio, ingesta, recuperación, adaptadores, aislamiento y bloqueo; 159 pruebas totales (110 web, 36 API y 13 infraestructura). Lint sin warnings/errores, tipos y compilación correctos. Cambios conservados en local, sin commit, push ni despliegue.
+- Siguiente punto: integrar estado y controles de sincronización en administración y ampliar la evaluación con la wiki real. Después elegir modelo de conversación y conectar el chat al RAG con fuentes y límites. El chat público sigue siendo una demostración; el despliegue de estos servicios se resolverá por separado.
+
+### Control de sincronización en administración (4 de noviembre de 2026)
+
+- Incorporar «Índice de nandBot» al panel real de wiki, con botones «Sincronizar wiki» y «Comprobar estado», estados Actualizado/Desactualizado/Sincronizando y recuentos publicados/indexados/fragmentos. Estado desconocido o infraestructura ausente se muestran explícitamente como «No se pudo comprobar» / «Sin configurar», nunca como actualizado.
+- Comparar la huella de las instantáneas publicadas con el índice Qdrant activo; guardar borradores o tener texto sin guardar no desactualiza el índice. Publicar nuevas revisiones o retirar invalida y vuelve a comprobar el estado. Comprobaciones al entrar, recuperar foco, recargar lista y periódicamente mientras el panel está visible; no almacenar el estado en localStorage. El caché privado se elimina con el cierre administrativo existente.
+- Rutas `GET/POST /api/admin/wiki/synchronization`, sesión administrativa, Origin confiable en POST y `private, no-store`. No exponer credenciales, conexiones, nombres de colecciones ni huellas internas. Esperar la sincronización y verificar de nuevo su estado; prevenir duplicados con el mismo bloqueo usado por terminal y HTTP 409. Sanitizar fallos antes de responder o pasarlos al logger global.
+- Habilitar solo en el API local mediante `WIKI_LOCAL_AI_ENABLED=true`; verificar archivos privados de development y conexión idéntica entre API e ingesta. En Vercel/production siempre deshabilitado, aun con la variable presente, hasta acordar alojamiento real. No convertir el bloqueo local en un supuesto bloqueo distribuido ni lanzar trabajos sin esperar en serverless.
+- Comprobado contra Neon development/Qdrant reales: estado actualizado de tres publicaciones/tres fragmentos y sincronización sin cambios que vuelve a devolver actualizado. No editar, publicar ni retirar artículos del propietario para esta comprobación. Ciclo borrador/publicación/retirada, estados de UI, guards, ausencia de filtraciones y concurrencia cubiertos por pruebas aisladas.
+- Limitar Vitest a dos procesos conservando aislamiento, todas las aserciones y sus tiempos originales: las ejecuciones con paralelismo automático agotaban esperas; las 115 pruebas de interfaz existentes en esa comprobación pasaron con el límite. No silenciar warnings ni aumentar timeouts para disimular fallos.
+- Mantener todos los cambios en local, sin commit, push ni despliegue. Web local en 127.0.0.1:4173 y API en 3001 con sincronización habilitada. Revisión visual completada el 4 de noviembre con la sesión administrativa iniciada por Fernando: estado inicial Actualizado, transición a Sincronizando con botones deshabilitados y retorno a Actualizado; tres artículos publicados, tres indexados y tres fragmentos. GET/POST del flujo con HTTP 200 y consola sin avisos ni errores. No editar ni publicar artículos, ni solicitar o leer la contraseña. El chat público continúa en demostración.
+- Validación final de esta entrega: 174 pruebas (116 web, 45 API y 13 infraestructura), tipos, lint sin warnings/errores y compilación correctos. Incluye comprobación HTTP del cliente sin secretos, HTTP 409 por ingestas concurrentes y protección real de las rutas sin sesión.
 
 ### Wiki — primera revisión local (31 de octubre de 2026)
 

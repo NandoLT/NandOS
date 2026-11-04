@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --pretty false",
     "test": "node --import tsx --test src/**/*.test.ts",
     "test:wiki-db": "node --import tsx scripts/verify-wiki-database.ts",
+    "wiki:knowledge": "node --import tsx scripts/wiki-knowledge.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

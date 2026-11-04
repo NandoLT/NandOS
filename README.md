@@ -18,6 +18,12 @@ Configura antes `apps/api/.env` a partir de `apps/api/.env.example`. `pnpm dev` 
 
 El proxy web extrae la ruta reescrita con `URL` y `URLSearchParams`, sin acceder al parser auxiliar `request.query` del runtime. Las pruebas cubren este contrato, rutas duplicadas, peticiones autenticadas y cookies. Para comprobar localmente las deprecaciones como fallos: `NODE_OPTIONS=--throw-deprecation pnpm --filter @nandoos/web exec vitest run tests/api-proxy.test.js`.
 
+## Infraestructura local de IA
+
+La preparación local de Qdrant, LiteLLM y embeddings se documenta en [infra/ai/README.md](infra/ai/README.md). Empezar con `pnpm ai:init` y `pnpm ai:check`; los servicios son opt-in y no arrancan con `pnpm dev`. Con los servicios activos, `pnpm ai:ingest --dry-run` prepara la ingesta de la wiki publicada de Neon development; `pnpm ai:ingest` la indexa en Qdrant local, `pnpm ai:index` consulta su estado y `pnpm ai:search "pregunta"` recupera fragmentos con sus fuentes. No se modifica Neon desde estos comandos ni se conecta todavía el chat público.
+
+Administración > Wiki incorpora botón de sincronización y estado actualizado/desactualizado basado exclusivamente en las publicaciones. Habilitarlo en el API local con `WIKI_LOCAL_AI_ENABLED=true pnpm --filter @nandoos/api dev`. Mantiene el bloqueo compartido con la terminal y las comprobaciones de development. En producción/Vercel permanece «Sin configurar» hasta resolver el alojamiento de IA; nunca conectar a 127.0.0.1 desde Vercel. Guardar borradores no desactualiza el índice.
+
 ## Laboratorio local de la wiki
 
 Para revisar el editor sin credenciales ni conexión a Neon:
@@ -37,7 +43,7 @@ Rama de desarrollo acordada en Neon: proyecto `nandos-db` (`shy-truth-31517067`)
 
 La migración `apps/api/drizzle/0001_wiki_articles.sql` está aplicada y verificada en **development** y **main**. En producción se añadió únicamente `wiki_articles`, dentro de una transacción y registrando la migración en Drizzle; el portfolio y las cuentas existentes se conservan. Verifica el destino antes de ejecutar `pnpm --filter @nandoos/api db:migrate`. No uses `db:push` ni reinicies el esquema. Para comprobar el adaptador real explícitamente, `WIKI_TEST_DATABASE_HOST=<hostname-exacto-de-development> pnpm --filter @nandoos/api test:wiki-db` crea un artículo temporal, verifica el ciclo completo y elimina solo ese registro. Nunca forma parte de las pruebas automáticas habituales.
 
-Development contiene los 37 artículos iniciales, todos como borradores. En producción pueden importarse desde Administración > Wiki de nandBot > «Cargar documentación inicial»: la operación es idempotente, solo crea borradores y no sobrescribe artículos existentes. Se ha verificado contra Neon development la creación, lectura, publicación, independencia del borrador, conflicto de revisión y retirada; el artículo temporal de verificación se eliminó al terminar. Qdrant, LiteLLM e ingesta siguen pendientes: publicar en la wiki aún no cambia las respuestas de nandBot. La configuración local nunca debe migrar producción automáticamente.
+Development contiene los 37 artículos iniciales; el 4 de noviembre se publicaron, con autorización del propietario, solo las tres guías iniciales sin editar de CV, contacto y temas para validar la ingesta local. En producción pueden importarse desde Administración > Wiki de nandBot > «Cargar documentación inicial»: la operación es idempotente, solo crea borradores y no sobrescribe artículos existentes. Se ha verificado contra Neon development la creación, lectura, publicación, independencia del borrador, conflicto de revisión y retirada; el artículo temporal de verificación se eliminó al terminar. La ingesta en Qdrant es manual y local: publicar en la wiki aún no cambia las respuestas de nandBot. La configuración local nunca debe migrar producción automáticamente.
 
 Nunca pegues conexiones completas ni contraseñas en el chat o el repositorio. Si se expone una clave, renueva el rol en cada rama donde esa clave siga siendo válida. La rotación de `development` no rota `main`. Para producción, actualiza `DATABASE_URL` en Vercel con la conexión de `main` y haz un redeploy del backend con el mismo código para activar la nueva configuración; no reutilices la conexión local. Los cambios de contraseña deben hacerlos directamente los responsables de las credenciales.
 

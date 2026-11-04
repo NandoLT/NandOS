@@ -21,3 +21,11 @@ export interface PublishedWikiArticle {
   revision: number
   publishedAt: string
 }
+
+export interface WikiSynchronizationStatus {
+  state: 'updated' | 'outdated' | 'syncing' | 'not-configured' | 'error'
+  publishedArticles: number | null
+  indexedArticles: number | null
+  indexedChunks: number | null
+  message?: string
+}

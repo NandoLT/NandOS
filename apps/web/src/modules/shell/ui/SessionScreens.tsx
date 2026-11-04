@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
 import styled from '@emotion/styled'
 import { prefersReducedMotion } from '../../../shared/lib/input-preferences'
 
@@ -156,49 +155,17 @@ const LoginWelcome = styled.div`
   p { margin: 0; }
 `
 
-const LoginForm = styled.form`
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px 8px;
-
-  label {
-    color: var(--os-window-text);
-    font-size: 12px;
-  }
-
-  input {
-    min-width: 0;
-    width: 100%;
-    padding: 6px 7px;
-    border: var(--os-inset-border);
-    border-radius: var(--os-control-radius);
-    color: var(--os-input-text);
-    background: var(--os-input);
-    font: 13px var(--os-font-family);
-  }
-
-  input[readonly] {
-    color: var(--os-muted);
-    background: var(--os-input-muted);
-  }
-
-  input:focus {
-    outline: 1px dotted var(--os-accent);
-    outline-offset: 1px;
-  }
-`
-
-const LoginButton = styled.button`
-  grid-column: 2;
-  justify-self: end;
+const QuickLoginButton = styled.button`
+  width: 100%;
+  min-height: 44px;
   min-width: 112px;
-  margin-top: 4px;
+  margin: 0;
   padding: 6px 12px;
   border: var(--os-raised-border);
   border-radius: var(--os-control-radius);
-  color: var(--os-window-text);
-  background: var(--os-window);
+  color: var(--os-accent-text);
+  background: var(--os-accent);
+  font-weight: 700;
   cursor: pointer;
 
   &:active { border-style: inset; }
@@ -208,31 +175,6 @@ const LoginButton = styled.button`
     outline: 1px dotted var(--os-window-text);
     outline-offset: -5px;
   }
-`
-
-const Hint = styled.p`
-  margin: 18px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--os-divider);
-  color: var(--os-muted);
-  font-size: 12px;
-`
-
-const QuickLoginButton = styled(LoginButton)`
-  width: 100%;
-  min-height: 44px;
-  margin: 0 0 20px;
-  color: var(--os-accent-text);
-  background: var(--os-accent);
-  font-weight: 700;
-`
-
-const ErrorMessage = styled.p`
-  margin: 0;
-  grid-column: 2;
-  color: var(--os-danger);
-  font-family: var(--os-font-family);
-  font-size: 13px;
 `
 
 const startupLines = [
@@ -292,18 +234,6 @@ export function BootScreen({ onComplete }: { onComplete: () => void }) {
 }
 
 export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onAdminLogin?: () => void }) {
-  const [password, setPassword] = useState('')
-  const [hasError, setHasError] = useState(false)
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (password === '12345') {
-      onLogin()
-      return
-    }
-    setHasError(true)
-  }
-
   return (
     <Screen>
       <LoginPanel>
@@ -312,32 +242,14 @@ export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onA
           <LoginWelcome>
             <Avatar aria-hidden="true">👤</Avatar>
             <div>
-              <Eyebrow>Sesión de demostración</Eyebrow>
+              <Eyebrow>Sesión de invitado</Eyebrow>
               <Heading>Bienvenido, Invitado</Heading>
-              <Subheading>Escribe la contraseña para iniciar sesión.</Subheading>
+              <Subheading>Explora el portfolio sin registrarte.</Subheading>
             </div>
           </LoginWelcome>
           <QuickLoginButton type="button" autoFocus onClick={onLogin}>
             Entrar como invitado
           </QuickLoginButton>
-          <LoginForm onSubmit={handleSubmit}>
-            <label htmlFor="guest-name">Usuario:</label>
-            <input id="guest-name" type="text" value="Invitado" readOnly />
-            <label htmlFor="guest-password">Contraseña:</label>
-            <input
-              id="guest-password"
-              type="password"
-              autoComplete="off"
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-                setHasError(false)
-              }}
-            />
-            {hasError && <ErrorMessage role="alert">Contraseña incorrecta. Prueba con 12345.</ErrorMessage>}
-            <LoginButton type="submit">Aceptar</LoginButton>
-          </LoginForm>
-          <Hint>Contraseña de demostración: 12345 · Este acceso no es una autenticación real.</Hint>
           {onAdminLogin && (
             <GhostButton type="button" onClick={onAdminLogin}>Acceso de administración</GhostButton>
           )}

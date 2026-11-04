@@ -5,12 +5,13 @@ import { BootScreen, GuestLogin } from './SessionScreens'
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('guest login', () => {
-  it('offers immediate guest access while preserving the demonstration login', () => {
+  it('offers immediate guest access with the initial keyboard focus', () => {
     const onLogin = vi.fn()
     render(<GuestLogin onLogin={onLogin} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Entrar como invitado' }))
+    const button = screen.getByRole('button', { name: 'Entrar como invitado' })
+    expect(button).toHaveFocus()
+    fireEvent.click(button)
     expect(onLogin).toHaveBeenCalledOnce()
-    expect(screen.getByLabelText('Contraseña:')).toHaveValue('')
   })
 
   it('skips the boot waiting time when reduced motion is requested', () => {
@@ -19,20 +20,13 @@ describe('guest login', () => {
     render(<BootScreen onComplete={onComplete} />)
     expect(onComplete).toHaveBeenCalledOnce()
   })
-  it('accepts the demonstration password and rejects other values', () => {
-    const onLogin = vi.fn()
-    render(<GuestLogin onLogin={onLogin} />)
-
-    expect(screen.getByLabelText('Usuario:')).toHaveValue('Invitado')
-
-    fireEvent.change(screen.getByLabelText('Contraseña:'), { target: { value: 'wrong' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Contraseña incorrecta')
-    expect(onLogin).not.toHaveBeenCalled()
-
-    fireEvent.change(screen.getByLabelText('Contraseña:'), { target: { value: '12345' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
-    expect(onLogin).toHaveBeenCalledOnce()
+  it('does not render the guest credentials form or its demonstration hints', () => {
+    render(<GuestLogin onLogin={vi.fn()} />)
+    expect(screen.queryByLabelText('Usuario:')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Contraseña:')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/12345|Escribe la contraseña|Contraseña de demostración/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
   })
 
   it('offers a distinct entry to the administrative login', () => {
@@ -42,5 +36,6 @@ describe('guest login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Acceso de administración' }))
 
     expect(onAdminLogin).toHaveBeenCalledOnce()
+    expect(screen.getAllByRole('button')).toHaveLength(2)
   })
 })

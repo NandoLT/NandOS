@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import styled from '@emotion/styled'
 import { prefersReducedMotion } from '../../../shared/lib/input-preferences'
+import { guestAvatarSrc, useGuestProfile } from '../application/guest-profile.store'
 
 const Screen = styled.main`
   display: grid;
@@ -141,7 +142,8 @@ const Avatar = styled.div`
   border: var(--os-inset-border);
   border-radius: var(--os-control-radius);
   background: var(--os-input-muted);
-  font-size: 30px;
+  overflow: hidden;
+  img { width: 100%; height: 100%; object-fit: cover; }
 `
 
 const LoginWelcome = styled.div`
@@ -234,16 +236,19 @@ export function BootScreen({ onComplete }: { onComplete: () => void }) {
 }
 
 export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onAdminLogin?: () => void }) {
+  const name = useGuestProfile((state) => state.name)
+  const avatar = useGuestProfile((state) => state.avatar)
+
   return (
     <Screen>
       <LoginPanel>
         <WindowTitleBar><span aria-hidden="true">🔑</span>NandOS · Inicio de sesión</WindowTitleBar>
         <PanelContent>
           <LoginWelcome>
-            <Avatar aria-hidden="true">👤</Avatar>
+            <Avatar><img src={guestAvatarSrc(avatar)} width="56" height="56" alt="Avatar de invitado" /></Avatar>
             <div>
               <Eyebrow>Sesión de invitado</Eyebrow>
-              <Heading>Bienvenido, Invitado</Heading>
+              <Heading>Bienvenido, {name}</Heading>
               <Subheading>Explora el portfolio sin registrarte.</Subheading>
             </div>
           </LoginWelcome>
@@ -260,7 +265,7 @@ export function GuestLogin({ onLogin, onAdminLogin }: { onLogin: () => void; onA
 }
 
 const shutdownLines = [
-  'Cerrando la sesión de Invitado ................. OK',
+  'Cerrando la sesión de invitado ................. OK',
   'Guardando el estado del escritorio ............ OK',
   'Deteniendo servicios visuales ................. OK',
   'NandOS se ha detenido.',

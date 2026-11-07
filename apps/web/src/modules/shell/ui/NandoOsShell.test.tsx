@@ -83,7 +83,8 @@ describe('desktop interactions', () => {
     fireEvent.click(folder, { detail: 2 })
     fireEvent.doubleClick(folder)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.getByText('«Nueva carpeta» está vacía.')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Explorador de archivos' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Ruta actual')).toHaveTextContent('Escritorio › Nueva carpeta')
   })
 
   it('does not offer renaming for protected system shortcuts', () => {
@@ -104,7 +105,26 @@ describe('desktop interactions', () => {
     fireEvent.click(label, { detail: 2 })
     fireEvent.doubleClick(label)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.getByText('«Nueva carpeta» está vacía.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ruta actual')).toHaveTextContent('Escritorio › Nueva carpeta')
+  })
+
+  it('opens the renamed desktop folder from its context menu in the Explorer', () => {
+    const folder = createVisitorFolder()
+    const [item] = useShellStore.getState().userDesktopItems
+    act(() => { useShellStore.getState().renameUserDesktopItem(item.id, 'Apuntes') })
+    fireEvent.contextMenu(folder)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Abrir' }))
+    const explorer = within(screen.getByRole('dialog', { name: 'Explorador de archivos' }))
+    expect(explorer.getByLabelText('Ruta actual')).toHaveTextContent('Este equipo › Escritorio › Apuntes')
+    expect(explorer.getByRole('status')).toHaveTextContent('0 objetos')
+    fireEvent.click(explorer.getByRole('button', { name: 'Subir un nivel' }))
+    expect(explorer.getByRole('button', { name: 'Carpeta Apuntes' })).toBeInTheDocument()
+  })
+
+  it('shows the pixel-art About Me shortcut', () => {
+    enterGuest()
+    const shortcut = screen.getByRole('button', { name: 'About Me. Doble clic para abrir' })
+    expect(shortcut.querySelector('img')).toHaveAttribute('src', '/about-me.svg')
   })
 
   it('allows selecting the icon first and editing its name after a longer pause', () => {

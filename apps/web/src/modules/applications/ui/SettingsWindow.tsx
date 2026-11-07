@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import styled from '@emotion/styled'
 import { themeRegistry } from '../../../shared/styles/theme'
 import type { ThemeId } from '../../../shared/styles/theme'
+import { GuestProfileSettings } from './GuestProfileSettings'
 
 const SettingsLayout = styled.div`
   display: grid;
@@ -136,11 +138,18 @@ type SettingsWindowProps = {
 }
 
 export function SettingsWindow({ selectedThemeId, onSelectTheme }: SettingsWindowProps) {
+  const [section, setSection] = useState<'appearance' | 'profile'>('appearance')
+
   return (
     <SettingsLayout aria-label="Configuración del sistema">
       <SettingsNavigation aria-label="Secciones de configuración">
-        <NavigationItem type="button" $active aria-current="page">
+        <NavigationItem type="button" $active={section === 'appearance'}
+          aria-current={section === 'appearance' ? 'page' : undefined} onClick={() => setSection('appearance')}>
           🎨 Apariencia
+        </NavigationItem>
+        <NavigationItem type="button" $active={section === 'profile'}
+          aria-current={section === 'profile' ? 'page' : undefined} onClick={() => setSection('profile')}>
+          <span aria-hidden="true">👤</span> Usuario
         </NavigationItem>
         <NavigationItem type="button" disabled title="Disponible próximamente">
           🖥️ Sistema
@@ -151,6 +160,7 @@ export function SettingsWindow({ selectedThemeId, onSelectTheme }: SettingsWindo
       </SettingsNavigation>
 
       <SettingsContent>
+        {section === 'profile' ? <GuestProfileSettings /> : <>
         <h2>Apariencia</h2>
         <p>Elige el escritorio que quieres usar. La preferencia se guarda en este navegador.</p>
         <ThemeList aria-label="Temas disponibles">
@@ -178,6 +188,7 @@ export function SettingsWindow({ selectedThemeId, onSelectTheme }: SettingsWindo
         <CurrentThemeNote role="status">
           Tema actual: <strong>{themeRegistry[selectedThemeId].name}</strong>
         </CurrentThemeNote>
+        </>}
       </SettingsContent>
     </SettingsLayout>
   )

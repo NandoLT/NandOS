@@ -1,4 +1,5 @@
 import type { AppDefinition } from '@nandoos/contracts'
+import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
 
 export type RegisteredApp = AppDefinition & {
   icon: string
@@ -10,7 +11,7 @@ export const appRegistry: RegisteredApp[] = [
     id: 'about',
     name: 'About Me',
     windowTitle: 'Fernando.exe',
-    icon: '👤',
+    icon: ABOUT_ME_ICON,
     status: 'available',
   },
   {

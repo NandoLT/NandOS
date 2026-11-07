@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import { fitHelpWindowBounds } from '../domain/help-window-bounds'
 import { taskbarHeight } from '../../../shared/lib/input-preferences'
+import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
 import type {
   DesktopPosition,
   DesktopSystemItemId,
@@ -59,7 +60,7 @@ const defaultDesktopPositions: Record<DesktopSystemItemId, DesktopPosition> = {
 }
 
 const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
-  about: { title: 'About Fernando.exe', icon: '👤' },
+  about: { title: 'About Fernando.exe', icon: ABOUT_ME_ICON },
   'file-explorer': { title: 'Explorador de archivos', icon: '📁' },
   'recycle-bin': { title: 'Papelera de reciclaje', icon: '🗑️' },
   settings: { title: 'Configuración', icon: '⚙️' },

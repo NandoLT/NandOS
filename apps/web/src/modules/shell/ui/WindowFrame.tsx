@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import styled from '@emotion/styled'
+import { AppIcon } from '../../../shared/lib/AppIcon'
 import type { WindowBounds, WindowState } from '../domain/types'
 
 type FrameState = Omit<WindowState, 'id'> & { id: string }
@@ -110,6 +111,7 @@ const Content = styled.div`
 const ResizeHandle = styled.button`
   position: relative;
   grid-row: 3;
+  grid-column: 1;
   justify-self: end;
   align-self: end;
   width: 16px;
@@ -245,7 +247,7 @@ export function WindowFrame({
       }}
     >
       <TitleBar $active={isActive} onPointerDown={handlePointerDown}>
-        <span aria-hidden="true">{windowState.icon}</span>
+        <AppIcon icon={windowState.icon} />
         <Title>{windowState.title}</Title>
         <WindowButton aria-label="Minimizar" onClick={() => leaveWindow(onMinimize)}>
           _

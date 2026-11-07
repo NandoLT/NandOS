@@ -10,6 +10,7 @@ import styled from '@emotion/styled'
 import type { AppId } from '@nandoos/contracts'
 import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import { appRegistry } from '../../applications/domain/app-registry'
+import { COMPUTER_DIRECTORY, DOCUMENTS_DIRECTORY } from '../../applications/domain/explorer'
 import { FileExplorer } from '../../applications/ui/FileExplorer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
 import { SettingsWindow } from '../../applications/ui/SettingsWindow'
@@ -21,6 +22,9 @@ import { AdminLogin } from '../../admin/ui/AdminLogin'
 import { useThemeStore } from '../../../shared/styles/theme.store'
 import { rememberBoot, shouldPlayBoot, taskbarHeight } from '../../../shared/lib/input-preferences'
 import { useTouchPress } from '../../../shared/lib/useTouchPress'
+import { AppIcon } from '../../../shared/lib/AppIcon'
+import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
+import { useGuestProfile } from '../application/guest-profile.store'
 import { useShellStore } from '../application/shell.store'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds } from '../domain/types'
@@ -785,6 +789,7 @@ export function NandoOsShell() {
 function DesktopShell() {
   const [screen, setScreen] = useState<SessionScreen>(() => shouldPlayBoot() ? 'boot' : 'login')
   const [adminUsername, setAdminUsername] = useState<string | null>(null)
+  const [explorerEntry, setExplorerEntry] = useState({ directory: COMPUTER_DIRECTORY, revision: 0 })
   const [clock, setClock] = useState(() => new Date())
   const [viewport, setViewport] = useState<WindowBounds>({
     x: 0,
@@ -805,6 +810,7 @@ function DesktopShell() {
   const startMenuRef = useRef<HTMLDivElement | null>(null)
   const openStartCategoryAnchorRef = useRef<HTMLElement | null>(null)
   const selectedThemeId = useThemeStore((state) => state.selectedThemeId)
+  const guestName = useGuestProfile((state) => state.name)
   const setSelectedThemeId = useThemeStore((state) => state.setSelectedThemeId)
   const {
     windows,
@@ -971,6 +977,10 @@ function DesktopShell() {
   if (screen === 'shutdown') return <ShutdownScreen onRestart={() => setScreen('boot')} />
 
   const openShellWindow = openWindow
+  const openExplorer = (directory = COMPUTER_DIRECTORY) => {
+    setExplorerEntry(({ revision }) => ({ directory, revision: revision + 1 }))
+    openShellWindow('file-explorer')
+  }
 
   const accessCv = (language: 'es' | 'en', action: 'download' | 'open') => {
     const documentMetadata = portfolioContent.cvDocuments[language] ?? DEFAULT_PORTFOLIO_CONTENT.cvDocuments[language]
@@ -998,8 +1008,12 @@ function DesktopShell() {
       openCv('es')
       return
     }
+    if (id === 'file-explorer') {
+      openExplorer()
+      return
+    }
     if (
-      id === 'about' || id === 'file-explorer' || id === 'recycle-bin' || id === 'settings' ||
+      id === 'about' || id === 'recycle-bin' || id === 'settings' ||
       id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
     ) {
       openShellWindow(id)
@@ -1031,7 +1045,7 @@ function DesktopShell() {
       label: 'Documentos',
       icon: '📁',
       entries: [
-        { label: 'Mis documentos', icon: '📁', onActivate: () => launchApp('file-explorer') },
+        { label: 'Mis documentos', icon: '📁', onActivate: () => openExplorer(DOCUMENTS_DIRECTORY) },
         { label: 'Este equipo', icon: '🖥️', onActivate: () => launchApp('file-explorer') },
         { label: 'CV (Español)', icon: '📄', onActivate: () => openCv('es') },
         { label: 'CV (English)', icon: '📄', onActivate: () => openCv('en') },
@@ -1126,10 +1140,11 @@ function DesktopShell() {
     setContextMenu(null)
     if (target.kind === 'desktop') return
     if (target.kind === 'user') {
-      setNotice(`«${target.label}» está vacía.`)
+      openExplorer(target.id)
       return
     }
     if (target.id === 'cv') downloadCv('es')
+    else if (target.id === 'file-explorer') openExplorer()
     else openShellWindow(target.id)
   }
 
@@ -1179,7 +1194,7 @@ function DesktopShell() {
     label: string
     icon: string
   }> = [
-    { id: 'about', label: 'About Me', icon: '👤' },
+    { id: 'about', label: 'About Me', icon: ABOUT_ME_ICON },
     { id: 'cv', label: 'CV_Fernando_Lopez', icon: '/pdf-document.svg' },
     { id: 'file-explorer', label: 'Este equipo', icon: '📁' },
     { id: 'recycle-bin', label: 'Papelera de reciclaje', icon: '🗑️' },
@@ -1232,7 +1247,7 @@ function DesktopShell() {
             setSelectedDesktopItem(shortcut.id)
             setContextMenu(null)
           }}
-          onOpen={() => shortcut.id === 'cv' ? downloadCv('es') : openShellWindow(shortcut.id)}
+          onOpen={() => openDesktopTarget({ kind: 'system', id: shortcut.id, label: shortcut.label })}
           onMove={(position) => moveDesktopItem(shortcut.id, snapDesktopShortcut(shortcut.id, position))}
           onDropToRecycleBin={() => {
             setSelectedDesktopItem(shortcut.id)
@@ -1261,7 +1276,7 @@ function DesktopShell() {
             setSelectedDesktopItem(item.id)
             setContextMenu(null)
           }}
-          onOpen={() => setNotice(`«${item.name}» está vacía.`)}
+          onOpen={() => openExplorer(item.id)}
           onMove={(position) => moveUserDesktopItem(item.id, snapDesktopShortcut(item.id, position))}
           onDropToRecycleBin={() => {
             moveUserItemToRecycleBin(item.id)
@@ -1283,6 +1298,8 @@ function DesktopShell() {
           windowState={windowState}
           isActive={activeWindowId === windowState.id}
           viewport={viewport}
+          contentStyle={windowState.id === 'file-explorer'
+            ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' } : undefined}
           onFocus={() => focusWindow(windowState.id)}
           onClose={() => closeWindow(windowState.id)}
           onMinimize={() => minimizeWindow(windowState.id)}
@@ -1301,7 +1318,12 @@ function DesktopShell() {
             <AboutWindow />
           ) : windowState.id === 'file-explorer' ? (
             <FileExplorer
+              key={explorerEntry.revision}
+              initialDirectory={explorerEntry.directory}
+              folders={userDesktopItems}
               onOpenAbout={() => openShellWindow('about')}
+              onClose={() => closeWindow('file-explorer')}
+              onHelp={() => openShellWindow('help')}
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
@@ -1484,7 +1506,7 @@ function DesktopShell() {
                           {...menuTooltipProps(tooltipId, entry.disabled ? entry.tooltip : undefined)}
                           onClick={() => activateStartEntry(entry)}
                         >
-                          <span aria-hidden="true">{entry.icon}</span>
+                          <span aria-hidden="true"><AppIcon icon={entry.icon} size={22} /></span>
                           {entry.label}
                         </MenuItem>
                       )
@@ -1512,10 +1534,10 @@ function DesktopShell() {
             <MenuDivider />
             <MenuItem
               type="button"
-              {...menuTooltipProps('start-tooltip-logoff', 'Cerrar la sesión de Invitado y volver al inicio de sesión.')}
+              {...menuTooltipProps('start-tooltip-logoff', `Cerrar la sesión de ${guestName} y volver al inicio de sesión.`)}
               onClick={logOffGuest}
             >
-              <span aria-hidden="true">🔑</span> <span>Log off Invitado</span>
+              <span aria-hidden="true">🔑</span> <span>Log off {guestName}</span>
             </MenuItem>
             <MenuItem
               type="button"
@@ -1577,7 +1599,7 @@ function DesktopShell() {
                 : minimizeWindow(windowState.id)
             }
           >
-            {windowState.icon} {windowState.title}
+            <AppIcon icon={windowState.icon} /> {windowState.title}
           </TaskbarButton>
         ))}
         </TaskbarWindows>

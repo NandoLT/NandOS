@@ -35,7 +35,7 @@ export const appRegistry: RegisteredApp[] = [
   { id: 'contact', name: 'Contacto', windowTitle: 'Contacto', icon: '✉️', status: 'available' },
   { id: 'settings', name: 'Configuración', windowTitle: 'Configuración', icon: '⚙️', status: 'available' },
   { id: 'terminal', name: 'Terminal', windowTitle: 'Terminal', icon: '⌨️', status: 'coming-soon' },
-  { id: 'writer', name: 'Writer', windowTitle: 'Writer', icon: '📝', status: 'coming-soon' },
+  { id: 'writer', name: 'Writer', windowTitle: 'Writer', icon: '📝', status: 'available' },
   { id: 'paint', name: 'Paint', windowTitle: 'Paint', icon: '🎨', status: 'coming-soon' },
   { id: 'task-manager', name: 'Task Manager', windowTitle: 'Administrador de tareas', icon: '📊', status: 'coming-soon' },
   { id: 'calculator', name: 'Calculadora', windowTitle: 'Calculadora', icon: '🧮', status: 'coming-soon' },

@@ -7,7 +7,32 @@ export const DOCUMENTS_DIRECTORY = 'documents'
 
 export type ExplorerItem =
   | { name: string; icon: string; kind: 'folder'; directoryId: string }
+  | { name: string; icon: string; kind: 'document'; documentId: string }
   | { name: string; icon: string; kind: 'file' | 'application'; action: 'about' | 'cv-es' | 'cv-en' | 'roadmap' }
+
+type VirtualEntry = { id: string; parentId: string; name: string }
+export type WriterDocument = VirtualEntry & { kind: 'document'; markdown: string }
+export type VirtualNode = (VirtualEntry & { kind: 'folder' }) | WriterDocument
+export const MAX_MARKDOWN_LENGTH = 200_000
+
+export function virtualName(value: string) {
+  const name = value.trim().normalize('NFC')
+  if (!name || name === '.' || name === '..' || name.length > 80 ||
+    /[<>:"/\\|?*]/u.test(name) || [...name].some((character) => character.charCodeAt(0) < 32)) {
+    throw new Error('Escribe un nombre válido de hasta 80 caracteres.')
+  }
+  return name
+}
+
+export function excludeSubtrees(nodes: VirtualNode[], roots: string[]) {
+  const removed = new Set(roots)
+  let count = 0
+  while (count !== removed.size) {
+    count = removed.size
+    for (const node of nodes) if (removed.has(node.parentId)) removed.add(node.id)
+  }
+  return nodes.filter((node) => !removed.has(node.id))
+}
 
 type Directory = { id: string; parentId: string | null; name: string; icon: string; items: ExplorerItem[] }
 
@@ -31,10 +56,32 @@ const systemDirectories: Directory[] = [
   ] },
 ]
 
-export function createExplorerTree(folders: readonly UserDesktopItem[]) {
+export function createExplorerTree(folders: readonly UserDesktopItem[], nodes: readonly VirtualNode[] = []) {
   const directories: Directory[] = [...systemDirectories, ...folders.map((folder) => ({
     id: folder.id, parentId: DESKTOP_DIRECTORY, name: folder.name, icon: folder.icon, items: [],
   }))]
+  const pendingByParent = new Map<string, VirtualNode[]>()
+  for (const node of nodes) {
+    const siblings = pendingByParent.get(node.parentId) ?? []
+    siblings.push(node)
+    pendingByParent.set(node.parentId, siblings)
+  }
+  const documentsByParent = new Map<string, WriterDocument[]>()
+  const known = new Set(directories.map(({ id }) => id))
+  // Traverse only attached folders; descendants of recycled folders stay hidden.
+  for (const parent of directories) {
+    for (const node of pendingByParent.get(parent.id) ?? []) {
+      if (known.has(node.id)) continue
+      known.add(node.id)
+      if (node.kind === 'folder') {
+        directories.push({ ...node, icon: '📁', items: [] })
+      } else {
+        const documents = documentsByParent.get(parent.id) ?? []
+        documents.push(node)
+        documentsByParent.set(parent.id, documents)
+      }
+    }
+  }
   const byId = new Map(directories.map((directory) => [directory.id, directory]))
   const byParent = new Map<string, Directory[]>()
   for (const directory of directories) {
@@ -64,7 +111,16 @@ export function createExplorerTree(folders: readonly UserDesktopItem[]) {
     ...(byParent.get(id) ?? []).map((child): ExplorerItem => ({
       name: child.name, icon: child.icon, kind: 'folder', directoryId: child.id,
     })),
+    ...(documentsByParent.get(id) ?? []).map((doc): ExplorerItem => ({
+      name: doc.name, icon: '📝', kind: 'document', documentId: doc.id,
+    })),
     ...getDirectory(id).items,
   ]
-  return { getDirectory, pathTo, listTree, contentsOf, has: (id: string) => byId.has(id) }
+  return { getDirectory, pathTo, listTree, contentsOf, has: (id: string) => byId.has(id),
+    writable: (id: string) => id !== COMPUTER_DIRECTORY && byId.has(id),
+    getDocument: (id: string) => {
+      const node = nodes.find((candidate) => candidate.id === id)
+      return node?.kind === 'document' && documentsByParent.get(node.parentId)?.includes(node) ? node : undefined
+    },
+  }
 }

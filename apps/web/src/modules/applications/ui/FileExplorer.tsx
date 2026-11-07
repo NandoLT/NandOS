@@ -7,10 +7,11 @@ import { useTouchPress } from '../../../shared/lib/useTouchPress'
 import { AppIcon } from '../../../shared/lib/AppIcon'
 import type { UserDesktopItem } from '../../shell/domain/types'
 import { COMPUTER_DIRECTORY, DESKTOP_DIRECTORY, DOCUMENTS_DIRECTORY, createExplorerTree } from '../domain/explorer'
-import type { ExplorerItem } from '../domain/explorer'
+import type { ExplorerItem, VirtualNode } from '../domain/explorer'
 
 const noFolders: readonly UserDesktopItem[] = []
-const itemKey = (item: ExplorerItem) => item.kind === 'folder' ? item.directoryId : item.action
+const noNodes: readonly VirtualNode[] = []
+const itemKey = (item: ExplorerItem) => item.kind === 'folder' ? item.directoryId : item.kind === 'document' ? item.documentId : item.action
 
 const Explorer = styled.div`
   display: grid;
@@ -244,6 +245,21 @@ const EmptyFolder = styled.p`
   font-size: 13px;
 `
 
+const NewFolderForm = styled.form`
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px;
+  border-bottom: 1px solid var(--os-divider);
+  background: var(--os-toolbar);
+  color: var(--os-window-text);
+  font-size: 13px;
+  input { min-width: 100px; flex: 1; padding: 4px; border: var(--os-inset-border); background: var(--os-input); color: var(--os-input-text); }
+  button { border: var(--os-raised-border); background: var(--os-window); color: inherit; padding: 3px 7px; cursor: pointer; }
+  [role='alert'] { flex-basis: 100%; color: var(--os-danger); }
+`
+
 const MenuDropdown = styled(ItemContextMenu)`
   position: absolute;
   top: 100%;
@@ -265,6 +281,10 @@ type ExplorerCommand = { label: string; run: () => void; disabled?: boolean }
 
 type FileExplorerProps = {
   folders?: readonly UserDesktopItem[]
+  nodes?: readonly VirtualNode[]
+  onCreateFolder?: (parentId: string, name: string) => string
+  onOpenDocument?: (id: string) => void
+  onNewDocument?: (parentId: string) => void
   initialDirectory?: string
   onOpenAbout: () => void
   onDownloadCv: (language: 'es' | 'en') => void
@@ -274,7 +294,8 @@ type FileExplorerProps = {
 }
 
 export function FileExplorer({
-  folders = noFolders, initialDirectory = COMPUTER_DIRECTORY, onOpenAbout, onDownloadCv, onNotify, onClose, onHelp,
+  folders = noFolders, nodes = noNodes, initialDirectory = COMPUTER_DIRECTORY, onOpenAbout, onDownloadCv, onNotify, onClose, onHelp,
+  onCreateFolder, onOpenDocument, onNewDocument,
 }: FileExplorerProps) {
   const touchPress = useTouchPress()
   const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
@@ -282,7 +303,8 @@ export function FileExplorer({
   const paneId = `${addressId}-files`
   const [openMenu, setOpenMenu] = useState<{ name: string; left: number } | null>(null)
   const [view, setView] = useState<'icons' | 'list'>('icons')
-  const tree = useMemo(() => createExplorerTree(folders), [folders])
+  const tree = useMemo(() => createExplorerTree(folders, nodes), [folders, nodes])
+  const [newFolder, setNewFolder] = useState<{ parentId: string; name: string; error?: string } | null>(null)
   const [history, setHistory] = useState(() => {
     const entries = tree.pathTo(initialDirectory).map(({ id }) => id)
     return { entries, index: entries.length - 1 }
@@ -298,7 +320,7 @@ export function FileExplorer({
   const backIndex = history.entries.findLastIndex((id, index) => index < history.index && tree.has(id))
   const forwardIndex = history.entries.findIndex((id, index) => index > history.index && tree.has(id))
   const items = tree.contentsOf(current.id).map((item) => {
-    if (item.kind === 'folder') return item
+    if (item.kind === 'folder' || item.kind === 'document') return item
     if (item.action === 'cv-es') return { ...item, name: data.cvDocuments.es?.filename ?? item.name }
     if (item.action === 'cv-en') return { ...item, name: data.cvDocuments.en?.filename ?? item.name }
     return item
@@ -307,6 +329,7 @@ export function FileExplorer({
   const clearSelection = () => {
     setSelectedItem(null)
     setContextMenu(null)
+    setNewFolder(null)
     const pane = document.getElementById(paneId)
     if (pane) pane.scrollTop = 0
   }
@@ -330,6 +353,7 @@ export function FileExplorer({
       document.getElementById(paneId)?.focus({ preventScroll: true })
       return
     }
+    if (item.kind === 'document') { onOpenDocument?.(item.documentId); return }
 
     if (item.action === 'about') onOpenAbout()
     if (item.action === 'cv-es') onDownloadCv('es')
@@ -354,6 +378,10 @@ export function FileExplorer({
   const menus: { name: string; commands: ExplorerCommand[] }[] = [
     { name: 'Archivo', commands: [
       { label: 'Abrir', disabled: !selected, run: () => { if (selected) openItem(selected) } },
+      ...(onCreateFolder ? [{ label: 'Nueva carpeta…', disabled: !tree.writable(current.id),
+        run: () => setNewFolder({ parentId: current.id, name: '' }) }] : []),
+      ...(onNewDocument ? [{ label: 'Nuevo documento…', disabled: !tree.writable(current.id),
+        run: () => onNewDocument(current.id) }] : []),
       ...(onClose ? [{ label: 'Cerrar ventana', run: onClose }] : []),
     ] },
     { name: 'Edición', commands: [
@@ -438,6 +466,29 @@ export function FileExplorer({
         </AddressField>
       </Address>
       <FolderPane id={paneId} tabIndex={-1} aria-label={`Contenido de ${current.name}`}>
+      {newFolder?.parentId === current.id && <NewFolderForm onSubmit={(event) => {
+        event.preventDefault()
+        try {
+          const id = onCreateFolder?.(newFolder.parentId, newFolder.name)
+          setSelectedItem(id ?? null)
+          setNewFolder(null)
+          document.getElementById(paneId)?.focus()
+        } catch (error) {
+          setNewFolder({ ...newFolder, error: error instanceof Error ? error.message : 'No se pudo crear la carpeta.' })
+        }
+      }} onKeyDown={(event) => {
+        if (event.key !== 'Escape') return
+        event.stopPropagation()
+        setNewFolder(null)
+        document.getElementById(paneId)?.focus()
+      }}>
+        <label htmlFor={`${addressId}-new-folder`}>Nombre de la nueva carpeta</label>
+        <input id={`${addressId}-new-folder`} autoFocus required maxLength={80} value={newFolder.name}
+          onChange={(event) => setNewFolder({ ...newFolder, name: event.target.value, error: undefined })} />
+        <button type="submit">Crear</button>
+        <button type="button" onClick={() => { setNewFolder(null); document.getElementById(paneId)?.focus() }}>Cancelar</button>
+        {newFolder.error && <span role="alert">{newFolder.error}</span>}
+      </NewFolderForm>}
       {items.length > 0 ? (
         <FileGrid $list={view === 'list'} data-view={view}>
           {items.map((item) => (

@@ -4,6 +4,8 @@ import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import { fitHelpWindowBounds } from '../domain/help-window-bounds'
 import { taskbarHeight } from '../../../shared/lib/input-preferences'
 import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
+import { createExplorerTree, DESKTOP_DIRECTORY, excludeSubtrees, MAX_MARKDOWN_LENGTH, virtualName } from '../../applications/domain/explorer'
+import type { VirtualNode, WriterDocument } from '../../applications/domain/explorer'
 import type {
   DesktopPosition,
   DesktopSystemItemId,
@@ -22,6 +24,9 @@ type ShellState = {
   desktopPositions: Record<DesktopSystemItemId, DesktopPosition>
   userDesktopItems: UserDesktopItem[]
   recycleBinItems: RecycleBinItem[]
+  fileNodes: VirtualNode[]
+  createVirtualFolder: (parentId: string, name: string) => string
+  saveWriterDocument: (document: Omit<WriterDocument, 'id' | 'kind'>, id?: string) => WriterDocument
   openWindow: (id: WindowId) => void
   closeWindow: (id: WindowId) => void
   focusWindow: (id: WindowId) => void
@@ -69,6 +74,7 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   skills: { title: 'Habilidades', icon: '🧠' },
   contact: { title: 'Contacto', icon: '✉️' },
   help: { title: 'Ayuda de NandOS', icon: '📖' },
+  writer: { title: 'Writer', icon: '📝' },
 }
 
 function createWindow(id: WindowId, zIndex: number): WindowState {
@@ -77,7 +83,9 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
   const isSettings = id === 'settings'
   const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
-  const bounds = isExplorer
+  const bounds = id === 'writer'
+    ? { ...defaultBounds, width: 740, height: 510 }
+    : isExplorer
     ? { ...defaultBounds, width: 680, height: 440 }
     : isRecycleBin
       ? { ...defaultBounds, width: 620, height: 400 }
@@ -112,6 +120,51 @@ export const useShellStore = create<ShellState>()(
       desktopPositions: defaultDesktopPositions,
       userDesktopItems: [],
       recycleBinItems: [],
+      fileNodes: [],
+
+      createVirtualFolder: (parentId, value) => {
+        const state = get()
+        const tree = createExplorerTree(state.userDesktopItems, state.fileNodes)
+        const name = virtualName(value)
+        if (!tree.writable(parentId)) throw new Error('No se puede escribir en esta ubicación.')
+        if (tree.contentsOf(parentId).some((entry) => entry.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+          throw new Error('Ya existe un elemento con ese nombre.')
+        }
+        const id = `user-folder-${crypto.randomUUID()}`
+        if (parentId === DESKTOP_DIRECTORY) {
+          const position = findNearestDesktopGridPosition({ x: 18, y: 24 },
+            { width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight() },
+            [...Object.values(state.desktopPositions), ...state.userDesktopItems])
+          set({ userDesktopItems: [...state.userDesktopItems, { ...position, id, name, kind: 'folder', icon: '📁', origin: 'user' }] })
+        } else {
+          set({ fileNodes: [...state.fileNodes, { id, parentId, name, kind: 'folder' }] })
+        }
+        return id
+      },
+
+      saveWriterDocument: ({ name: value, parentId, markdown }, id) => {
+        const state = get()
+        const tree = createExplorerTree(state.userDesktopItems, state.fileNodes)
+        const original = id ? tree.getDocument(id) : undefined
+        if (id && !original) throw new Error('El documento ya no está disponible. Usa Guardar como para crear una copia.')
+        if (!tree.writable(parentId)) throw new Error('No se puede escribir en esta ubicación.')
+        const base = virtualName(value.trim().replace(/\.doc$/iu, ''))
+        const name = virtualName(`${base}.doc`)
+        if (tree.contentsOf(parentId).some((entry) =>
+          !(entry.kind === 'document' && entry.documentId === id) && entry.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+          throw new Error('Ya existe un elemento con ese nombre.')
+        }
+        if (markdown.length > MAX_MARKDOWN_LENGTH) throw new Error('El documento supera el tamaño permitido.')
+        const saved: WriterDocument = { id: id ?? `writer-${crypto.randomUUID()}`, kind: 'document', parentId, name, markdown }
+        const fileNodes = id ? state.fileNodes.map((node) => node.id === id ? saved : node) : [...state.fileNodes, saved]
+        try {
+          set({ fileNodes })
+        } catch {
+          try { set({ fileNodes: state.fileNodes }) } catch { /* In-memory state is already restored. */ }
+          throw new Error('No queda espacio para guardar este documento en el navegador.')
+        }
+        return saved
+      },
 
       openWindow: (id) => {
         const current = get().windows.find((window) => window.id === id)
@@ -303,9 +356,12 @@ export const useShellStore = create<ShellState>()(
       permanentlyDeleteUserItem: (id) =>
         set((state) => ({
           recycleBinItems: state.recycleBinItems.filter((item) => item.id !== id),
+          fileNodes: state.recycleBinItems.some((item) => item.id === id) ? excludeSubtrees(state.fileNodes, [id]) : state.fileNodes,
         })),
 
-      emptyRecycleBin: () => set({ recycleBinItems: [] }),
+      emptyRecycleBin: () => set((state) => ({
+        recycleBinItems: [], fileNodes: excludeSubtrees(state.fileNodes, state.recycleBinItems.map(({ id }) => id)),
+      })),
 
       setStartMenuOpen: (isOpen) => set({ isStartMenuOpen: isOpen }),
       endGuestSession: () => set({
@@ -336,6 +392,7 @@ export const useShellStore = create<ShellState>()(
           desktopPositions,
           userDesktopItems: persisted.userDesktopItems ?? [],
           recycleBinItems: persisted.recycleBinItems ?? [],
+          fileNodes: persisted.fileNodes ?? [],
         }
       },
       // Whitelist durable desktop data even if an old/current-version payload
@@ -347,12 +404,14 @@ export const useShellStore = create<ShellState>()(
           desktopPositions: { ...currentState.desktopPositions, ...persisted?.desktopPositions },
           userDesktopItems: persisted?.userDesktopItems ?? currentState.userDesktopItems,
           recycleBinItems: persisted?.recycleBinItems ?? currentState.recycleBinItems,
+          fileNodes: persisted?.fileNodes ?? currentState.fileNodes,
         }
       },
       partialize: (state) => ({
         desktopPositions: state.desktopPositions,
         userDesktopItems: state.userDesktopItems,
         recycleBinItems: state.recycleBinItems,
+        fileNodes: state.fileNodes,
       }),
     }
   )

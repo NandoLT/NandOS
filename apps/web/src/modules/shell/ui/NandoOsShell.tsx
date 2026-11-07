@@ -10,8 +10,11 @@ import styled from '@emotion/styled'
 import type { AppId } from '@nandoos/contracts'
 import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import { appRegistry } from '../../applications/domain/app-registry'
-import { COMPUTER_DIRECTORY, DOCUMENTS_DIRECTORY } from '../../applications/domain/explorer'
+import { COMPUTER_DIRECTORY, DOCUMENTS_DIRECTORY, createExplorerTree } from '../../applications/domain/explorer'
 import { FileExplorer } from '../../applications/ui/FileExplorer'
+import { WriterWindow } from '../../applications/ui/WriterWindow'
+import { emptyWriterDraft } from '../../applications/domain/writer'
+import type { WriterDraft } from '../../applications/domain/writer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
 import { SettingsWindow } from '../../applications/ui/SettingsWindow'
 import { AboutWindow } from '../../portfolio/ui/AboutWindow'
@@ -27,7 +30,7 @@ import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
 import { useGuestProfile } from '../application/guest-profile.store'
 import { useShellStore } from '../application/shell.store'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
-import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds } from '../domain/types'
+import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds, WindowId } from '../domain/types'
 import { WindowFrame } from './WindowFrame'
 import { BootScreen, GuestLogin, ShutdownScreen } from './SessionScreens'
 import { DesktopFolderNameEditor } from './DesktopFolderNameEditor'
@@ -790,6 +793,8 @@ function DesktopShell() {
   const [screen, setScreen] = useState<SessionScreen>(() => shouldPlayBoot() ? 'boot' : 'login')
   const [adminUsername, setAdminUsername] = useState<string | null>(null)
   const [explorerEntry, setExplorerEntry] = useState({ directory: COMPUTER_DIRECTORY, revision: 0 })
+  const [writer, setWriter] = useState<{ draft: WriterDraft; revision: number }>({ draft: emptyWriterDraft, revision: 0 })
+  const writerDirty = writer.draft.markdown !== (writer.draft.document?.markdown ?? '')
   const [clock, setClock] = useState(() => new Date())
   const [viewport, setViewport] = useState<WindowBounds>({
     x: 0,
@@ -818,6 +823,8 @@ function DesktopShell() {
     isStartMenuOpen,
     desktopPositions,
     userDesktopItems,
+    fileNodes,
+    createVirtualFolder,
     recycleBinItems,
     openWindow,
     closeWindow,
@@ -890,15 +897,20 @@ function DesktopShell() {
   }, [])
   const startDesktop = useCallback(() => {
     endGuestSession()
+    setWriter({ draft: emptyWriterDraft, revision: 0 })
     setScreen('desktop')
   }, [endGuestSession])
   const startShutdown = useCallback(() => {
+    if (writerDirty && !window.confirm('Writer tiene cambios sin guardar. ¿Quieres apagar de todas formas?')) return
+    setWriter({ draft: emptyWriterDraft, revision: 0 })
     closeStartMenu()
     setNotice(null)
     setScreen('shutdown')
-  }, [closeStartMenu])
+  }, [closeStartMenu, writerDirty])
 
   const logOffGuest = () => {
+    if (writerDirty && !window.confirm('Writer tiene cambios sin guardar. ¿Quieres cerrar la sesión?')) return
+    setWriter({ draft: emptyWriterDraft, revision: 0 })
     setRenamingDesktopItem(null)
     setSelectedDesktopItem(null)
     closeStartMenu()
@@ -908,6 +920,13 @@ function DesktopShell() {
     setNotice(null)
     setScreen('login')
   }
+
+  useEffect(() => {
+    if (!writerDirty) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [writerDirty])
 
   useEffect(() => {
     // A cookie alone must never choose administration. Fresh documents start
@@ -1003,6 +1022,27 @@ function DesktopShell() {
   const downloadCv = (language: 'es' | 'en') => accessCv(language, 'download')
   const openCv = (language: 'es' | 'en') => accessCv(language, 'open')
 
+  const canLeaveWriter = () => !writerDirty || window.confirm('Writer tiene cambios sin guardar. ¿Quieres descartarlos?')
+  const startWriter = (draft: WriterDraft) => {
+    if (!canLeaveWriter()) return false
+    setWriter(({ revision }) => ({ draft, revision: revision + 1 }))
+    openShellWindow('writer')
+    return true
+  }
+  const openWriterDocument = (id: string) => {
+    if (writer.draft.document?.id === id) { openShellWindow('writer'); return }
+    const document = createExplorerTree(userDesktopItems, fileNodes).getDocument(id)
+    if (document) startWriter({ document, parentId: document.parentId, markdown: document.markdown })
+    else setNotice('El documento ya no está disponible.')
+  }
+  const closeShellWindow = (id: WindowId) => {
+    if (id === 'writer') {
+      if (!canLeaveWriter()) return
+      setWriter({ draft: emptyWriterDraft, revision: 0 })
+    }
+    closeWindow(id)
+  }
+
   const launchApp = (id: AppId) => {
     if (id === 'cv-viewer') {
       openCv('es')
@@ -1010,6 +1050,11 @@ function DesktopShell() {
     }
     if (id === 'file-explorer') {
       openExplorer()
+      return
+    }
+    if (id === 'writer') {
+      if (windows.some((window) => window.id === 'writer')) openShellWindow('writer')
+      else startWriter(emptyWriterDraft)
       return
     }
     if (
@@ -1298,10 +1343,10 @@ function DesktopShell() {
           windowState={windowState}
           isActive={activeWindowId === windowState.id}
           viewport={viewport}
-          contentStyle={windowState.id === 'file-explorer'
+          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer'
             ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' } : undefined}
           onFocus={() => focusWindow(windowState.id)}
-          onClose={() => closeWindow(windowState.id)}
+          onClose={() => closeShellWindow(windowState.id)}
           onMinimize={() => minimizeWindow(windowState.id)}
           onMaximize={() =>
             toggleMaximize(windowState.id, {
@@ -1321,12 +1366,23 @@ function DesktopShell() {
               key={explorerEntry.revision}
               initialDirectory={explorerEntry.directory}
               folders={userDesktopItems}
+              nodes={fileNodes}
+              onCreateFolder={createVirtualFolder}
+              onOpenDocument={openWriterDocument}
+              onNewDocument={(parentId) => startWriter({ ...emptyWriterDraft, parentId })}
               onOpenAbout={() => openShellWindow('about')}
               onClose={() => closeWindow('file-explorer')}
               onHelp={() => openShellWindow('help')}
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
+          ) : windowState.id === 'writer' ? (
+            <WriterWindow key={writer.revision} draft={writer.draft}
+              onChange={(markdown) => setWriter((previous) => ({ ...previous, draft: { ...previous.draft, markdown } }))}
+              onNew={() => startWriter({ ...emptyWriterDraft, parentId: writer.draft.parentId })}
+              onSaved={(document) => setWriter((previous) => ({
+                ...previous, draft: { document, parentId: document.parentId, markdown: document.markdown },
+              }))} />
           ) : windowState.id === 'settings' ? (
             <SettingsWindow
               selectedThemeId={selectedThemeId}

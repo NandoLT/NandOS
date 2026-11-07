@@ -11,7 +11,7 @@ beforeEach(() => {
   useShellStore.setState({
     windows: [], activeWindowId: null, isStartMenuOpen: false, nextZIndex: 10,
     desktopPositions: useShellStore.getInitialState().desktopPositions,
-    userDesktopItems: [], recycleBinItems: [],
+    userDesktopItems: [], recycleBinItems: [], fileNodes: [],
   })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: true, json: async () => ({ content: DEFAULT_PORTFOLIO_CONTENT, authenticated: false }),
@@ -26,6 +26,29 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  it('creates a subfolder, saves a Writer document and reopens its Markdown from the Explorer', () => {
+    enterGuest()
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'Este equipo. Doble clic para abrir' }))
+    const explorer = within(screen.getByRole('dialog', { name: 'Explorador de archivos' }))
+    fireEvent.doubleClick(explorer.getByRole('button', { name: 'Carpeta Mis documentos' }))
+    fireEvent.click(explorer.getByRole('button', { name: 'Archivo' }))
+    fireEvent.click(explorer.getByRole('button', { name: 'Nueva carpeta…' }))
+    fireEvent.change(explorer.getByLabelText('Nombre de la nueva carpeta'), { target: { value: 'Cuaderno' } })
+    fireEvent.click(explorer.getByRole('button', { name: 'Crear' }))
+    fireEvent.doubleClick(explorer.getByRole('button', { name: 'Carpeta Cuaderno' }))
+    fireEvent.click(explorer.getByRole('button', { name: 'Archivo' }))
+    fireEvent.click(explorer.getByRole('button', { name: 'Nuevo documento…' }))
+    const writer = within(screen.getByRole('dialog', { name: 'Writer' }))
+    fireEvent.change(writer.getByRole('textbox', { name: 'Contenido Markdown' }), { target: { value: '# Una nota' } })
+    fireEvent.click(writer.getByRole('button', { name: 'Guardar' }))
+    expect(writer.getByLabelText('Guardar en')).toHaveDisplayValue('Mis documentos › Cuaderno')
+    fireEvent.change(writer.getByLabelText('Nombre del documento'), { target: { value: 'Notas' } })
+    fireEvent.click(writer.getByRole('button', { name: 'Guardar documento' }))
+    expect(writer.getByRole('status')).toHaveTextContent('Documento guardado')
+    fireEvent.click(writer.getByRole('button', { name: 'Cerrar' }))
+    fireEvent.doubleClick(explorer.getByRole('button', { name: 'Abrir Notas.doc' }))
+    expect(screen.getByRole('textbox', { name: 'Contenido Markdown' })).toHaveValue('# Una nota')
+  })
   function createVisitorFolder() {
     useShellStore.getState().createDesktopFolder({ x: 330, y: 200 })
     enterGuest()

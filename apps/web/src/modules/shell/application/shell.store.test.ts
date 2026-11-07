@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useShellStore } from './shell.store'
+import { createExplorerTree } from '../../applications/domain/explorer'
 
 describe('shell store', () => {
   beforeEach(() => {
@@ -18,7 +19,45 @@ describe('shell store', () => {
       },
       userDesktopItems: [],
       recycleBinItems: [],
+      fileNodes: [],
     })
+  })
+
+  it('persists nested folders and document contents and updates a document by its stable ID', async () => {
+    const store = useShellStore.getState()
+    const folder = store.createVirtualFolder('documents', 'Trabajo')
+    const child = store.createVirtualFolder(folder, 'Borradores')
+    const saved = store.saveWriterDocument({ parentId: child, name: 'Proyecto.DOC ', markdown: '# Primera versión' })
+    const updated = store.saveWriterDocument({ parentId: child, name: saved.name, markdown: '# Segunda versión' }, saved.id)
+    expect(updated).toMatchObject({ id: saved.id, name: 'Proyecto.doc', parentId: child })
+    expect(() => store.saveWriterDocument({ parentId: child, name: 'proyecto.doc', markdown: '' })).toThrow('Ya existe')
+    expect(() => store.createVirtualFolder('computer', 'No permitido')).toThrow('No se puede escribir')
+    const snapshot = localStorage.getItem('nandoos:shell-session')!
+    useShellStore.setState({ fileNodes: [] })
+    localStorage.setItem('nandoos:shell-session', snapshot)
+    await useShellStore.persist.rehydrate()
+    const state = useShellStore.getState()
+    const tree = createExplorerTree(state.userDesktopItems, state.fileNodes)
+    expect(tree.pathTo(child).map(({ name }) => name)).toEqual(['Este equipo', 'Mis documentos', 'Trabajo', 'Borradores'])
+    expect(tree.getDocument(saved.id)?.markdown).toBe('# Segunda versión')
+  })
+
+  it('hides the contents of a recycled desktop folder, restores them, and removes them on permanent deletion', () => {
+    const store = useShellStore.getState()
+    const root = store.createVirtualFolder('desktop', 'Personal')
+    const child = store.createVirtualFolder(root, 'Notas')
+    const saved = store.saveWriterDocument({ parentId: child, name: 'Idea', markdown: 'Texto' })
+    const currentTree = () => {
+      const state = useShellStore.getState()
+      return createExplorerTree(state.userDesktopItems, state.fileNodes)
+    }
+    store.moveUserItemToRecycleBin(root)
+    expect(currentTree().getDocument(saved.id)).toBeUndefined()
+    store.restoreUserItemFromRecycleBin(root)
+    expect(currentTree().getDocument(saved.id)).toEqual(saved)
+    store.moveUserItemToRecycleBin(root)
+    store.permanentlyDeleteUserItem(root)
+    expect(useShellStore.getState().fileNodes).toEqual([])
   })
 
   it('opens, minimizes and restores a window', () => {

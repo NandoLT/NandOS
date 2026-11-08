@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { AppMenuBar } from '../../../shared/ui/AppMenuBar'
+import type { AppMenu, MenuCommand } from '../../../shared/ui/AppMenuBar'
 import styled from '@emotion/styled'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
@@ -15,45 +16,6 @@ const Header = styled.header`
   }
   button:disabled { opacity: .45; cursor: default; }
   button:focus-visible, select:focus-visible { outline: 1px dotted var(--os-accent); outline-offset: -3px; }
-`
-
-const MenuBar = styled.nav`
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  padding-inline: 4px;
-  border-bottom: var(--os-raised-border);
-  > div > button {
-    background: transparent;
-    border: 0;
-    padding: 3px 7px;
-  }
-  > div > button:hover, > div > button[aria-expanded='true'] {
-    color: var(--os-menu-hover-text);
-    background: var(--os-menu-hover);
-  }
-`
-
-const Menu = styled.div`
-  position: absolute;
-  z-index: 1;
-  display: grid;
-  min-width: 130px;
-  padding: 2px;
-  border: var(--os-raised-border);
-  background: var(--os-window);
-  box-shadow: 2px 2px 0 #0005;
-  button {
-    text-align: left;
-    border: 0;
-    background: transparent;
-    padding: 4px 10px;
-  }
-  button:hover:not(:disabled), button:focus-visible {
-    background: var(--os-menu-hover);
-    color: var(--os-menu-hover-text);
-  }
 `
 
 const FileName = styled.span`
@@ -105,7 +67,6 @@ const icons = {
   numbered: <><path d="M7 4h8M7 8h8m-8 4h8" /><text x="0" y="14" fontSize="14" stroke="none" fill="currentColor">1</text></>,
 }
 
-type Command = { label: string; run: () => void; disabled?: boolean; pressed?: boolean }
 
 export function WriterHeader({ editor, name, dirty, onNew, onOpen, onSave, onSaveAs }: {
   editor: Editor | null
@@ -116,7 +77,6 @@ export function WriterHeader({ editor, name, dirty, onNew, onOpen, onSave, onSav
   onSave: () => void
   onSaveAs: () => void
 }) {
-  const [openMenu, setOpenMenu] = useState<string | null>(null)
   const state = useEditorState({ editor, selector: ({ editor }) => {
     if (!editor) return null
     return {
@@ -138,40 +98,21 @@ export function WriterHeader({ editor, name, dirty, onNew, onOpen, onSave, onSav
   const numbered = { label: 'Lista numerada', run: () => editor?.chain().focus().toggleOrderedList().run(), pressed: state?.numbered }
   const quote = { label: 'Cita', run: () => editor?.chain().focus().toggleBlockquote().run(), pressed: state?.quote }
   const rule = { label: 'Línea horizontal', run: () => editor?.chain().focus().setHorizontalRule().run(), disabled: !editor }
-  const menus: { name: string; commands: Command[] }[] = [
+  const menus: AppMenu[] = [
     { name: 'Archivo', commands: [fileNew, fileOpen, save, { label: 'Guardar como…', run: onSaveAs }] },
     { name: 'Edición', commands: [undo, redo] },
     { name: 'Insertar', commands: [rule] },
     { name: 'Formato', commands: [bold, italic, strike, bullets, numbered, quote] },
   ]
-  const tool = ({ label, run, disabled, pressed }: Command, symbol: React.ReactNode) =>
+  const tool = ({ label, run, disabled, pressed }: MenuCommand, symbol: React.ReactNode) =>
     <button type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={pressed}
       onMouseDown={(event) => event.preventDefault()} onClick={run}>{symbol}</button>
   const icon = (name: keyof typeof icons) =>
     <svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" aria-hidden="true">{icons[name]}</svg>
 
   return <Header>
-    <MenuBar aria-label="Menús de Writer"
-      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenMenu(null) }}
-      onKeyDown={(event) => {
-        if (event.key !== 'Escape' || !openMenu) return
-        event.stopPropagation()
-        event.currentTarget.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus()
-        setOpenMenu(null)
-      }}>
-      {menus.map(({ name, commands }) => <div key={name}>
-        <button type="button" aria-expanded={openMenu === name} onClick={() => setOpenMenu(openMenu === name ? null : name)}>{name}</button>
-        {openMenu === name && <Menu role="group" aria-label={'Opciones de ' + name}>
-          {commands.map(({ label, run, disabled, pressed }) => <button key={label} type="button" disabled={disabled}
-            aria-pressed={pressed} onClick={(event) => {
-              event.currentTarget.closest('nav')?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus()
-              setOpenMenu(null)
-              run()
-            }}>{label}</button>)}
-        </Menu>}
-      </div>)}
-      <FileName title={name}>{name}{dirty && ' *'}</FileName>
-    </MenuBar>
+    <AppMenuBar label="Menús de Writer" menus={menus}
+      trailing={<FileName title={name}>{name}{dirty && ' *'}</FileName>} />
     <Row role="group" aria-label="Herramientas de archivo y edición">
       <div>{tool(fileNew, icon('new'))}{tool(fileOpen, icon('open'))}{tool(save, icon('save'))}</div>
       <div>{tool(undo, icon('undo'))}{tool(redo, icon('redo'))}</div>

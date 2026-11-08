@@ -12,7 +12,6 @@ import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import { appRegistry } from '../../applications/domain/app-registry'
 import { COMPUTER_DIRECTORY, DOCUMENTS_DIRECTORY, createExplorerTree } from '../../applications/domain/explorer'
 import { FileExplorer } from '../../applications/ui/FileExplorer'
-import { WriterWindow } from '../../applications/ui/WriterWindow'
 import { TerminalWindow } from '../../applications/ui/TerminalWindow'
 import { emptyWriterDraft } from '../../applications/domain/writer'
 import type { WriterDraft } from '../../applications/domain/writer'
@@ -42,6 +41,7 @@ const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.sea
   : null
 const AssistantDock = lazy(() => import('../../assistant/ui/AssistantDock'))
 const WikiReader = lazy(() => import('../../wiki/ui/WikiReader').then((module) => ({ default: module.WikiReader })))
+const WriterWindow = lazy(() => import('../../applications/ui/WriterWindow').then((module) => ({ default: module.WriterWindow })))
 const WikiPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('wiki') === '1'
   ? lazy(() => import('../../wiki/ui/WikiPreview')) : null
 
@@ -1383,12 +1383,15 @@ function DesktopShell() {
               onAbout={() => openShellWindow('about')} onProjects={() => openShellWindow('projects')}
               onCv={openCv} onExit={() => closeShellWindow('terminal')} />
           ) : windowState.id === 'writer' ? (
-            <WriterWindow key={writer.revision} draft={writer.draft}
-              onChange={(markdown) => setWriter((previous) => ({ ...previous, draft: { ...previous.draft, markdown } }))}
-              onNew={() => startWriter({ ...emptyWriterDraft, parentId: writer.draft.parentId })}
-              onSaved={(document) => setWriter((previous) => ({
-                ...previous, draft: { document, parentId: document.parentId, markdown: document.markdown },
-              }))} />
+            <Suspense fallback={<p role="status">Abriendo Writer…</p>}>
+              <WriterWindow key={writer.revision} draft={writer.draft}
+                onChange={(markdown) => setWriter((previous) => ({ ...previous, draft: { ...previous.draft, markdown } }))}
+                onNew={() => startWriter({ ...emptyWriterDraft, parentId: writer.draft.parentId })}
+                onOpen={() => openExplorer(writer.draft.parentId)}
+                onSaved={(document) => setWriter((previous) => ({
+                  ...previous, draft: { document, parentId: document.parentId, markdown: document.markdown },
+                }))} />
+            </Suspense>
           ) : windowState.id === 'settings' ? (
             <SettingsWindow
               selectedThemeId={selectedThemeId}

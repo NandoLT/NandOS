@@ -7,12 +7,14 @@ beforeEach(() => {
 })
 
 describe('assistant preferences and conversation', () => {
-  it('opens the mascot first, opens chat explicitly, and hiding collapses both', () => {
+  it('shows the mascot first, then opens and minimizes the chat and hides both', () => {
     const assistant = useAssistantStore.getState()
     assistant.show()
     expect(useAssistantStore.getState()).toMatchObject({ visible: true, chatOpen: false })
     assistant.openChat()
-    expect(useAssistantStore.getState().chatOpen).toBe(true)
+    expect(useAssistantStore.getState()).toMatchObject({ visible: true, chatOpen: true })
+    assistant.closeChat()
+    expect(useAssistantStore.getState()).toMatchObject({ visible: true, chatOpen: false })
     assistant.hide()
     expect(useAssistantStore.getState()).toMatchObject({ visible: false, chatOpen: false })
   })
@@ -42,7 +44,7 @@ describe('assistant preferences and conversation', () => {
     vi.resetModules()
     const { useAssistantStore: freshPage } = await import('./assistant.store')
     expect(freshPage.getState()).toMatchObject({ visible: false, chatOpen: false, messages: [] })
-    freshPage.getState().show()
+    freshPage.getState().openChat()
     freshPage.getState().reset()
     expect(freshPage.getState()).toMatchObject({ visible: false, chatOpen: false, messages: [] })
     expect(localStorage.getItem('nandos:assistant')).toBeNull()

@@ -79,6 +79,7 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   help: { title: 'Ayuda de NandOS', icon: '📖' },
   writer: { title: 'Writer', icon: '📝' },
   terminal: { title: 'Terminal', icon: '⌨️' },
+  'task-manager': { title: 'Administrador de tareas', icon: '📊' },
 }
 
 function createWindow(id: WindowId, zIndex: number): WindowState {

@@ -26,6 +26,40 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  it('manages real windows from Start and respects the Writer discard confirmation', async () => {
+    enterGuest()
+    const launch = (name: string) => {
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
+      fireEvent.click(within(screen.getByRole('group', { name: 'Programas' })).getByRole('button', { name }))
+    }
+    launch('Terminal')
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Terminal' })).getByRole('button', { name: 'Minimizar' }))
+    launch('Writer')
+    const writer = within(screen.getByRole('dialog', { name: 'Writer' }))
+    const page = await writer.findByRole('textbox', { name: 'Contenido del documento' })
+    fireEvent.paste(page, { clipboardData: { types: ['text/plain'], getData: (type: string) => type === 'text/plain' ? 'Borrador' : '' } })
+    launch('Administrador de tareas')
+    const manager = within(screen.getByRole('dialog', { name: 'Administrador de tareas' }))
+    expect(manager.getByRole('row', { name: 'Terminal Minimizada' })).toBeInTheDocument()
+    fireEvent.click(manager.getByRole('button', { name: 'Ir a la ventana' }))
+    expect(useShellStore.getState().activeWindowId).toBe('terminal')
+    expect(manager.getByRole('row', { name: 'Terminal Activa' })).toBeInTheDocument()
+
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true)
+    vi.stubGlobal('confirm', confirm)
+    fireEvent.click(manager.getByRole('button', { name: 'Writer' }))
+    fireEvent.click(manager.getByRole('button', { name: 'Cerrar tarea' }))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('cambios sin guardar'))
+    expect(page).toHaveTextContent('Borrador')
+    fireEvent.click(manager.getByRole('button', { name: 'Cerrar tarea' }))
+    expect(screen.queryByRole('dialog', { name: 'Writer' })).not.toBeInTheDocument()
+
+    fireEvent.click(manager.getByRole('button', { name: 'Cerrar tarea' }))
+    expect(manager.getByText('No hay otras aplicaciones abiertas.')).toBeInTheDocument()
+    expect(manager.getByRole('button', { name: 'Ir a la ventana' })).toBeDisabled()
+  })
+
   it.each([
     ['/proyectos', 'Proyectos', 'Proyectos'],
     ['/proyectos/nandos', 'Proyectos', 'NandOS'],

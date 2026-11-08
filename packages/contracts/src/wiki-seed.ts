@@ -23,9 +23,9 @@ El acceso de administración es independiente y requiere credenciales reales. Nu
 - **Apagar:** finalizar la experiencia con una animación.
 
 Los submenús se colocan donde hay espacio. Las funciones futuras muestran un aviso al pasar el puntero o recibir foco.`],
-  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV y Contacto.
+  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV, Contacto, Terminal, Writer y Administrador de tareas.
 
-También muestra Terminal, Writer, Paint, Task Manager, Calculadora, Nando Browser, Mail, Media Player, Calendar, Code Editor y Buscaminas como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
+También muestra Paint, Calculadora, Nando Browser, Mail, Media Player, Calendar, Code Editor y Buscaminas como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
 
 Configuración tiene su propia sección en Start. Consulta el artículo individual de cada aplicación para conocer su propósito.`],
   ['Start > Documentos', 'Menú Start', `Mis documentos y Este equipo abren File Explorer, el explorador virtual de NandOS; no leen tu disco real.
@@ -105,10 +105,10 @@ const apps: Array<[string, string, string, boolean]> = [
   ['cv-viewer', 'CV', 'Abre el CV público en español en una pestaña nueva. Para inglés usa Start > Documentos > CV (English). El visor del navegador permite descargar el PDF.', true],
   ['contact', 'Contacto', 'Reúne la ubicación, disponibilidad y canales públicos de contacto. Usa los enlaces de correo y redes mostrados en esta sección para contactar con Fernando.', true],
   ['settings', 'Configuración', 'Se encuentra en Start > Configuración. Apariencia permite cambiar el tema local del escritorio. Sistema y Accesibilidad son futuras opciones deshabilitadas.', true],
-  ['terminal', 'Terminal', 'Propuesta de terminal simulado con comandos guiados para explorar el portfolio. No ejecutará órdenes del sistema operativo real.', false],
-  ['writer', 'Writer', 'Propuesta de editor de texto con estética retro para escribir documentos dentro de la experiencia.', false],
+  ['terminal', 'Terminal', 'Consola del sistema de archivos virtual. Escribe help para listar los comandos o dir --help para ver la ayuda de dir.', true],
+  ['writer', 'Writer', 'Editor visual de documentos con estética retro. Guarda archivos .doc virtuales que puedes volver a abrir desde File Explorer.', true],
   ['paint', 'Paint', 'Propuesta de lienzo de dibujo retro con herramientas sencillas de pintura.', false],
-  ['task-manager', 'Task Manager', 'Propuesta de administrador visual de aplicaciones y ventanas simuladas de NandOS, no de procesos del equipo real.', false],
+  ['task-manager', 'Administrador de tareas', 'En Start > Programas puedes ver las ventanas abiertas o minimizadas de NandOS. Selecciona una aplicación para volver a su ventana o cerrarla. Writer pide confirmación si hay cambios sin guardar.', true],
   ['calculator', 'Calculadora', 'Propuesta de calculadora de escritorio con operaciones básicas.', false],
   ['browser', 'Nando Browser', 'Propuesta de navegador retro dentro de NandOS para explorar contenido y enlaces de la experiencia.', false],
   ['mail', 'Mail', 'Propuesta de aplicación de correo/contacto con interfaz retro. Hoy el contacto se realiza desde la sección Contacto.', false],

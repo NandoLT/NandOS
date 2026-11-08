@@ -74,12 +74,12 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - CV Viewer.
 - Terminal con comandos como `about`, `projects`, `skills`, `contact`, `download cv` y `neofetch`.
 - Settings con themes, sonido, escala y accesibilidad.
-- Task Manager mostrando ventanas y aplicaciones reales de la sesión.
+- Administrador de tareas disponible en Start > Programas. Muestra las ventanas reales de la sesión y permite activarlas, restaurarlas o cerrarlas. Writer conserva la confirmación si hay cambios sin guardar.
 - Writer / Notepad para explicar proyectos, principios y forma de trabajo.
 
 ### Aplicaciones futuras
 
-- Paint / Pixel Studio.
+- Paint / Pixel Studio, siguiente aplicación tras el Administrador de tareas.
 - Internal Browser.
 - Mail / Contact.
 - mIRC / IRC Chat: cliente IRC real integrado mediante iframe en una ventana de NandOS, con inspiración visual en mIRC.

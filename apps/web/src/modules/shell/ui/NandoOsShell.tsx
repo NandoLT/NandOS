@@ -17,6 +17,7 @@ import { emptyWriterDraft } from '../../applications/domain/writer'
 import type { WriterDraft } from '../../applications/domain/writer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
 import { SettingsWindow } from '../../applications/ui/SettingsWindow'
+import { TaskManagerWindow } from '../../applications/ui/TaskManagerWindow'
 import { portfolioEntry } from '../../portfolio/domain/portfolio-links'
 import { WRITER_DEMO_MARKDOWN } from '../../portfolio/ui/NandosProjectCase'
 import { AboutWindow } from '../../portfolio/ui/AboutWindow'
@@ -1074,7 +1075,8 @@ function DesktopShell() {
     }
     if (
       id === 'about' || id === 'recycle-bin' || id === 'settings' ||
-      id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact' || id === 'terminal'
+      id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact' || id === 'terminal' ||
+      id === 'task-manager'
     ) {
       openShellWindow(id)
     }
@@ -1391,6 +1393,9 @@ function DesktopShell() {
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
+          ) : windowState.id === 'task-manager' ? (
+            <TaskManagerWindow windows={windows} activeWindowId={activeWindowId}
+              onSwitchTo={restoreWindow} onCloseTask={closeShellWindow} />
           ) : windowState.id === 'terminal' ? (
             <TerminalWindow isActive={activeWindowId === 'terminal' && !windowState.isMinimized}
               onOpenFolder={openExplorer} onOpenDocument={openWriterDocument}

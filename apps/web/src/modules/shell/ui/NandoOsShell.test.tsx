@@ -315,12 +315,12 @@ describe('desktop interactions', () => {
     // Flush the lazy dock's initial mount effect before interacting with it.
     enterGuest()
     await act(async () => {})
-    fireEvent.click(await screen.findByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Mostrar a nandBot' }))
     expect(await screen.findByRole('img', { name: 'Mascota retro de NandOS' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
     fireEvent.click(screen.getByRole('button', { name: 'Log off Invitado' }))
     fireEvent.click(screen.getByRole('button', { name: 'Entrar como invitado' }))
-    expect(await screen.findByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Mostrar a nandBot' })).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Mascota retro de NandOS' })).not.toBeInTheDocument()
   })
 

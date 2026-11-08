@@ -29,7 +29,7 @@ function mount(service?: AssistantService) {
   return { ...view, onLaunchApp }
 }
 function openChat() {
-  fireEvent.click(screen.getByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Mostrar a nandBot' }))
   fireEvent.click(screen.getByRole('button', { name: 'Abrir chat con nandBot' }))
 }
 function pendingService() {
@@ -39,20 +39,25 @@ function pendingService() {
 }
 
 describe('desktop assistant', () => {
-  it('shows only a launcher until activated, then mascot, then chat on explicit request', () => {
+  it('shows the mascot first and opens the chat only from its chat button', async () => {
     mount()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar a nandBot' }))
     expect(screen.getByRole('img')).toBeInTheDocument()
     expect(screen.getByRole('img').closest('[data-entrance="fall-bounce"]')).toBeInTheDocument()
     const entrance = screen.getByRole('img').closest('[data-entrance="fall-bounce"]')
     expect(entrance).toContainElement(screen.getByRole('group', { name: 'Acciones de nandBot' }))
-    expect(entrance).toContainElement(screen.getByRole('button', { name: 'Abrir chat con nandBot' }))
+    const bubble = screen.getByRole('button', { name: 'Abrir chat con nandBot' })
+    expect(entrance).toContainElement(bubble)
     expect(entrance).toContainElement(screen.getByRole('button', { name: 'Ocultar asistente' }))
     expect(screen.queryByRole('button', { name: /Pausar|Reanudar/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir chat con nandBot' }))
-    expect(screen.getByRole('dialog', { name: 'nandBot · Ayuda' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('img'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(bubble).toHaveFocus())
+    fireEvent.click(bubble)
+    expect(screen.getByRole('dialog', { name: 'nandBot · Ayuda' })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'Tu pregunta' })).not.toHaveFocus()
     expect(screen.getByText(/¡Hola! Soy nandBot/)).toBeInTheDocument()
     expect(screen.getByText('Chatbot en proceso')).toBeInTheDocument()
     expect(screen.getByText(/Demostración sin IA/)).toBeInTheDocument()
@@ -73,6 +78,7 @@ describe('desktop assistant', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir CV en otra pestaña' }))
     expect(onLaunchApp).toHaveBeenCalledWith('cv-viewer')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Mascota retro de NandOS' })).toBeInTheDocument()
   })
   it('starts fresh after minimizing, closing or hiding the assistant', async () => {
     mount()
@@ -80,6 +86,9 @@ describe('desktop assistant', () => {
     act(() => useAssistantStore.getState().append({ role: 'assistant', text: 'Conversación de prueba' }))
     fireEvent.click(screen.getByRole('button', { name: 'Minimizar' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir chat con nandBot' })).toHaveFocus())
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir chat con nandBot' }))
+    expect(screen.queryByText('Conversación de prueba')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ocultar asistente' }))
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
     openChat()
@@ -87,6 +96,9 @@ describe('desktop assistant', () => {
     expect(screen.getByText(/¡Hola! Soy nandBot/)).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir chat con nandBot' })).toHaveFocus())
+    expect(screen.getByRole('img', { name: 'Mascota retro de NandOS' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar asistente' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mostrar a nandBot' })).toHaveFocus())
   })
   it('cancels a pending reply when clearing, so an old request cannot resurrect history', async () => {
     const pending = pendingService()
@@ -154,7 +166,7 @@ describe('desktop assistant', () => {
     await act(async () => pending.resolve({ text: 'Respuesta de una sesión anterior' }))
     expect(useAssistantStore.getState().messages).toHaveLength(0)
     mount()
-    expect(screen.getByRole('button', { name: '¿Tienes dudas? Abrir asistente nandBot' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar a nandBot' })).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
   it('removes the introduction on the first question and keeps FAQ outside the scrolling history', async () => {
@@ -201,6 +213,7 @@ describe('desktop assistant', () => {
     const signal = pending.service.ask.mock.calls[0][2]
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
     expect(signal.aborted).toBe(true)
+    expect(screen.getByRole('img', { name: 'Mascota retro de NandOS' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir chat con nandBot' }))
     await act(async () => pending.resolve({ text: 'Respuesta de la sesión cerrada' }))
     expect(screen.queryByText('Respuesta de la sesión cerrada')).not.toBeInTheDocument()

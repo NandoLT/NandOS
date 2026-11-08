@@ -84,7 +84,6 @@ export function AssistantChat({ viewport, messages, source, draft, pending, erro
     return { bounds, previousBounds: bounds, isMaximized: false }
   })
   const history = useRef<HTMLDivElement>(null)
-  const input = useRef<HTMLTextAreaElement>(null)
   const bounds = {
     ...geometry.bounds,
     width: Math.min(geometry.bounds.width, viewport.width - 16),
@@ -92,10 +91,6 @@ export function AssistantChat({ viewport, messages, source, draft, pending, erro
     x: Math.max(8, Math.min(geometry.bounds.x, viewport.width - geometry.bounds.width - 8)),
     y: Math.max(8, Math.min(geometry.bounds.y, viewport.height - geometry.bounds.height - 8)),
   }
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => input.current?.focus())
-    return () => window.cancelAnimationFrame(frame)
-  }, [])
   useEffect(() => {
     if (history.current) history.current.scrollTop = source !== 'faq' && (messages.length || pending || error) ? history.current.scrollHeight : 0
   }, [source, messages, pending, error])
@@ -131,7 +126,7 @@ export function AssistantChat({ viewport, messages, source, draft, pending, erro
         <FaqMenu onSelect={(question) => onSend(question, 'faq')} layoutKey={`${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}:${viewport.width}:${viewport.height}`} />
         <Composer onSubmit={(event) => { event.preventDefault(); onSend(draft) }}>
           <label htmlFor="nandbot-question">Tu pregunta</label>
-          <textarea id="nandbot-question" ref={input} placeholder="Escribe tu pregunta…" value={draft} maxLength={1000} rows={2}
+          <textarea id="nandbot-question" placeholder="Escribe tu pregunta…" value={draft} maxLength={1000} rows={2}
             onChange={(event) => onDraft(event.target.value)} aria-describedby="nandbot-privacy"
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {

@@ -38,15 +38,13 @@ const Frame = styled.section<{ $window: FrameState }>`
   box-shadow: var(--os-window-shadow);
   &:focus-visible { outline: 2px dotted var(--os-accent); outline-offset: -4px; }
 
-  @media (pointer: coarse) { grid-template-rows: 48px minmax(0, 1fr) 18px; }
-
   @media (max-width: 640px) {
     top: 8px;
     left: 8px;
     width: calc(100vw - 16px);
     height: calc(100dvh - var(--os-taskbar-height) - 16px);
     min-width: 0;
-    grid-template-rows: 48px minmax(0, 1fr);
+    grid-template-rows: 28px minmax(0, 1fr);
   }
 `
 
@@ -64,6 +62,8 @@ const TitleBar = styled.div<{ $active: boolean }>`
   &:active {
     cursor: grabbing;
   }
+
+  @media (max-width: 640px), (pointer: coarse) { gap: 2px; }
 `
 
 const Title = styled.span`
@@ -80,22 +80,32 @@ const WindowButton = styled.button`
   place-items: center;
   width: 20px;
   height: 20px;
+  min-height: 0;
+  flex-shrink: 0;
   padding: 0;
-  border: var(--os-raised-border);
-  border-radius: var(--os-control-radius);
+  border: 0;
   color: var(--os-window-text);
-  background: var(--os-window);
+  background: transparent;
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  @media (max-width: 640px), (pointer: coarse) { width: 44px; height: 44px; flex-shrink: 0; }
+  @media (max-width: 640px), (pointer: coarse) { width: 24px; height: 28px; }
 
-  &:active {
-    border-style: inset;
+  > span {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border: var(--os-raised-border);
+    border-radius: var(--os-control-radius);
+    background: var(--os-window);
   }
 
-  &:focus-visible {
+  &:active > span { border-style: inset; }
+
+  &:focus-visible { outline: none; }
+  &:focus-visible > span {
     outline: 2px dotted var(--os-accent-text);
     outline-offset: -5px;
   }
@@ -250,13 +260,13 @@ export function WindowFrame({
         <AppIcon icon={windowState.icon} />
         <Title>{windowState.title}</Title>
         <WindowButton aria-label="Minimizar" onClick={() => leaveWindow(onMinimize)}>
-          _
+          <span aria-hidden="true">_</span>
         </WindowButton>
         <WindowButton aria-label={windowState.isMaximized ? 'Restaurar tamaño' : 'Maximizar'} onClick={onMaximize}>
-          {windowState.isMaximized ? '❐' : '□'}
+          <span aria-hidden="true">{windowState.isMaximized ? '❐' : '□'}</span>
         </WindowButton>
         <WindowButton aria-label="Cerrar" onClick={() => leaveWindow(onClose)}>
-          ×
+          <span aria-hidden="true">×</span>
         </WindowButton>
       </TitleBar>
       <Content style={contentStyle}>{children}</Content>

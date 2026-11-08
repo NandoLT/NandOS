@@ -49,6 +49,7 @@ const MenuTrigger = styled.button`
   background: transparent;
   font: inherit;
   cursor: pointer;
+  @media (max-width: 640px), (pointer: coarse) { min-height: 28px; }
   &:hover, &[aria-expanded='true'] {
     color: var(--os-menu-hover-text);
     background: var(--os-menu-hover);
@@ -69,7 +70,11 @@ const ToolbarButton = styled.button`
 
   &:active:not(:disabled) { border: var(--os-inset-border); }
   &:focus-visible { outline: 1px dotted var(--os-accent); outline-offset: -4px; }
-  @media (pointer: coarse) { width: 44px; height: 44px; }
+  @media (max-width: 640px), (pointer: coarse) {
+    width: 32px;
+    min-height: 0;
+    svg { width: 16px; height: 16px; }
+  }
 
   &:disabled {
     color: var(--os-disabled);
@@ -105,6 +110,7 @@ const AddressField = styled.div`
     inset: 0;
     width: 100%;
     height: 100%;
+    min-height: 0;
     opacity: 0;
     cursor: pointer;
     font: inherit;
@@ -129,7 +135,7 @@ const DropArrow = styled.span`
   color: var(--os-window-text);
   background: var(--os-window);
   font-size: 10px;
-  @media (pointer: coarse) { width: 44px; min-height: 44px; }
+  @media (max-width: 640px), (pointer: coarse) { width: 24px; min-height: 24px; }
 `
 
 const FolderPane = styled.div`

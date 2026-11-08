@@ -8,6 +8,8 @@
     "build": "pnpm lint:ai && pnpm --recursive --if-present run build",
     "lint": "pnpm lint:ai && pnpm --recursive --if-present run lint",
     "lint:ai": "node scripts/ai/lint.mjs",
+    "verify": "pnpm build && pnpm test",
+    "hooks:install": "git config --local core.hooksPath .githooks",
     "typecheck": "pnpm --filter @nandoos/contracts build && pnpm --recursive --if-present run typecheck",
     "test": "pnpm --filter @nandoos/contracts build && pnpm test:ai && pnpm --recursive --if-present run test",
     "test:ai": "node --test --test-isolation=none scripts/ai/*.test.mjs",
@@ -21,5 +23,12 @@
     "ai:ingest": "pnpm --filter @nandoos/api wiki:knowledge ingest",
     "ai:index": "pnpm --filter @nandoos/api wiki:knowledge status",
     "ai:search": "pnpm --filter @nandoos/api wiki:knowledge search"
+  },
+  "lint-staged": {
+    "apps/web/**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}": "pnpm --filter @nandoos/web exec oxlint --deny-warnings --",
+    "apps/api/**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}": "pnpm --filter @nandoos/api exec oxlint --deny-warnings --"
+  },
+  "devDependencies": {
+    "lint-staged": "^17.6.0"
   }
 }

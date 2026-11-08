@@ -14,7 +14,11 @@ Configura antes `apps/api/.env` a partir de `apps/api/.env.example`. `pnpm dev` 
 
 ## Comprobaciones sin avisos
 
-`pnpm lint` rechaza tanto errores como warnings en web y API. La compilación de cada aplicación ejecuta primero ese mismo control, también cuando la invoca Vercel. No se silencian diagnósticos ni se desactivan reglas para obtener una salida limpia. Antes de subir una entrega, ejecutar lint, tipos, pruebas y compilación.
+`pnpm verify` ejecuta la compilación del monorepo y todas las pruebas habituales. La compilación verifica tipos y ejecuta Oxlint con `--deny-warnings` en web y API. Las pruebas habituales incluyen web, API e infraestructura local de IA con servicios simulados.
+
+Después de instalar las dependencias, ejecuta `pnpm hooks:install` una vez por clon. El pre-commit comprueba el diff preparado y aplica Oxlint a los archivos JavaScript y TypeScript preparados de web y API, incluidos los que tienen cambios parciales.
+
+Abre un pull request para integrar cambios en `main`. GitHub Actions ejecuta **Verify monorepo** con Node.js 24 y el lockfile congelado. Vercel sigue gestionando los despliegues.
 
 El proxy web extrae la ruta reescrita con `URL` y `URLSearchParams`, sin acceder al parser auxiliar `request.query` del runtime. Las pruebas cubren este contrato, rutas duplicadas, peticiones autenticadas y cookies. Para comprobar localmente las deprecaciones como fallos: `NODE_OPTIONS=--throw-deprecation pnpm --filter @nandoos/web exec vitest run tests/api-proxy.test.js`.
 

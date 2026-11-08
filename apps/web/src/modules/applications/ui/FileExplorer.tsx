@@ -13,7 +13,7 @@ import type { ExplorerItem, VirtualNode } from '../domain/explorer'
 
 const noFolders: readonly UserDesktopItem[] = []
 const noNodes: readonly VirtualNode[] = []
-const itemKey = (item: ExplorerItem) => item.kind === 'folder' ? item.directoryId : item.kind === 'document' ? item.documentId : item.action
+const itemKey = (item: ExplorerItem) => item.kind === 'folder' ? item.directoryId : item.kind === 'document' ? item.documentId : item.kind === 'image' ? item.imageId : item.action
 
 const Explorer = styled.div`
   display: grid;
@@ -256,6 +256,7 @@ type FileExplorerProps = {
   nodes?: readonly VirtualNode[]
   onCreateFolder?: (parentId: string, name: string) => string
   onOpenDocument?: (id: string) => void
+  onOpenImage?: (id: string) => void
   onNewDocument?: (parentId: string) => void
   initialDirectory?: string
   onOpenAbout: () => void
@@ -267,7 +268,7 @@ type FileExplorerProps = {
 
 export function FileExplorer({
   folders = noFolders, nodes = noNodes, initialDirectory = COMPUTER_DIRECTORY, onOpenAbout, onDownloadCv, onNotify, onClose, onHelp,
-  onCreateFolder, onOpenDocument, onNewDocument,
+  onCreateFolder, onOpenDocument, onOpenImage, onNewDocument,
 }: FileExplorerProps) {
   const touchPress = useTouchPress()
   const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
@@ -291,7 +292,7 @@ export function FileExplorer({
   const backIndex = history.entries.findLastIndex((id, index) => index < history.index && tree.has(id))
   const forwardIndex = history.entries.findIndex((id, index) => index > history.index && tree.has(id))
   const items = tree.contentsOf(current.id).map((item) => {
-    if (item.kind === 'folder' || item.kind === 'document') return item
+    if (item.kind === 'folder' || item.kind === 'document' || item.kind === 'image') return item
     if (item.action === 'cv-es') return { ...item, name: data.cvDocuments.es?.filename ?? item.name }
     if (item.action === 'cv-en') return { ...item, name: data.cvDocuments.en?.filename ?? item.name }
     return item
@@ -325,6 +326,7 @@ export function FileExplorer({
       return
     }
     if (item.kind === 'document') { onOpenDocument?.(item.documentId); return }
+    if (item.kind === 'image') { onOpenImage?.(item.imageId); return }
 
     if (item.action === 'about') onOpenAbout()
     if (item.action === 'cv-es') onDownloadCv('es')

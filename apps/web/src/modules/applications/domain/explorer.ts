@@ -8,11 +8,13 @@ export const DOCUMENTS_DIRECTORY = 'documents'
 export type ExplorerItem =
   | { name: string; icon: string; kind: 'folder'; directoryId: string }
   | { name: string; icon: string; kind: 'document'; documentId: string }
+  | { name: string; icon: string; kind: 'image'; imageId: string }
   | { name: string; icon: string; kind: 'file' | 'application'; action: 'about' | 'cv-es' | 'cv-en' | 'roadmap' }
 
 type VirtualEntry = { id: string; parentId: string; name: string }
 export type WriterDocument = VirtualEntry & { kind: 'document'; markdown: string }
-export type VirtualNode = (VirtualEntry & { kind: 'folder' }) | WriterDocument
+export type PaintImage = VirtualEntry & { kind: 'image'; blobId: string; width: number; height: number }
+export type VirtualNode = (VirtualEntry & { kind: 'folder' }) | WriterDocument | PaintImage
 export const MAX_MARKDOWN_LENGTH = 200_000
 
 export function virtualName(value: string) {
@@ -66,7 +68,8 @@ export function createExplorerTree(folders: readonly UserDesktopItem[], nodes: r
     siblings.push(node)
     pendingByParent.set(node.parentId, siblings)
   }
-  const documentsByParent = new Map<string, WriterDocument[]>()
+  const filesByParent = new Map<string, (WriterDocument | PaintImage)[]>()
+  const visibleFiles = new Map<string, WriterDocument | PaintImage>()
   const known = new Set(directories.map(({ id }) => id))
   // Traverse only attached folders; descendants of recycled folders stay hidden.
   for (const parent of directories) {
@@ -76,9 +79,10 @@ export function createExplorerTree(folders: readonly UserDesktopItem[], nodes: r
       if (node.kind === 'folder') {
         directories.push({ ...node, icon: '📁', items: [] })
       } else {
-        const documents = documentsByParent.get(parent.id) ?? []
+        const documents = filesByParent.get(parent.id) ?? []
         documents.push(node)
-        documentsByParent.set(parent.id, documents)
+        filesByParent.set(parent.id, documents)
+        visibleFiles.set(node.id, node)
       }
     }
   }
@@ -111,16 +115,20 @@ export function createExplorerTree(folders: readonly UserDesktopItem[], nodes: r
     ...(byParent.get(id) ?? []).map((child): ExplorerItem => ({
       name: child.name, icon: child.icon, kind: 'folder', directoryId: child.id,
     })),
-    ...(documentsByParent.get(id) ?? []).map((doc): ExplorerItem => ({
-      name: doc.name, icon: '📝', kind: 'document', documentId: doc.id,
-    })),
+    ...(filesByParent.get(id) ?? []).map((file): ExplorerItem => file.kind === 'document'
+      ? { name: file.name, icon: '📝', kind: file.kind, documentId: file.id }
+      : { name: file.name, icon: '🎨', kind: file.kind, imageId: file.id }),
     ...getDirectory(id).items,
   ]
   return { getDirectory, pathTo, listTree, contentsOf, has: (id: string) => byId.has(id),
     writable: (id: string) => id !== COMPUTER_DIRECTORY && byId.has(id),
     getDocument: (id: string) => {
-      const node = nodes.find((candidate) => candidate.id === id)
-      return node?.kind === 'document' && documentsByParent.get(node.parentId)?.includes(node) ? node : undefined
+      const file = visibleFiles.get(id)
+      return file?.kind === 'document' ? file : undefined
+    },
+    getImage: (id: string) => {
+      const file = visibleFiles.get(id)
+      return file?.kind === 'image' ? file : undefined
     },
   }
 }

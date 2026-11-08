@@ -74,12 +74,12 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - CV Viewer.
 - Terminal con comandos como `about`, `projects`, `skills`, `contact`, `download cv` y `neofetch`.
 - Settings con themes, sonido, escala y accesibilidad.
-- Administrador de tareas disponible en Start > Programas. Muestra las ventanas reales de la sesión y permite activarlas, restaurarlas o cerrarlas. Writer conserva la confirmación si hay cambios sin guardar.
+- Administrador de tareas disponible en Start > Programas. Muestra las ventanas reales de la sesión y permite activarlas, restaurarlas o cerrarlas. Writer y Paint conservan la confirmación si hay cambios sin guardar.
 - Writer / Notepad para explicar proyectos, principios y forma de trabajo.
+- Paint disponible en Start > Programas. Primera versión con dibujo, paleta, historial y archivos PNG virtuales. Quedan pendientes selección, texto y herramientas adicionales.
 
 ### Aplicaciones futuras
 
-- Paint / Pixel Studio, siguiente aplicación tras el Administrador de tareas.
 - Internal Browser.
 - Mail / Contact.
 - mIRC / IRC Chat: cliente IRC real integrado mediante iframe en una ventana de NandOS, con inspiración visual en mIRC.
@@ -92,7 +92,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 
 Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se utilizará necesariamente el atributo HTML `disabled`, porque debe poder mostrarse información al recibir foco o hover. Se usará `aria-disabled="true"`, se bloqueará la acción y se mostrará un popover:
 
-> Paint estará disponible próximamente.
+> Calculadora estará disponible próximamente.
 
 El popover debe funcionar con hover, teclado y toque en móvil.
 

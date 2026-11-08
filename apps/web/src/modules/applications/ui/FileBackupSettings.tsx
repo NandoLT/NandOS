@@ -1,3 +1,4 @@
+import { loadPaintBlob } from '../infrastructure/paint-storage'
 import { useState } from 'react'
 import styled from '@emotion/styled'
 import { useShellStore } from '../../shell/application/shell.store'
@@ -32,16 +33,18 @@ const Panel = styled.div`
 export function FileBackupSettings() {
   const [preview, setPreview] = useState<FileBackup | null>(null)
   const [reading, setReading] = useState(false)
+  const [working, setWorking] = useState(false)
   const [feedback, setFeedback] = useState<{ text: string; error?: boolean } | null>(null)
 
   const reportError = (reason: unknown, fallback: string) =>
     setFeedback({ text: reason instanceof Error ? reason.message : fallback, error: true })
 
-  const download = () => {
+  const download = async () => {
+    setWorking(true)
     setFeedback(null)
     try {
       const { userDesktopItems, fileNodes } = useShellStore.getState()
-      const json = exportFileBackup(userDesktopItems, fileNodes)
+      const json = await exportFileBackup(userDesktopItems, fileNodes, loadPaintBlob)
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
       const link = document.createElement('a')
       link.href = url
@@ -53,7 +56,7 @@ export function FileBackupSettings() {
       setFeedback({ text: 'Copia preparada para descargar.' })
     } catch (reason) {
       reportError(reason, 'No se pudo exportar la copia.')
-    }
+    } finally { setWorking(false) }
   }
 
   const read = async (file: File) => {
@@ -61,7 +64,7 @@ export function FileBackupSettings() {
     setFeedback(null)
     setReading(true)
     try {
-      if (file.size > MAX_BACKUP_BYTES) throw new Error('La copia supera el límite de 2 MB.')
+      if (file.size > MAX_BACKUP_BYTES) throw new Error('La copia supera el límite de 12 MB.')
       const backup = parseFileBackup(await file.text())
       if (!backup.entries.length) throw new Error('La copia está vacía.')
       setPreview(backup)
@@ -72,27 +75,30 @@ export function FileBackupSettings() {
     }
   }
 
-  const restore = (backup: FileBackup) => {
+  const restore = async (backup: FileBackup) => {
+    setWorking(true)
     try {
-      const folder = useShellStore.getState().importFileBackup(backup)
+      const folder = await useShellStore.getState().importFileBackup(backup)
       setPreview(null)
       setFeedback({ text: 'Archivos importados en Mis documentos › ' + folder + '.' })
     } catch (reason) {
       reportError(reason, 'No se pudo importar la copia.')
-    }
+    } finally { setWorking(false) }
   }
 
   const documents = preview?.entries.filter(({ kind }) => kind === 'document').length ?? 0
+  const images = preview?.entries.filter(({ kind }) => kind === 'image').length ?? 0
+  const folders = (preview?.entries.length ?? 0) - documents - images
   return <Panel>
     <h2>Copia de archivos</h2>
-    <p>Guarda tus carpetas y documentos de Writer en un archivo JSON para llevarlos a otro navegador.</p>
+    <p>Guarda tus carpetas, documentos de Writer y dibujos de Paint en un archivo JSON para llevarlos a otro navegador.</p>
     <section aria-label="Exportar archivos">
       <p>La copia contiene solo los archivos activos que has creado. Excluye la Papelera, las preferencias y los archivos del sistema.</p>
-      <button type="button" onClick={download}>Exportar mis archivos</button>
+      <button type="button" disabled={working} onClick={() => void download()}>Exportar mis archivos</button>
     </section>
     <section aria-label="Importar archivos">
       <label htmlFor="nandos-file-backup">Seleccionar copia de NandOS</label>
-      <input id="nandos-file-backup" type="file" accept=".json,application/json" disabled={reading} onChange={(event) => {
+      <input id="nandos-file-backup" type="file" accept=".json,application/json" disabled={reading || working} onChange={(event) => {
         const file = event.target.files?.[0]
         event.target.value = ''
         if (file) void read(file)
@@ -100,14 +106,14 @@ export function FileBackupSettings() {
       {reading && <p role="status">Leyendo la copia…</p>}
       {preview && <>
         <h3>Vista previa de la importación</h3>
-        <p>{documents} {documents === 1 ? 'documento' : 'documentos'} · {preview.entries.length - documents} {preview.entries.length - documents === 1 ? 'carpeta' : 'carpetas'}</p>
+        <p>{documents} {documents === 1 ? 'documento' : 'documentos'} · {folders} {folders === 1 ? 'carpeta' : 'carpetas'}{images ? ' · ' + images + (images === 1 ? ' dibujo' : ' dibujos') : ''}</p>
         <ul aria-label="Contenido de la copia">
-          {preview.entries.slice(0, 8).map(({ kind, name }, index) => <li key={index}>{kind === 'folder' ? '📁 ' : '📄 '}{name}</li>)}
+          {preview.entries.slice(0, 8).map(({ kind, name }, index) => <li key={index}>{kind === 'folder' ? '📁 ' : kind === 'image' ? '🎨 ' : '📄 '}{name}</li>)}
         </ul>
         {preview.entries.length > 8 && <p>Y {preview.entries.length - 8} elementos más.</p>}
         <p>Se importará en una carpeta nueva dentro de Mis documentos, sin sustituir los archivos que ya tienes.</p>
-        <button type="button" onClick={() => restore(preview)}>Importar copia</button>
-        <button type="button" onClick={() => { setPreview(null); setFeedback(null) }}>Cancelar importación</button>
+        <button type="button" disabled={working} onClick={() => void restore(preview)}>Importar copia</button>
+        <button type="button" disabled={working} onClick={() => { setPreview(null); setFeedback(null) }}>Cancelar importación</button>
       </>}
     </section>
     {feedback && <p role={feedback.error ? 'alert' : 'status'}>{feedback.text}</p>}

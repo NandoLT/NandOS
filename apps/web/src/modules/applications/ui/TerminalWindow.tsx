@@ -52,10 +52,11 @@ type Entry = { id: number; prompt: string; command: string; output?: string; err
 const MAX_OUTPUT = 16_000
 const MAX_HISTORY = 100
 
-export function TerminalWindow({ isActive, onOpenFolder, onOpenDocument, onAbout, onProjects, onCv, onExit }: {
+export function TerminalWindow({ isActive, onOpenFolder, onOpenDocument, onOpenImage, onAbout, onProjects, onCv, onExit }: {
   isActive: boolean
   onOpenFolder: (id: string) => void
   onOpenDocument: (id: string) => void
+  onOpenImage: (id: string) => void
   onAbout: () => void
   onProjects: () => void
   onCv: (language: 'es' | 'en') => void
@@ -116,6 +117,7 @@ export function TerminalWindow({ isActive, onOpenFolder, onOpenDocument, onAbout
     }
     if (effect?.kind === 'folder') onOpenFolder(effect.id)
     if (effect?.kind === 'document') onOpenDocument(effect.id)
+    if (effect?.kind === 'image') onOpenImage(effect.id)
     if (effect?.kind === 'about') onAbout()
     if (effect?.kind === 'projects') onProjects()
     if (effect?.kind === 'cv') onCv(effect.language)

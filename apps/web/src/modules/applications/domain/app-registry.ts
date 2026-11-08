@@ -36,7 +36,7 @@ export const appRegistry: RegisteredApp[] = [
   { id: 'settings', name: 'Configuración', windowTitle: 'Configuración', icon: '⚙️', status: 'available' },
   { id: 'terminal', name: 'Terminal', windowTitle: 'Terminal', icon: '⌨️', status: 'available' },
   { id: 'writer', name: 'Writer', windowTitle: 'Writer', icon: '📝', status: 'available' },
-  { id: 'paint', name: 'Paint', windowTitle: 'Paint', icon: '🎨', status: 'coming-soon' },
+  { id: 'paint', name: 'Paint', windowTitle: 'Paint', icon: '🎨', status: 'available' },
   { id: 'task-manager', name: 'Administrador de tareas', windowTitle: 'Administrador de tareas', icon: '📊', status: 'available' },
   { id: 'calculator', name: 'Calculadora', windowTitle: 'Calculadora', icon: '🧮', status: 'coming-soon' },
   { id: 'browser', name: 'Nando Browser', windowTitle: 'Nando Browser', icon: '🌐', status: 'coming-soon' },

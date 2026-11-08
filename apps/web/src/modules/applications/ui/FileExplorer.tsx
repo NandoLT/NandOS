@@ -1,3 +1,5 @@
+import { AppMenuBar } from '../../../shared/ui/AppMenuBar'
+import type { AppMenu } from '../../../shared/ui/AppMenuBar'
 import { useId, useMemo, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import styled from '@emotion/styled'
@@ -29,32 +31,6 @@ const Toolbar = styled.div`
   border-bottom: var(--os-raised-border);
   background: var(--os-toolbar);
   font-size: 13px;
-`
-
-const MenuBar = styled.nav`
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  padding: 1px 4px;
-  border-bottom: var(--os-raised-border);
-  background: var(--os-toolbar);
-  font-size: 12px;
-`
-
-const MenuTrigger = styled.button`
-  padding: 4px 7px;
-  border: 1px solid transparent;
-  color: var(--os-window-text);
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-  @media (max-width: 640px), (pointer: coarse) { min-height: 28px; }
-  &:hover, &[aria-expanded='true'] {
-    color: var(--os-menu-hover-text);
-    background: var(--os-menu-hover);
-  }
-  &:focus-visible { outline: 1px dotted var(--os-accent); outline-offset: -2px; }
 `
 
 const ToolbarButton = styled.button`
@@ -266,15 +242,6 @@ const NewFolderForm = styled.form`
   [role='alert'] { flex-basis: 100%; color: var(--os-danger); }
 `
 
-const MenuDropdown = styled(ItemContextMenu)`
-  position: absolute;
-  top: 100%;
-  width: 180px;
-  max-width: 100%;
-  min-width: 0;
-  button:disabled { opacity: .55; cursor: default; }
-`
-
 const arrowPath = 'M8 2 1 9l7 7v-5h10V7H8Z'
 
 function NavigationArrow({ direction }: { direction: 'left' | 'right' | 'up' }) {
@@ -283,7 +250,6 @@ function NavigationArrow({ direction }: { direction: 'left' | 'right' | 'up' }) 
   </svg>
 }
 
-type ExplorerCommand = { label: string; run: () => void; disabled?: boolean }
 
 type FileExplorerProps = {
   folders?: readonly UserDesktopItem[]
@@ -307,7 +273,6 @@ export function FileExplorer({
   const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
   const addressId = useId()
   const paneId = `${addressId}-files`
-  const [openMenu, setOpenMenu] = useState<{ name: string; left: number } | null>(null)
   const [view, setView] = useState<'icons' | 'list'>('icons')
   const tree = useMemo(() => createExplorerTree(folders, nodes), [folders, nodes])
   const [newFolder, setNewFolder] = useState<{ parentId: string; name: string; error?: string } | null>(null)
@@ -370,7 +335,6 @@ export function FileExplorer({
   const showItemContextMenu = (event: Pick<ReactMouseEvent, 'preventDefault' | 'stopPropagation' | 'clientX' | 'clientY'>, item: ExplorerItem) => {
     event.preventDefault()
     event.stopPropagation()
-    setOpenMenu(null)
     setSelectedItem(itemKey(item))
     setContextMenu({
       x: Math.max(4, Math.min(event.clientX, window.innerWidth - 160)),
@@ -381,7 +345,7 @@ export function FileExplorer({
 
   const selected = items.find((item) => itemKey(item) === selectedItem)
   const up = () => { if (current.parentId) navigate(current.parentId) }
-  const menus: { name: string; commands: ExplorerCommand[] }[] = [
+  const menus: AppMenu[] = [
     { name: 'Archivo', commands: [
       { label: 'Abrir', disabled: !selected, run: () => { if (selected) openItem(selected) } },
       ...(onCreateFolder ? [{ label: 'Nueva carpeta…', disabled: !tree.writable(current.id),
@@ -414,40 +378,8 @@ export function FileExplorer({
   ]
 
   return (
-    <Explorer aria-label="Explorador de archivos" onClick={() => { setContextMenu(null); setOpenMenu(null) }}>
-      <MenuBar aria-label="Opciones del Explorador"
-        onClick={(event) => event.stopPropagation()}
-        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenMenu(null) }}
-        onKeyDown={(event) => {
-          if (event.key !== 'Escape' || !openMenu) return
-          event.preventDefault()
-          event.stopPropagation()
-          event.currentTarget.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus()
-          setOpenMenu(null)
-        }}>
-        {menus.map(({ name, commands }) => (
-          <div key={name}>
-            <MenuTrigger type="button" aria-expanded={openMenu?.name === name} onClick={(event) => {
-              const button = event.currentTarget
-              setContextMenu(null)
-              setOpenMenu((previous) => previous?.name === name ? null : {
-                name, left: Math.max(0, Math.min(button.offsetLeft, (button.closest('nav')?.clientWidth ?? 180) - 180)),
-              })
-            }}>{name}</MenuTrigger>
-            {openMenu?.name === name && (
-              <MenuDropdown role="group" aria-label={`Opciones de ${name}`} style={{ left: openMenu.left }}>
-                {commands.map(({ label, run, disabled }) => (
-                  <ItemContextMenuAction key={label} type="button" disabled={disabled} onClick={(event) => {
-                    event.currentTarget.closest('nav')?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus()
-                    setOpenMenu(null)
-                    run()
-                  }}>{label}</ItemContextMenuAction>
-                ))}
-              </MenuDropdown>
-            )}
-          </div>
-        ))}
-      </MenuBar>
+    <Explorer aria-label="Explorador de archivos" onClick={() => setContextMenu(null)}>
+      <AppMenuBar label="Opciones del Explorador" menus={menus} onOpen={() => setContextMenu(null)} />
       <Toolbar role="group" aria-label="Navegación de carpetas">
         <ToolbarButton type="button" onClick={() => goToHistory(backIndex)}
           disabled={backIndex < 0} aria-label="Atrás" title="Atrás"><NavigationArrow direction="left" /></ToolbarButton>
@@ -512,7 +444,6 @@ export function FileExplorer({
               onClick={(event) => {
                 event.stopPropagation()
                 if (touchPress.consumeHold()) return
-                setOpenMenu(null)
                 setSelectedItem(itemKey(item))
                 setContextMenu(null)
                 if (touchPress.isTouch()) openItem(item)

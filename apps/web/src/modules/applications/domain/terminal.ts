@@ -27,7 +27,7 @@ export const INITIAL_TERMINAL_DIRECTORY = DESKTOP_DIRECTORY
 export const MAX_TERMINAL_INPUT = 2048
 
 type Effect =
-  | { kind: 'folder' | 'document'; id: string }
+  | { kind: 'folder' | 'document' | 'image'; id: string }
   | { kind: 'about' | 'projects' | 'clear' | 'exit' }
   | { kind: 'cv'; language: 'es' | 'en' }
   | { kind: 'mkdir'; parentId: string; name: string }
@@ -158,6 +158,7 @@ export function runTerminalCommand(line: string, tree: Tree, directoryId: string
       }
       if (item.kind === 'folder') return { effect: { kind: 'folder', id: item.directoryId } }
       if (item.kind === 'document') return { effect: { kind: 'document', id: item.documentId } }
+      if (item.kind === 'image') return { effect: { kind: 'image', id: item.imageId } }
       if (item.action === 'about') return { effect: { kind: 'about' } }
       if (item.action === 'cv-es' || item.action === 'cv-en') {
         return { effect: { kind: 'cv', language: item.action === 'cv-en' ? 'en' : 'es' } }

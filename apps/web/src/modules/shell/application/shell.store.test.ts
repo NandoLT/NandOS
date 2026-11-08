@@ -33,10 +33,10 @@ describe('shell store', () => {
     store.saveWriterDocument({ parentId: recycled, name: 'Oculto', markdown: '# No exportar' })
     store.moveUserItemToRecycleBin(recycled)
     const state = useShellStore.getState()
-    const backup = parseFileBackup(exportFileBackup(state.userDesktopItems, state.fileNodes))
+    const backup = parseFileBackup(await exportFileBackup(state.userDesktopItems, state.fileNodes, async () => undefined))
     expect(backup.entries.map(({ name }) => name)).toEqual(['Trabajo', 'Borradores', 'Nota.doc'])
-    expect(store.importFileBackup(backup)).toBe('Copia importada')
-    expect(store.importFileBackup(backup)).toBe('Copia importada (2)')
+    expect(await store.importFileBackup(backup)).toBe('Copia importada')
+    expect(await store.importFileBackup(backup)).toBe('Copia importada (2)')
     await useShellStore.persist.rehydrate()
     const importedState = useShellStore.getState()
     const tree = createExplorerTree(importedState.userDesktopItems, importedState.fileNodes)
@@ -52,7 +52,7 @@ describe('shell store', () => {
 
   it('rejects invalid backup versions, forward or self references and unsafe file names', () => {
     const header = { format: 'nandos-files', version: 1 }
-    expect(() => parseFileBackup(JSON.stringify({ ...header, version: 2, entries: [] }))).toThrow(/compatible/)
+    expect(() => parseFileBackup(JSON.stringify({ ...header, version: 3, entries: [] }))).toThrow(/compatible/)
     for (const parent of [0, 1, 'computer', '__proto__']) {
       expect(() => parseFileBackup(JSON.stringify({ ...header, entries: [{ parent, name: 'Carpeta', kind: 'folder' }] }))).toThrow(/ruta/)
     }

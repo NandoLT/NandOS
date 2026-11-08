@@ -1,3 +1,4 @@
+import { deletePaintBlob, readPngSize, savePaintBlob } from '../../applications/infrastructure/paint-storage'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
@@ -5,8 +6,8 @@ import { fitHelpWindowBounds } from '../domain/help-window-bounds'
 import { taskbarHeight } from '../../../shared/lib/input-preferences'
 import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
 import { createExplorerTree, DESKTOP_DIRECTORY, DOCUMENTS_DIRECTORY, excludeSubtrees, MAX_MARKDOWN_LENGTH, virtualName } from '../../applications/domain/explorer'
-import type { VirtualNode, WriterDocument } from '../../applications/domain/explorer'
-import { prepareFileImport } from '../../applications/domain/file-backup'
+import type { PaintImage, VirtualNode, WriterDocument } from '../../applications/domain/explorer'
+import { fileImportName, prepareFileImport } from '../../applications/domain/file-backup'
 import type { FileBackup } from '../../applications/domain/file-backup'
 import type {
   DesktopPosition,
@@ -27,8 +28,9 @@ type ShellState = {
   userDesktopItems: UserDesktopItem[]
   recycleBinItems: RecycleBinItem[]
   fileNodes: VirtualNode[]
-  importFileBackup: (backup: FileBackup) => string
+  importFileBackup: (backup: FileBackup) => Promise<string>
   createVirtualFolder: (parentId: string, name: string) => string
+  savePaintImage: (image: Pick<PaintImage, 'name' | 'parentId' | 'width' | 'height'> & { png: Blob }, id?: string) => Promise<PaintImage>
   saveWriterDocument: (document: Omit<WriterDocument, 'id' | 'kind'>, id?: string) => WriterDocument
   openWindow: (id: WindowId) => void
   closeWindow: (id: WindowId) => void
@@ -67,6 +69,13 @@ const defaultDesktopPositions: Record<DesktopSystemItemId, DesktopPosition> = {
   contact: { x: 122, y: 192 },
 }
 
+function deleteRemovedPaintBlobs(previous: VirtualNode[], remaining: VirtualNode[]) {
+  const kept = new Set(remaining)
+  for (const node of previous) {
+    if (node.kind === 'image' && !kept.has(node)) void deletePaintBlob(node.blobId).catch(() => undefined)
+  }
+}
+
 const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   about: { title: 'About Fernando.exe', icon: ABOUT_ME_ICON },
   'file-explorer': { title: 'Explorador de archivos', icon: '📁' },
@@ -78,6 +87,7 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   contact: { title: 'Contacto', icon: '✉️' },
   help: { title: 'Ayuda de NandOS', icon: '📖' },
   writer: { title: 'Writer', icon: '📝' },
+  paint: { title: 'Paint', icon: '🎨' },
   terminal: { title: 'Terminal', icon: '⌨️' },
   'task-manager': { title: 'Administrador de tareas', icon: '📊' },
 }
@@ -88,7 +98,9 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
   const isSettings = id === 'settings'
   const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
-  const bounds = id === 'writer'
+  const bounds = id === 'paint'
+    ? { ...defaultBounds, width: 740, height: 540 }
+    : id === 'writer'
     ? { ...defaultBounds, width: 740, height: 510 }
     : isExplorer
     ? { ...defaultBounds, width: 680, height: 440 }
@@ -127,18 +139,35 @@ export const useShellStore = create<ShellState>()(
       recycleBinItems: [],
       fileNodes: [],
 
-      importFileBackup: (backup) => {
+      importFileBackup: async (backup) => {
         if (!backup.entries.length) throw new Error('La copia está vacía.')
-        const { userDesktopItems, fileNodes } = get()
-        const destination = createExplorerTree(userDesktopItems, fileNodes).contentsOf(DOCUMENTS_DIRECTORY)
-        const { name, nodes } = prepareFileImport(backup, destination.map((item) => item.name))
+        const { root, nodes, images } = prepareFileImport(backup)
+        const stored: string[] = []
         try {
-          set({ fileNodes: [...fileNodes, ...nodes] })
-        } catch {
-          try { set({ fileNodes }) } catch { /* In-memory state is already restored. */ }
-          throw new Error('No se pudo guardar la copia en este navegador. Comprueba el espacio disponible.')
+          for (const image of images) {
+            const bytes = Uint8Array.from(atob(image.png), (character) => character.charCodeAt(0))
+            const png = new Blob([bytes], { type: 'image/png' })
+            const dimensions = await readPngSize(png)
+            if (dimensions.width !== image.width || dimensions.height !== image.height) throw new Error('La copia contiene un PNG inválido.')
+            const bitmap = await createImageBitmap(png)
+            bitmap.close()
+            await savePaintBlob(image.id, png)
+            stored.push(image.id)
+          }
+          const { userDesktopItems, fileNodes } = get()
+          const destination = createExplorerTree(userDesktopItems, fileNodes).contentsOf(DOCUMENTS_DIRECTORY)
+          const name = fileImportName(destination.map((item) => item.name))
+          try {
+            set({ fileNodes: [...fileNodes, { ...root, name }, ...nodes.slice(1)] })
+          } catch {
+            try { set({ fileNodes }) } catch { /* In-memory state is already restored. */ }
+            throw new Error('No se pudo guardar la copia en este navegador. Comprueba el espacio disponible.')
+          }
+          return name
+        } catch (error) {
+          await Promise.allSettled(stored.map(deletePaintBlob))
+          throw error
         }
-        return name
       },
 
       createVirtualFolder: (parentId, value) => {
@@ -159,6 +188,43 @@ export const useShellStore = create<ShellState>()(
           set({ fileNodes: [...state.fileNodes, { id, parentId, name, kind: 'folder' }] })
         }
         return id
+      },
+
+      savePaintImage: async ({ name: value, parentId, width, height, png }, id) => {
+        const name = virtualName(value.trim().replace(/\.png$/iu, '') + '.png')
+        const dimensions = await readPngSize(png)
+        if (dimensions.width !== width || dimensions.height !== height) throw new Error('Las dimensiones del PNG no coinciden.')
+        const findTarget = () => {
+          const { userDesktopItems, fileNodes } = get()
+          const tree = createExplorerTree(userDesktopItems, fileNodes)
+          if (!tree.writable(parentId)) throw new Error('No se puede escribir en esta ubicación.')
+          const previous = id ? tree.getImage(id) : undefined
+          if (id && !previous) throw new Error('El dibujo ya no está disponible. Usa Guardar como para crear una copia.')
+          if (tree.contentsOf(parentId).some((item) =>
+            !(item.kind === 'image' && item.imageId === id) && item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+            throw new Error('Ya existe un elemento con ese nombre.')
+          }
+          return { previous, fileNodes }
+        }
+        const { previous } = findTarget()
+        const blobId = crypto.randomUUID()
+        const saved: PaintImage = { id: id ?? crypto.randomUUID(), kind: 'image', name, parentId, width, height, blobId }
+        await savePaintBlob(blobId, png)
+        try {
+          const target = findTarget()
+          if (target.previous?.blobId !== previous?.blobId) throw new Error('El dibujo cambió mientras se guardaba.')
+          try {
+            set({ fileNodes: id ? target.fileNodes.map((node) => node.id === id ? saved : node) : [...target.fileNodes, saved] })
+          } catch {
+            try { set({ fileNodes: target.fileNodes }) } catch { /* In-memory state is already restored. */ }
+            throw new Error('No queda espacio para guardar el dibujo en el navegador.')
+          }
+        } catch (error) {
+          void deletePaintBlob(blobId).catch(() => undefined)
+          throw error
+        }
+        if (previous) void deletePaintBlob(previous.blobId).catch(() => undefined)
+        return saved
       },
 
       saveWriterDocument: ({ name: value, parentId, markdown }, id) => {
@@ -372,15 +438,20 @@ export const useShellStore = create<ShellState>()(
           }
         }),
 
-      permanentlyDeleteUserItem: (id) =>
-        set((state) => ({
-          recycleBinItems: state.recycleBinItems.filter((item) => item.id !== id),
-          fileNodes: state.recycleBinItems.some((item) => item.id === id) ? excludeSubtrees(state.fileNodes, [id]) : state.fileNodes,
-        })),
+      permanentlyDeleteUserItem: (id) => {
+        const { recycleBinItems, fileNodes } = get()
+        if (!recycleBinItems.some((item) => item.id === id)) return
+        const remaining = excludeSubtrees(fileNodes, [id])
+        set({ recycleBinItems: recycleBinItems.filter((item) => item.id !== id), fileNodes: remaining })
+        deleteRemovedPaintBlobs(fileNodes, remaining)
+      },
 
-      emptyRecycleBin: () => set((state) => ({
-        recycleBinItems: [], fileNodes: excludeSubtrees(state.fileNodes, state.recycleBinItems.map(({ id }) => id)),
-      })),
+      emptyRecycleBin: () => {
+        const { recycleBinItems, fileNodes } = get()
+        const remaining = excludeSubtrees(fileNodes, recycleBinItems.map(({ id }) => id))
+        set({ recycleBinItems: [], fileNodes: remaining })
+        deleteRemovedPaintBlobs(fileNodes, remaining)
+      },
 
       setStartMenuOpen: (isOpen) => set({ isStartMenuOpen: isOpen }),
       endGuestSession: () => set({

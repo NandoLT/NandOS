@@ -1,3 +1,4 @@
+import type { PaintImage } from '../../applications/domain/explorer'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   FocusEvent as ReactFocusEvent,
@@ -44,6 +45,7 @@ const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.sea
   : null
 const AssistantDock = lazy(() => import('../../assistant/ui/AssistantDock'))
 const WikiReader = lazy(() => import('../../wiki/ui/WikiReader').then((module) => ({ default: module.WikiReader })))
+const PaintWindow = lazy(() => import('../../applications/ui/PaintWindow').then((module) => ({ default: module.PaintWindow })))
 const WriterWindow = lazy(() => import('../../applications/ui/WriterWindow').then((module) => ({ default: module.WriterWindow })))
 const WikiPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('wiki') === '1'
   ? lazy(() => import('../../wiki/ui/WikiPreview')) : null
@@ -800,7 +802,9 @@ function DesktopShell() {
   const [adminUsername, setAdminUsername] = useState<string | null>(null)
   const [explorerEntry, setExplorerEntry] = useState({ directory: COMPUTER_DIRECTORY, revision: 0 })
   const [writer, setWriter] = useState<{ draft: WriterDraft; revision: number }>({ draft: emptyWriterDraft, revision: 0 })
+  const [paint, setPaint] = useState<{ image: PaintImage | null; dirty: boolean; revision: number }>({ image: null, dirty: false, revision: 0 })
   const writerDirty = writer.draft.markdown !== (writer.draft.document?.markdown ?? '')
+  const unsavedApp = writerDirty && paint.dirty ? 'Writer y Paint tienen' : writerDirty ? 'Writer tiene' : paint.dirty ? 'Paint tiene' : null
   const [clock, setClock] = useState(() => new Date())
   const [viewport, setViewport] = useState<WindowBounds>({
     x: 0,
@@ -912,20 +916,23 @@ function DesktopShell() {
   const startDesktop = useCallback(() => {
     endGuestSession()
     setWriter({ draft: emptyWriterDraft, revision: 0 })
+    setPaint({ image: null, dirty: false, revision: 0 })
     setScreen('desktop')
   }, [endGuestSession])
   const startShutdown = useCallback(() => {
-    if (writerDirty && !window.confirm('Writer tiene cambios sin guardar. ¿Quieres apagar de todas formas?')) return
+    if (unsavedApp && !window.confirm(unsavedApp + ' cambios sin guardar. ¿Quieres apagar de todas formas?')) return
     leavePortfolioEntry()
+    setPaint({ image: null, dirty: false, revision: 0 })
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     closeStartMenu()
     setNotice(null)
     setScreen('shutdown')
-  }, [closeStartMenu, leavePortfolioEntry, writerDirty])
+  }, [closeStartMenu, leavePortfolioEntry, unsavedApp])
 
   const logOffGuest = () => {
-    if (writerDirty && !window.confirm('Writer tiene cambios sin guardar. ¿Quieres cerrar la sesión?')) return
+    if (unsavedApp && !window.confirm(unsavedApp + ' cambios sin guardar. ¿Quieres cerrar la sesión?')) return
     leavePortfolioEntry()
+    setPaint({ image: null, dirty: false, revision: 0 })
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     setRenamingDesktopItem(null)
     setSelectedDesktopItem(null)
@@ -938,11 +945,11 @@ function DesktopShell() {
   }
 
   useEffect(() => {
-    if (!writerDirty) return
+    if (!unsavedApp) return
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [writerDirty])
+  }, [unsavedApp])
 
   useEffect(() => {
     // A cookie alone must never choose administration. Fresh documents start
@@ -1051,10 +1058,26 @@ function DesktopShell() {
     if (document) startWriter({ document, parentId: document.parentId, markdown: document.markdown })
     else setNotice('El documento ya no está disponible.')
   }
+  const canLeavePaint = () => !paint.dirty || window.confirm('Paint tiene cambios sin guardar. ¿Quieres descartarlos?')
+  const startPaint = (image: PaintImage | null) => {
+    if (!canLeavePaint()) return
+    setPaint(({ revision }) => ({ image, dirty: false, revision: revision + 1 }))
+    openShellWindow('paint')
+  }
+  const openPaintImage = (id: string) => {
+    if (paint.image?.id === id) { openShellWindow('paint'); return }
+    const image = createExplorerTree(userDesktopItems, fileNodes).getImage(id)
+    if (image) startPaint(image)
+    else setNotice('El dibujo ya no está disponible.')
+  }
   const closeShellWindow = (id: WindowId) => {
     if (id === 'writer') {
       if (!canLeaveWriter()) return
       setWriter({ draft: emptyWriterDraft, revision: 0 })
+    }
+    if (id === 'paint') {
+      if (!canLeavePaint()) return
+      setPaint(({ revision }) => ({ image: null, dirty: false, revision: revision + 1 }))
     }
     closeWindow(id)
   }
@@ -1066,6 +1089,11 @@ function DesktopShell() {
     }
     if (id === 'file-explorer') {
       openExplorer()
+      return
+    }
+    if (id === 'paint') {
+      if (windows.some((window) => window.id === 'paint')) openShellWindow('paint')
+      else startPaint(null)
       return
     }
     if (id === 'writer') {
@@ -1360,7 +1388,7 @@ function DesktopShell() {
           windowState={windowState}
           isActive={activeWindowId === windowState.id}
           viewport={viewport}
-          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer' || windowState.id === 'terminal'
+          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer' || windowState.id === 'terminal' || windowState.id === 'paint'
             ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' } : undefined}
           onFocus={() => focusWindow(windowState.id)}
           onClose={() => closeShellWindow(windowState.id)}
@@ -1386,6 +1414,7 @@ function DesktopShell() {
               nodes={fileNodes}
               onCreateFolder={createVirtualFolder}
               onOpenDocument={openWriterDocument}
+              onOpenImage={openPaintImage}
               onNewDocument={(parentId) => startWriter({ ...emptyWriterDraft, parentId })}
               onOpenAbout={() => openShellWindow('about')}
               onClose={() => closeWindow('file-explorer')}
@@ -1398,9 +1427,15 @@ function DesktopShell() {
               onSwitchTo={restoreWindow} onCloseTask={closeShellWindow} />
           ) : windowState.id === 'terminal' ? (
             <TerminalWindow isActive={activeWindowId === 'terminal' && !windowState.isMinimized}
-              onOpenFolder={openExplorer} onOpenDocument={openWriterDocument}
+              onOpenFolder={openExplorer} onOpenDocument={openWriterDocument} onOpenImage={openPaintImage}
               onAbout={() => openShellWindow('about')} onProjects={() => openShellWindow('projects')}
               onCv={openCv} onExit={() => closeShellWindow('terminal')} />
+          ) : windowState.id === 'paint' ? (
+            <Suspense fallback={<p role="status">Abriendo Paint…</p>}>
+              <PaintWindow key={paint.revision} initial={paint.image} dirty={paint.dirty}
+                onDirty={(dirty) => setPaint((current) => current.revision === paint.revision && current.dirty !== dirty ? { ...current, dirty } : current)}
+                onNew={() => startPaint(null)} onBrowse={openExplorer} />
+            </Suspense>
           ) : windowState.id === 'writer' ? (
             <Suspense fallback={<p role="status">Abriendo Writer…</p>}>
               <WriterWindow key={writer.revision} draft={writer.draft}

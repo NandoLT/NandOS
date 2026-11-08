@@ -4,6 +4,18 @@
     {
       "source": "/api/:path*",
       "destination": "/api/proxy?__nandos_path=:path*"
+    },
+    {
+      "source": "/proyectos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/proyectos/nandos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/contacto",
+      "destination": "/index.html"
     }
   ]
 }

@@ -69,7 +69,6 @@ El PDF se abre en una pestaña nueva. El visor de tu navegador permite descargar
 
 Los canales públicos de referencia son:
 - Correo: [fernando.lopez.dev@hotmail.com](mailto:fernando.lopez.dev@hotmail.com).
-- Teléfono: [+34 688 930 344](tel:+34688930344).
 - [LinkedIn](https://www.linkedin.com/in/fernandolopeztrejo).
 - [GitHub](https://github.com/nandolt).
 
@@ -104,7 +103,7 @@ const apps: Array<[string, string, string, boolean]> = [
   ['projects', 'Proyectos', 'Muestra los proyectos publicados y sus descripciones, tecnologías y enlaces disponibles. Abre esta sección para conocer ejemplos concretos del trabajo de Fernando.', true],
   ['skills', 'Habilidades', 'Presenta las habilidades y tecnologías publicadas, organizadas en los grupos configurados en administración. No atribuye certificaciones ni experiencia no documentadas.', true],
   ['cv-viewer', 'CV', 'Abre el CV público en español en una pestaña nueva. Para inglés usa Start > Documentos > CV (English). El visor del navegador permite descargar el PDF.', true],
-  ['contact', 'Contacto', 'Reúne la ubicación, disponibilidad y canales públicos de contacto. Usa los enlaces de correo, teléfono y redes mostrados en esta sección para contactar con Fernando.', true],
+  ['contact', 'Contacto', 'Reúne la ubicación, disponibilidad y canales públicos de contacto. Usa los enlaces de correo y redes mostrados en esta sección para contactar con Fernando.', true],
   ['settings', 'Configuración', 'Se encuentra en Start > Configuración. Apariencia permite cambiar el tema local del escritorio. Sistema y Accesibilidad son futuras opciones deshabilitadas.', true],
   ['terminal', 'Terminal', 'Propuesta de terminal simulado con comandos guiados para explorar el portfolio. No ejecutará órdenes del sistema operativo real.', false],
   ['writer', 'Writer', 'Propuesta de editor de texto con estética retro para escribir documentos dentro de la experiencia.', false],

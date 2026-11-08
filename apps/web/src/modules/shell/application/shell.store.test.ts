@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useShellStore } from './shell.store'
 import { createExplorerTree } from '../../applications/domain/explorer'
+import { exportFileBackup, parseFileBackup } from '../../applications/domain/file-backup'
 
 describe('shell store', () => {
   beforeEach(() => {
@@ -21,6 +22,41 @@ describe('shell store', () => {
       recycleBinItems: [],
       fileNodes: [],
     })
+  })
+
+  it('round-trips only active files and imports copies without replacing existing folders or documents', async () => {
+    const store = useShellStore.getState()
+    const visible = store.createVirtualFolder('desktop', 'Trabajo')
+    const nested = store.createVirtualFolder(visible, 'Borradores')
+    const original = store.saveWriterDocument({ parentId: nested, name: 'Nota', markdown: '# Mi nota' })
+    const recycled = store.createVirtualFolder('desktop', 'Papelera oculta')
+    store.saveWriterDocument({ parentId: recycled, name: 'Oculto', markdown: '# No exportar' })
+    store.moveUserItemToRecycleBin(recycled)
+    const state = useShellStore.getState()
+    const backup = parseFileBackup(exportFileBackup(state.userDesktopItems, state.fileNodes))
+    expect(backup.entries.map(({ name }) => name)).toEqual(['Trabajo', 'Borradores', 'Nota.doc'])
+    expect(store.importFileBackup(backup)).toBe('Copia importada')
+    expect(store.importFileBackup(backup)).toBe('Copia importada (2)')
+    await useShellStore.persist.rehydrate()
+    const importedState = useShellStore.getState()
+    const tree = createExplorerTree(importedState.userDesktopItems, importedState.fileNodes)
+    expect(tree.getDocument(original.id)).toEqual(original)
+    const copies = importedState.fileNodes.filter((node) => node.kind === 'document' && node.name === original.name && node.id !== original.id)
+    expect(copies).toHaveLength(2)
+    expect(copies.map((copy) => tree.pathTo(copy.parentId).slice(1).map(({ name }) => name).join('/'))).toEqual([
+      'Mis documentos/Copia importada/Escritorio/Trabajo/Borradores',
+      'Mis documentos/Copia importada (2)/Escritorio/Trabajo/Borradores',
+    ])
+    expect(copies.every((copy) => tree.getDocument(copy.id)?.markdown === '# Mi nota')).toBe(true)
+  })
+
+  it('rejects invalid backup versions, forward or self references and unsafe file names', () => {
+    const header = { format: 'nandos-files', version: 1 }
+    expect(() => parseFileBackup(JSON.stringify({ ...header, version: 2, entries: [] }))).toThrow(/compatible/)
+    for (const parent of [0, 1, 'computer', '__proto__']) {
+      expect(() => parseFileBackup(JSON.stringify({ ...header, entries: [{ parent, name: 'Carpeta', kind: 'folder' }] }))).toThrow(/ruta/)
+    }
+    expect(() => parseFileBackup(JSON.stringify({ ...header, entries: [{ parent: 'desktop', name: '..', kind: 'folder' }] }))).toThrow(/nombre/)
   })
 
   it('persists nested folders and document contents and updates a document by its stable ID', async () => {

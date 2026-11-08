@@ -4,8 +4,10 @@ import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import { fitHelpWindowBounds } from '../domain/help-window-bounds'
 import { taskbarHeight } from '../../../shared/lib/input-preferences'
 import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
-import { createExplorerTree, DESKTOP_DIRECTORY, excludeSubtrees, MAX_MARKDOWN_LENGTH, virtualName } from '../../applications/domain/explorer'
+import { createExplorerTree, DESKTOP_DIRECTORY, DOCUMENTS_DIRECTORY, excludeSubtrees, MAX_MARKDOWN_LENGTH, virtualName } from '../../applications/domain/explorer'
 import type { VirtualNode, WriterDocument } from '../../applications/domain/explorer'
+import { prepareFileImport } from '../../applications/domain/file-backup'
+import type { FileBackup } from '../../applications/domain/file-backup'
 import type {
   DesktopPosition,
   DesktopSystemItemId,
@@ -25,6 +27,7 @@ type ShellState = {
   userDesktopItems: UserDesktopItem[]
   recycleBinItems: RecycleBinItem[]
   fileNodes: VirtualNode[]
+  importFileBackup: (backup: FileBackup) => string
   createVirtualFolder: (parentId: string, name: string) => string
   saveWriterDocument: (document: Omit<WriterDocument, 'id' | 'kind'>, id?: string) => WriterDocument
   openWindow: (id: WindowId) => void
@@ -122,6 +125,20 @@ export const useShellStore = create<ShellState>()(
       userDesktopItems: [],
       recycleBinItems: [],
       fileNodes: [],
+
+      importFileBackup: (backup) => {
+        if (!backup.entries.length) throw new Error('La copia está vacía.')
+        const { userDesktopItems, fileNodes } = get()
+        const destination = createExplorerTree(userDesktopItems, fileNodes).contentsOf(DOCUMENTS_DIRECTORY)
+        const { name, nodes } = prepareFileImport(backup, destination.map((item) => item.name))
+        try {
+          set({ fileNodes: [...fileNodes, ...nodes] })
+        } catch {
+          try { set({ fileNodes }) } catch { /* In-memory state is already restored. */ }
+          throw new Error('No se pudo guardar la copia en este navegador. Comprueba el espacio disponible.')
+        }
+        return name
+      },
 
       createVirtualFolder: (parentId, value) => {
         const state = get()

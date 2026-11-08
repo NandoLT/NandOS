@@ -211,13 +211,6 @@ export const DEFAULT_PORTFOLIO_CONTENT: PortfolioContent = {
         value: 'fernando.lopez.dev@hotmail.com',
       },
       {
-        id: 'phone',
-        label: 'Teléfono',
-        icon: '☎️',
-        href: 'tel:+34688930344',
-        value: '+34 688 930 344',
-      },
-      {
         id: 'linkedin',
         label: 'LinkedIn',
         icon: 'in',

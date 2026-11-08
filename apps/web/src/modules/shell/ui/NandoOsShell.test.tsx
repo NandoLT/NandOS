@@ -26,6 +26,48 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  it.each([
+    ['/proyectos', 'Proyectos', 'Proyectos'],
+    ['/proyectos/nandos', 'Proyectos', 'NandOS'],
+    ['/contacto', 'Contacto', 'Contacto'],
+  ])('opens %s directly in the guest desktop', (path, title, heading) => {
+    window.history.replaceState(null, '', path)
+    try {
+      render(<NandoOsShell />)
+      const section = within(screen.getByRole('dialog', { name: title }))
+      expect(section.getByRole('heading', { name: heading, level: 2 })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Entrar como invitado' })).not.toBeInTheDocument()
+      if (path === '/proyectos/nandos') {
+        fireEvent.click(section.getByRole('button', { name: 'Probar en Terminal' }))
+        expect(screen.getByRole('dialog', { name: 'Terminal' })).toBeInTheDocument()
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Log off Invitado' }))
+      expect(window.location.pathname).toBe('/')
+      expect(screen.getByRole('button', { name: 'Entrar como invitado' })).toBeInTheDocument()
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('saves the prefilled Writer demo without changing it when focus returns to the page', async () => {
+    window.history.replaceState(null, '', '/proyectos/nandos')
+    try {
+      render(<NandoOsShell />)
+      fireEvent.click(screen.getByRole('button', { name: 'Probar en Writer' }))
+      const writer = within(screen.getByRole('dialog', { name: 'Writer' }))
+      await writer.findByRole('heading', { name: 'Una nota en NandOS' })
+      fireEvent.click(writer.getByRole('button', { name: 'Guardar' }))
+      fireEvent.change(writer.getByRole('textbox', { name: 'Nombre del documento' }), { target: { value: 'Demo' } })
+      fireEvent.click(writer.getByRole('button', { name: 'Guardar documento' }))
+      await waitFor(() => expect(writer.getByRole('textbox', { name: 'Contenido del documento' })).toHaveFocus())
+      expect(writer.getByRole('status')).toHaveTextContent('Documento guardado')
+      expect(writer.getByText('Demo.doc', { exact: true })).toBeInTheDocument()
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
   it('launches Terminal from Start and shares folders and Writer documents with Explorer', async () => {
     useShellStore.getState().saveWriterDocument({ name: 'Ideas', parentId: 'documents', markdown: '# Ideas de terminal' })
     enterGuest()

@@ -1,11 +1,18 @@
 import styled from '@emotion/styled'
+import { useState } from 'react'
 import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import type { PortfolioSectionId } from '@nandoos/contracts'
 import { usePortfolioContent } from '../application/usePortfolioContent'
+import { CONTACT_PATH, NANDOS_CASE_PATH, PROJECTS_PATH } from '../domain/portfolio-links'
+import { NandosProjectCase } from './NandosProjectCase'
 
 type PortfolioSectionWindowProps = {
   sectionId: PortfolioSectionId
   onDownloadCv: (language: 'es' | 'en') => void
+  showNandosCase: boolean
+  onShowNandosCase: (visible: boolean) => void
+  onOpenTerminal: () => void
+  onOpenWriter: () => void
 }
 
 const Page = styled.div`
@@ -154,9 +161,35 @@ const sectionTitles: Record<PortfolioSectionId, string> = {
   contact: 'Contacto',
 }
 
-export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSectionWindowProps) {
+function ShareLink({ path }: { path: string }) {
+  const [status, setStatus] = useState<'idle' | 'copied' | 'manual'>('idle')
+  const url = new URL(path, window.location.origin).href
+  return <DownloadActions>
+    <DownloadButton type="button" onClick={async () => {
+      try {
+        await navigator.clipboard.writeText(url)
+        setStatus('copied')
+      } catch {
+        setStatus('manual')
+      }
+    }}>Copiar enlace</DownloadButton>
+    {status === 'copied' && <p role="status">Enlace copiado.</p>}
+    {status === 'manual' && <input aria-label="Enlace para compartir" readOnly value={url} onFocus={(event) => event.target.select()} />}
+  </DownloadActions>
+}
+
+export function PortfolioSectionWindow({ sectionId, onDownloadCv, showNandosCase, onShowNandosCase,
+  onOpenTerminal, onOpenWriter }: PortfolioSectionWindowProps) {
   const { data = DEFAULT_PORTFOLIO_CONTENT } = usePortfolioContent()
   const page = data.sectionIntros[sectionId]
+
+  if (sectionId === 'projects' && showNandosCase) return <Page>
+    <DownloadActions>
+      <DownloadButton type="button" onClick={() => onShowNandosCase(false)}>← Todos los proyectos</DownloadButton>
+    </DownloadActions>
+    <NandosProjectCase onOpenTerminal={onOpenTerminal} onOpenWriter={onOpenWriter} />
+    <ShareLink key={NANDOS_CASE_PATH} path={NANDOS_CASE_PATH} />
+  </Page>
 
   return (
     <Page>
@@ -164,6 +197,8 @@ export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSec
         <Eyebrow>{page.eyebrow}</Eyebrow>
         <h2>{sectionTitles[sectionId]}</h2>
         <p>{page.description}</p>
+        {sectionId === 'contact' && <ShareLink path={CONTACT_PATH} />}
+        {sectionId === 'projects' && <ShareLink key={PROJECTS_PATH} path={PROJECTS_PATH} />}
       </PageIntro>
 
       {sectionId === 'experience' && (
@@ -185,6 +220,14 @@ export function PortfolioSectionWindow({ sectionId, onDownloadCv }: PortfolioSec
 
       {sectionId === 'projects' && (
         <EntryList>
+          <EntryCard>
+            <h3>NandOS</h3>
+            <EntryMeta>Proyecto personal · Portfolio interactivo</EntryMeta>
+            <p>Un escritorio retro que puedes explorar, con Terminal, Explorador y Writer conectados entre sí.</p>
+            <DownloadActions>
+              <DownloadButton type="button" onClick={() => onShowNandosCase(true)}>Ver ficha de NandOS</DownloadButton>
+            </DownloadActions>
+          </EntryCard>
           {data.featuredProjects.map((project) => (
             <EntryCard key={project.id}>
               <div>

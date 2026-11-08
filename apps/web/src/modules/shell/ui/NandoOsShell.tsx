@@ -17,6 +17,8 @@ import { emptyWriterDraft } from '../../applications/domain/writer'
 import type { WriterDraft } from '../../applications/domain/writer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
 import { SettingsWindow } from '../../applications/ui/SettingsWindow'
+import { portfolioEntry } from '../../portfolio/domain/portfolio-links'
+import { WRITER_DEMO_MARKDOWN } from '../../portfolio/ui/NandosProjectCase'
 import { AboutWindow } from '../../portfolio/ui/AboutWindow'
 import { PortfolioSectionWindow } from '../../portfolio/ui/PortfolioSectionWindow'
 import { usePortfolioContent } from '../../portfolio/application/usePortfolioContent'
@@ -791,7 +793,9 @@ export function NandoOsShell() {
 }
 
 function DesktopShell() {
-  const [screen, setScreen] = useState<SessionScreen>(() => shouldPlayBoot() ? 'boot' : 'login')
+  const [entry] = useState(() => portfolioEntry(window.location.pathname))
+  const [screen, setScreen] = useState<SessionScreen>(() => entry ? 'desktop' : shouldPlayBoot() ? 'boot' : 'login')
+  const [showNandosCase, setShowNandosCase] = useState(entry?.showNandosCase ?? false)
   const [adminUsername, setAdminUsername] = useState<string | null>(null)
   const [explorerEntry, setExplorerEntry] = useState({ directory: COMPUTER_DIRECTORY, revision: 0 })
   const [writer, setWriter] = useState<{ draft: WriterDraft; revision: number }>({ draft: emptyWriterDraft, revision: 0 })
@@ -896,6 +900,14 @@ function DesktopShell() {
     rememberBoot()
     setScreen('login')
   }, [])
+  useEffect(() => {
+    if (entry) openWindow(entry.section)
+  }, [entry, openWindow])
+
+  const leavePortfolioEntry = useCallback(() => {
+    if (portfolioEntry(window.location.pathname)) window.history.replaceState(null, '', '/')
+    setShowNandosCase(false)
+  }, [])
   const startDesktop = useCallback(() => {
     endGuestSession()
     setWriter({ draft: emptyWriterDraft, revision: 0 })
@@ -903,14 +915,16 @@ function DesktopShell() {
   }, [endGuestSession])
   const startShutdown = useCallback(() => {
     if (writerDirty && !window.confirm('Writer tiene cambios sin guardar. ¿Quieres apagar de todas formas?')) return
+    leavePortfolioEntry()
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     closeStartMenu()
     setNotice(null)
     setScreen('shutdown')
-  }, [closeStartMenu, writerDirty])
+  }, [closeStartMenu, leavePortfolioEntry, writerDirty])
 
   const logOffGuest = () => {
     if (writerDirty && !window.confirm('Writer tiene cambios sin guardar. ¿Quieres cerrar la sesión?')) return
+    leavePortfolioEntry()
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     setRenamingDesktopItem(null)
     setSelectedDesktopItem(null)
@@ -1410,6 +1424,10 @@ function DesktopShell() {
             <PortfolioSectionWindow
               sectionId={windowState.id}
               onDownloadCv={downloadCv}
+              showNandosCase={showNandosCase}
+              onShowNandosCase={setShowNandosCase}
+              onOpenTerminal={() => openShellWindow('terminal')}
+              onOpenWriter={() => startWriter({ ...emptyWriterDraft, markdown: WRITER_DEMO_MARKDOWN })}
             />
           )}
         </WindowFrame>

@@ -13,7 +13,7 @@ import type { WriterDocument } from '../domain/explorer'
 import type { WriterDraft } from '../domain/writer'
 
 const extensions = [
-  StarterKit.configure({ underline: false, link: { openOnClick: false } }),
+  StarterKit.configure({ underline: false, trailingNode: false, link: { openOnClick: false } }),
   TableKit,
   TaskList,
   TaskItem.configure({ nested: true }),
@@ -171,7 +171,7 @@ export function WriterWindow({ draft, onChange, onNew, onOpen, onSaved }: {
       setSaveForm(null)
       setError('')
       setMessage('Documento guardado en este navegador.')
-      editor?.commands.focus()
+      editor?.commands.focus(undefined, { scrollIntoView: false })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo guardar el documento.')
     }
@@ -191,7 +191,7 @@ export function WriterWindow({ draft, onChange, onNew, onOpen, onSaved }: {
   const closeSaveForm = () => {
     setSaveForm(null)
     setError('')
-    editor?.commands.focus()
+    editor?.commands.focus(undefined, { scrollIntoView: false })
   }
 
   return <Writer aria-label="Editor de documentos" onKeyDown={(event) => {

@@ -13,6 +13,7 @@ import { appRegistry } from '../../applications/domain/app-registry'
 import { COMPUTER_DIRECTORY, DOCUMENTS_DIRECTORY, createExplorerTree } from '../../applications/domain/explorer'
 import { FileExplorer } from '../../applications/ui/FileExplorer'
 import { WriterWindow } from '../../applications/ui/WriterWindow'
+import { TerminalWindow } from '../../applications/ui/TerminalWindow'
 import { emptyWriterDraft } from '../../applications/domain/writer'
 import type { WriterDraft } from '../../applications/domain/writer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
@@ -1059,7 +1060,7 @@ function DesktopShell() {
     }
     if (
       id === 'about' || id === 'recycle-bin' || id === 'settings' ||
-      id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
+      id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact' || id === 'terminal'
     ) {
       openShellWindow(id)
     }
@@ -1343,7 +1344,7 @@ function DesktopShell() {
           windowState={windowState}
           isActive={activeWindowId === windowState.id}
           viewport={viewport}
-          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer'
+          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer' || windowState.id === 'terminal'
             ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' } : undefined}
           onFocus={() => focusWindow(windowState.id)}
           onClose={() => closeShellWindow(windowState.id)}
@@ -1376,6 +1377,11 @@ function DesktopShell() {
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
+          ) : windowState.id === 'terminal' ? (
+            <TerminalWindow isActive={activeWindowId === 'terminal' && !windowState.isMinimized}
+              onOpenFolder={openExplorer} onOpenDocument={openWriterDocument}
+              onAbout={() => openShellWindow('about')} onProjects={() => openShellWindow('projects')}
+              onCv={openCv} onExit={() => closeShellWindow('terminal')} />
           ) : windowState.id === 'writer' ? (
             <WriterWindow key={writer.revision} draft={writer.draft}
               onChange={(markdown) => setWriter((previous) => ({ ...previous, draft: { ...previous.draft, markdown } }))}

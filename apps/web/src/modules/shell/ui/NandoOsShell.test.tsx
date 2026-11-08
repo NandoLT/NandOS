@@ -26,6 +26,37 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  it('launches Terminal from Start and shares folders and Writer documents with Explorer', () => {
+    useShellStore.getState().saveWriterDocument({ name: 'Ideas', parentId: 'documents', markdown: '# Ideas de terminal' })
+    enterGuest()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Programas' })).getByRole('button', { name: 'Terminal' }))
+    const terminal = within(screen.getByRole('dialog', { name: 'Terminal' }))
+    const input = terminal.getByRole('textbox', { name: 'Comando' })
+    const submit = (value: string) => {
+      fireEvent.change(input, { target: { value } })
+      fireEvent.submit(input.closest('form')!)
+    }
+    submit('dir --help')
+    expect(terminal.getByRole('log')).toHaveTextContent('dir [ruta]')
+    submit('cd "C:\\Mis documentos"')
+    submit('mkdir "Cuaderno terminal"')
+    submit('dir')
+    expect(terminal.getByRole('log')).toHaveTextContent('<DIR> Cuaderno terminal')
+    submit('type Ideas.doc')
+    expect(terminal.getByRole('log')).toHaveTextContent('# Ideas de terminal')
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(input).toHaveValue('type Ideas.doc')
+    submit('open Ideas.doc')
+    expect(screen.getByRole('textbox', { name: 'Contenido Markdown' })).toHaveValue('# Ideas de terminal')
+    submit('open .')
+    const explorer = within(screen.getByRole('dialog', { name: 'Explorador de archivos' }))
+    expect(explorer.getByRole('button', { name: 'Carpeta Cuaderno terminal' })).toBeInTheDocument()
+    submit('exit')
+    expect(screen.queryByRole('dialog', { name: 'Terminal' })).not.toBeInTheDocument()
+  })
+
   it('creates a subfolder, saves a Writer document and reopens its Markdown from the Explorer', () => {
     enterGuest()
     fireEvent.doubleClick(screen.getByRole('button', { name: 'Este equipo. Doble clic para abrir' }))

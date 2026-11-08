@@ -75,10 +75,11 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   contact: { title: 'Contacto', icon: '✉️' },
   help: { title: 'Ayuda de NandOS', icon: '📖' },
   writer: { title: 'Writer', icon: '📝' },
+  terminal: { title: 'Terminal', icon: '⌨️' },
 }
 
 function createWindow(id: WindowId, zIndex: number): WindowState {
-  const isExplorer = id === 'file-explorer'
+  const isExplorer = id === 'file-explorer' || id === 'terminal'
   const isRecycleBin = id === 'recycle-bin'
   const isSettings = id === 'settings'
   const isHelp = id === 'help'

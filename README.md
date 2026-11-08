@@ -20,6 +20,8 @@ Después de instalar las dependencias, ejecuta `pnpm hooks:install` una vez por 
 
 Abre un pull request para integrar cambios en `main`. GitHub Actions ejecuta **Verify monorepo** con Node.js 24 y el lockfile congelado. Vercel sigue gestionando los despliegues.
 
+Haz un commit por cambio lógico y separa las entregas que toquen áreas distintas. Consulta el [estándar de commits](AGENTS.md).
+
 El proxy web extrae la ruta reescrita con `URL` y `URLSearchParams`, sin acceder al parser auxiliar `request.query` del runtime. Las pruebas cubren este contrato, rutas duplicadas, peticiones autenticadas y cookies. Para comprobar localmente las deprecaciones como fallos: `NODE_OPTIONS=--throw-deprecation pnpm --filter @nandoos/web exec vitest run tests/api-proxy.test.js`.
 
 ## Infraestructura local de IA

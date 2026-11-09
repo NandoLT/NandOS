@@ -6,9 +6,12 @@ import type { AppMenu } from '../../../shared/ui/AppMenuBar'
 import { useShellStore } from '../../shell/application/shell.store'
 import { createExplorerTree, DOCUMENTS_DIRECTORY } from '../domain/explorer'
 import type { PaintImage } from '../domain/explorer'
-import { floodFill, traceLine } from '../domain/paint-raster'
+import { floodFill, MAX_PAINT_SIDE, traceLine } from '../domain/paint-raster'
 import type { PaintPoint } from '../domain/paint-raster'
 import { canvasPng, loadPaintBlob, readPngSize } from '../infrastructure/paint-storage'
+import { hasShapeStyle, paintTools, paintZoomLevels } from '../domain/paint-tools'
+import { PaintToolbox } from './PaintToolbox'
+import type { BrushTip, PaintTool, ShapeStyle } from '../domain/paint-tools'
 
 const Panel = styled.section`
   position: relative; height: 100%; min-width: 0; display: grid;
@@ -17,6 +20,7 @@ const Panel = styled.section`
 `
 const Workspace = styled.div`
   min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr);
+  > :last-child { grid-column: 2; }
 `
 const Button = styled.button`
   color: var(--os-window-text); background: var(--os-window);
@@ -24,12 +28,6 @@ const Button = styled.button`
   &[aria-pressed='true'], &:active:not(:disabled) { border: var(--os-inset-border); background: var(--os-surface-alt); }
   &:focus-visible { outline: 1px dotted var(--os-accent); outline-offset: -4px; }
   &:disabled { opacity: .55; cursor: default; }
-`
-const Toolbox = styled.div`
-  display: grid; grid-template-columns: repeat(2, 28px); align-content: start;
-  gap: 1px; padding: 4px; overflow: auto;
-  button { width: 28px; height: 27px; min-height: 0; padding: 0; }
-  svg { display: block; margin: auto; }
 `
 const Viewport = styled.div`
   min-height: 0; min-width: 0; margin: 3px 4px 3px 0;
@@ -41,7 +39,16 @@ const Viewport = styled.div`
     &:focus-visible { outline: 2px solid var(--os-focus-ring, #000080); outline-offset: -2px; }
   }
 `
+const CanvasSurface = styled.div`
+  position: relative; width: max-content;
+  > .pixel-grid {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(to right, #80808066 1px, transparent 1px),
+      linear-gradient(to bottom, #80808066 1px, transparent 1px);
+  }
+`
 const Palette = styled.div`
+  grid-row: 3;
   display: flex; align-items: center; gap: 6px; padding: 4px; border-block: var(--os-raised-border);
   .active { display: flex; gap: 2px; }
   .active button { width: 22px; height: 22px; min-height: 0; padding: 3px; }
@@ -51,6 +58,8 @@ const Palette = styled.div`
   @media (max-width: 420px) { .swatches { grid-template-columns: repeat(7, 24px); } .swatches button { width: 24px; height: 24px; } }
 `
 const Status = styled.footer`
+  &[hidden] { display: none; }
+  grid-row: 4;
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px;
   min-height: 23px; padding: 4px 6px; border: var(--os-inset-border);
 `
@@ -62,30 +71,35 @@ const Overlay = styled.div`
   button { padding: 5px 8px; }
 `
 
-const tools = [
-  ['eraser', 'Goma', 'm3 10 6-7 5 4-6 7H6z M6 7l5 4'],
-  ['fill', 'Relleno', 'm3 7 5-5 5 5-5 5z M5 3l5 5 M14 9v4'],
-  ['picker', 'Cuentagotas', 'm3 13 1-3 5-5 2 2-5 5z M8 4l4-2 2 2-2 4'],
-  ['zoom', 'Lupa', 'M11 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm-1 3 4 4'],
-  ['pencil', 'Lápiz', 'm2 14 2-5 7-7 3 3-7 7z M9 4l3 3'],
-  ['brush', 'Pincel', 'm7 8 5-6 2 2-5 6z M7 8c-3 0-4 2-4 4l-1 2c4 0 7-1 7-4'],
-  ['line', 'Línea', 'M2 2l12 12'],
-  ['rectangle', 'Rectángulo', 'M2 4h12v9H2z'],
-  ['ellipse', 'Elipse', 'M14 8a6 5 0 1 1-12 0 6 5 0 0 1 12 0Z'],
-  ['rounded', 'Rectángulo redondeado', 'M5 4h6q3 0 3 3v3q0 3-3 3H5q-3 0-3-3V7q0-3 3-3Z'],
-] as const
 const swatches = ['000000','808080','800000','808000','008000','008080','000080','800080','808040','004040','0080ff','004080','8000ff','804000',
   'ffffff','c0c0c0','ff0000','ffff00','00ff00','00ffff','0000ff','ff00ff','ffff80','00ff80','80ffff','8080ff','ff0080','ff8040']
-const levels = [.25, .5, 1, 2, 4, 8]
-type Tool = typeof tools[number][0]
 type Snapshot = { pixels: ImageData; revision: number }
-type Stroke = { pointer: number; start: PaintPoint; last: PaintPoint; before: Snapshot; tool: Tool; color: string; size: number }
-const isShape = (tool: Tool) => tool === 'line' || tool === 'rectangle' || tool === 'ellipse' || tool === 'rounded'
+type Stroke = {
+  pointer: number; start: PaintPoint; last: PaintPoint; before: Snapshot
+  tool: PaintTool; color: string; background: string; size: number; tip: BrushTip; style: ShapeStyle
+}
+const isShape = (tool: PaintTool) => tool === 'line' || hasShapeStyle(tool)
 
-function draw(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, tool: Tool, color: string, size: number) {
-  if (!isShape(tool) || tool === 'line') {
+function draw(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, stroke: Stroke) {
+  const { tool, color, background, size, tip, style } = stroke
+  if (!hasShapeStyle(tool)) {
     ctx.fillStyle = color
-    traceLine(from, to, (x, y) => ctx.fillRect(x - Math.floor(size / 2), y - Math.floor(size / 2), size, size))
+    const offset = Math.floor(size / 2)
+    traceLine(from, to, (x, y) => {
+      if (tool !== 'brush' || tip === 'square') {
+        ctx.fillRect(x - offset, y - offset, size, size)
+      } else if (tip === 'round') {
+        const radius = size / 2
+        for (let row = 0; row < size; row += 1) {
+          const span = Math.sqrt(radius ** 2 - (row + .5 - radius) ** 2)
+          const left = Math.ceil(radius - .5 - span)
+          ctx.fillRect(x - offset + left, y + row - offset, size - left * 2, 1)
+        }
+      } else {
+        const step = tip === 'forward' ? -1 : 1
+        for (let col = -offset; col < size - offset; col += 1) ctx.fillRect(x + col, y + step * col, 1, 1)
+      }
+    })
     return
   }
   const x = Math.min(from.x, to.x) + .5, y = Math.min(from.y, to.y) + .5
@@ -96,7 +110,11 @@ function draw(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, t
   if (tool === 'ellipse') ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2)
   else if (tool === 'rounded') ctx.roundRect(x, y, w, h, Math.min(12, w / 2, h / 2))
   else ctx.rect(x, y, w, h)
-  ctx.stroke()
+  if (style !== 'outline') {
+    ctx.fillStyle = style === 'solid' ? color : background
+    ctx.fill()
+  }
+  if (style !== 'solid') ctx.stroke()
 }
 
 export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
@@ -107,22 +125,27 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
   const tree = useMemo(() => createExplorerTree(folders, files), [folders, files])
   const canvas = useRef<HTMLCanvasElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const magnification = useRef(2)
   const stroke = useRef<Stroke | null>(null)
   const history = useRef({ undo: [] as Snapshot[], redo: [] as Snapshot[], revision: 0, next: 0, saved: 0 })
   const operation = useRef(false)
   const [saved, setSaved] = useState(initial)
   const [dimensions, setDimensions] = useState({ width: initial?.width ?? 640, height: initial?.height ?? 480 })
   const [ready, setReady] = useState(!initial)
-  const [tool, setTool] = useState<Tool>('pencil')
+  const [tool, setTool] = useState<PaintTool>('pencil')
   const [fg, setFg] = useState('#000000')
   const [bg, setBg] = useState('#ffffff')
   const [secondary, setSecondary] = useState(false)
   const [zoom, setZoom] = useState(1)
-  const [size, setSize] = useState(1)
+  const [brush, setBrush] = useState<{ tip: BrushTip; size: number }>({ tip: 'round', size: 5 })
+  const [eraser, setEraser] = useState(4)
+  const [lineWidth, setLineWidth] = useState(1)
+  const [shape, setShape] = useState<ShapeStyle>('outline')
+  const [chrome, setChrome] = useState({ toolbox: true, palette: true, status: true, grid: false })
+  const [dialog, setDialog] = useState<'help' | 'attributes' | 'color' | 'zoom' | null>(null)
   const [counts, setCounts] = useState({ undo: 0, redo: 0 })
   const [position, setPosition] = useState<PaintPoint | null>(null)
   const [form, setForm] = useState<{ name: string; parent: string } | null>(null)
-  const [help, setHelp] = useState(false)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -182,11 +205,22 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     const previous = state[direction].pop()
     if (!previous) return
     state[direction === 'undo' ? 'redo' : 'undo'].push(snapshot(target))
+    const { width, height } = previous.pixels
+    if (target.canvas.width !== width || target.canvas.height !== height) {
+      target.canvas.width = width
+      target.canvas.height = height
+      setDimensions({ width, height })
+    }
     target.putImageData(previous.pixels, 0, 0)
     state.revision = previous.revision
     report()
   }
   const chooseColor = (hex: string, alternate = secondary) => alternate ? setBg(hex) : setFg(hex)
+  const changeZoom = (value: number) => {
+    if (value > 1) magnification.current = value
+    setZoom(value)
+  }
+  const toggleChrome = (key: keyof typeof chrome) => setChrome((current) => ({ ...current, [key]: !current[key] }))
   const coords = (event: PointerEvent<HTMLCanvasElement>) => {
     const { width, height } = event.currentTarget
     const rect = event.currentTarget.getBoundingClientRect()
@@ -196,7 +230,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     }
   }
   const pointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (!available || form || help || stroke.current || (event.button !== 0 && event.button !== 2)) return
+    if (!available || form || dialog || stroke.current || (event.button !== 0 && event.button !== 2)) return
     const target = ctx()
     if (!target) return
     event.currentTarget.focus({ preventScroll: true })
@@ -204,7 +238,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     setPosition(start)
     const alternate = event.button === 2 || (event.pointerType !== 'mouse' && secondary)
     const color = tool === 'eraser' || alternate ? bg : fg
-    if (tool === 'zoom') { setZoom(levels[(levels.indexOf(zoom) + 1) % levels.length]); return }
+    if (tool === 'zoom') { changeZoom(zoom === 1 ? magnification.current : 1); return }
     if (tool === 'picker') {
       const [r,g,b] = target.getImageData(start.x, start.y, 1, 1).data
       chooseColor('#' + [r,g,b].map((channel) => channel.toString(16).padStart(2, '0')).join(''), alternate)
@@ -218,9 +252,11 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       return
     }
     event.currentTarget.setPointerCapture(event.pointerId)
-    const thickness = tool === 'pencil' ? 1 : tool === 'eraser' ? Math.max(5, size) : size
-    stroke.current = { pointer: event.pointerId, start, last: start, before, tool, color, size: thickness }
-    draw(target, start, start, tool, color, thickness)
+    const size = tool === 'pencil' ? 1 : tool === 'brush' ? brush.size : tool === 'eraser' ? eraser : lineWidth
+    const gesture = { pointer: event.pointerId, start, last: start, before, tool, color, size,
+      tip: brush.tip, style: shape, background: alternate ? fg : bg }
+    stroke.current = gesture
+    draw(target, start, start, gesture)
   }
   const pointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
     const next = coords(event)
@@ -229,7 +265,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     const target = ctx()
     if (!gesture || gesture.pointer !== event.pointerId || !target) return
     if (isShape(gesture.tool)) target.putImageData(gesture.before.pixels, 0, 0)
-    draw(target, isShape(gesture.tool) ? gesture.start : gesture.last, next, gesture.tool, gesture.color, gesture.size)
+    draw(target, isShape(gesture.tool) ? gesture.start : gesture.last, next, gesture)
     gesture.last = next
   }
   const finish = (event: PointerEvent<HTMLCanvasElement>, cancelled = false) => {
@@ -300,6 +336,38 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     record(before)
   }
 
+  const invert = () => {
+    const target = ctx()
+    if (!available || !target || stroke.current) return
+    const before = snapshot(target)
+    const image = target.getImageData(0, 0, dimensions.width, dimensions.height)
+    for (let i = 0; i < image.data.length; i += 4) {
+      image.data[i] = 255 - image.data[i]
+      image.data[i + 1] = 255 - image.data[i + 1]
+      image.data[i + 2] = 255 - image.data[i + 2]
+    }
+    target.putImageData(image, 0, 0)
+    record(before)
+  }
+
+  const resize = (width: number, height: number) => {
+    const target = ctx()
+    if (!available || !target || stroke.current || ![width, height].every((side) =>
+      Number.isInteger(side) && side >= 1 && side <= MAX_PAINT_SIDE)) return
+    if (width !== dimensions.width || height !== dimensions.height) {
+      const before = snapshot(target)
+      target.canvas.width = width
+      target.canvas.height = height
+      target.fillStyle = bg
+      target.fillRect(0, 0, width, height)
+      target.putImageData(before.pixels, 0, 0)
+      setDimensions({ width, height })
+      setPosition(null)
+      record(before)
+    }
+    setDialog(null)
+  }
+
   const menus: AppMenu[] = [
     { name: 'Archivo', commands: [
       { label: 'Nuevo', run: onNew, disabled: busy },
@@ -313,40 +381,51 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       { label: 'Deshacer', run: () => step('undo'), disabled: !available || !counts.undo },
       { label: 'Rehacer', run: () => step('redo'), disabled: !available || !counts.redo },
     ] },
-    { name: 'Ver', commands: levels.map((value) => ({ label: 'Zoom ' + value * 100 + '%', run: () => setZoom(value), pressed: zoom === value })) },
+    { name: 'Ver', commands: [
+      { label: 'Caja de herramientas', run: () => toggleChrome('toolbox'), pressed: chrome.toolbox },
+      { label: 'Cuadro de colores', run: () => toggleChrome('palette'), pressed: chrome.palette },
+      { label: 'Barra de estado', run: () => toggleChrome('status'), pressed: chrome.status },
+      { label: 'Zoom…', run: () => setDialog('zoom') },
+      { label: 'Mostrar cuadrícula', run: () => toggleChrome('grid'), pressed: chrome.grid, disabled: zoom < 6 },
+    ] },
     { name: 'Imagen', commands: [
+      { label: 'Invertir colores', run: invert, disabled: !available },
+      { label: 'Atributos…', run: () => setDialog('attributes'), disabled: !available },
       { label: 'Borrar imagen', run: () => clear(false), disabled: !available },
       { label: 'Borrar a transparente', run: () => clear(true), disabled: !available },
     ] },
-    { name: 'Opciones', commands: [1,3,5,9].map((value) => ({ label: 'Grosor ' + value + ' px', run: () => setSize(value), pressed: size === value })) },
-    { name: 'Ayuda', commands: [{ label: 'Cómo usar Paint', run: () => setHelp(true) }] },
+    { name: 'Opciones', commands: [
+      { label: 'Editar colores…', run: () => setDialog('color') },
+    ] },
+    { name: 'Ayuda', commands: [{ label: 'Temas de ayuda', run: () => setDialog('help') }] },
   ]
 
   return <Panel aria-label="Editor Paint" onKeyDown={(event) => {
-    if (event.key === 'Escape' && (form || help)) {
-      event.preventDefault(); event.stopPropagation(); setForm(null); setHelp(false); return
+    if (event.key === 'Escape' && (form || dialog)) {
+      event.preventDefault(); event.stopPropagation(); setForm(null); setDialog(null); return
     }
-    if (form || help || !available || (!event.ctrlKey && !event.metaKey)) return
+    if (form || dialog || !available || (!event.ctrlKey && !event.metaKey)) return
     const key = event.key.toLowerCase()
     if (key === 's') { event.preventDefault(); save() }
     if (key === 'z' || key === 'y') { event.preventDefault(); step(key === 'y' || event.shiftKey ? 'redo' : 'undo') }
   }}>
     <AppMenuBar label="Menús de Paint" menus={menus} />
     <Workspace>
-      <Toolbox role="group" aria-label="Herramientas de dibujo">
-        {tools.map(([id, name, path]) => <Button type="button" key={id} aria-label={name} title={name}
-          aria-pressed={tool === id} disabled={!available} onClick={() => { setTool(id); setStatus('') }}>
-          <svg width="17" height="17" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.4" fill="none" aria-hidden="true"><path d={path} /></svg>
-        </Button>)}
-      </Toolbox>
+      {chrome.toolbox && <PaintToolbox tool={tool} available={available}
+        onTool={(value) => { setTool(value); setStatus('') }} zoom={zoom} onZoom={changeZoom}
+        eraser={eraser} onEraser={setEraser} brush={brush} onBrush={setBrush}
+        width={lineWidth} onWidth={setLineWidth} shape={shape} onShape={setShape} />}
       <Viewport aria-label="Área de dibujo">
-        <canvas ref={canvas} tabIndex={0} aria-label="Lienzo de dibujo" style={{ width: dimensions.width * zoom, height: dimensions.height * zoom }}
-          onContextMenu={(event) => event.preventDefault()} onPointerDown={pointerDown} onPointerMove={pointerMove}
-          onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)}
-          onLostPointerCapture={(event) => finish(event, true)} />
+        <CanvasSurface>
+          <canvas ref={canvas} tabIndex={0} aria-label="Lienzo de dibujo" style={{ width: dimensions.width * zoom, height: dimensions.height * zoom }}
+            onContextMenu={(event) => event.preventDefault()} onPointerDown={pointerDown} onPointerMove={pointerMove}
+            onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)}
+            onLostPointerCapture={(event) => finish(event, true)} />
+          {chrome.grid && zoom >= 6 && <div className="pixel-grid" aria-hidden="true" style={{ backgroundSize: zoom + 'px ' + zoom + 'px' }} />}
+        </CanvasSurface>
       </Viewport>
     </Workspace>
-    <Palette role="group" aria-label="Paleta de colores">
+    {chrome.palette && <Palette role="group" aria-label="Paleta de colores">
       <div className="active">
         <Button type="button" aria-label="Color principal" aria-pressed={!secondary} onClick={() => setSecondary(false)}><span style={{ background: fg }} /></Button>
         <Button type="button" aria-label="Color secundario" aria-pressed={secondary} onClick={() => setSecondary(true)}><span style={{ background: bg }} /></Button>
@@ -354,9 +433,9 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       <div className="swatches">{swatches.map((value) => <Button type="button" key={value} title={'#' + value} aria-label={'Color #' + value}
         style={{ background: '#' + value }} onClick={() => chooseColor('#' + value)}
         onContextMenu={(event) => { event.preventDefault(); chooseColor('#' + value, true) }} />)}</div>
-    </Palette>
-    <Status>
-      <span>{saved?.name ?? 'Sin título'}{dirty ? ' *' : ''} · {tools.find(([id]) => id === tool)?.[1]}</span>
+    </Palette>}
+    <Status hidden={!chrome.status && !error}>
+      <span>{saved?.name ?? 'Sin título'}{dirty ? ' *' : ''} · {paintTools.find(([id]) => id === tool)?.[1]}</span>
       <span>{position ? position.x + ', ' + position.y + ' · ' : ''}{dimensions.width} × {dimensions.height} · {zoom * 100}%</span>
       {!form && error && <span role="alert">{error}</span>}
       {status && <span role="status">{status}</span>}
@@ -378,9 +457,39 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       <Button type="submit" disabled={busy}>Guardar dibujo</Button>
       <Button type="button" disabled={busy} onClick={() => { setForm(null); setError('') }}>Cancelar</Button>
     </form></Overlay>}
-    {help && <Overlay><form aria-label="Ayuda de Paint" onSubmit={(event) => { event.preventDefault(); setHelp(false) }}>
-      <p>Elige una herramienta y dibuja. El botón derecho usa el color secundario. En móvil puedes elegirlo en la paleta. Guarda el dibujo para abrirlo desde el Explorador o exporta un PNG.</p>
+    {dialog === 'help' && <Overlay><form aria-label="Temas de ayuda de Paint" onSubmit={(event) => { event.preventDefault(); setDialog(null) }}>
+      <p>Elige una herramienta y dibuja. Sus opciones aparecen debajo de los iconos. El botón derecho usa el color secundario. En móvil puedes elegirlo en la paleta. Guarda el dibujo para abrirlo desde el Explorador o exporta un PNG.</p>
       <Button type="submit" autoFocus>Entendido</Button>
+    </form></Overlay>}
+    {dialog === 'attributes' && <Overlay><form aria-label="Atributos de la imagen" onSubmit={(event) => {
+      event.preventDefault()
+      const data = new FormData(event.currentTarget)
+      resize(Number(data.get('width')), Number(data.get('height')))
+    }}>
+      <label>Ancho en píxeles<input autoFocus type="number" name="width" min={1} max={MAX_PAINT_SIDE} defaultValue={dimensions.width} required /></label>
+      <label>Alto en píxeles<input type="number" name="height" min={1} max={MAX_PAINT_SIDE} defaultValue={dimensions.height} required /></label>
+      <Button type="submit">Aceptar</Button>
+      <Button type="button" onClick={() => setDialog(null)}>Cancelar</Button>
+    </form></Overlay>}
+    {dialog === 'zoom' && <Overlay><form aria-label="Zoom de Paint" onSubmit={(event) => {
+      event.preventDefault()
+      changeZoom(Number(new FormData(event.currentTarget).get('zoom')))
+      setDialog(null)
+    }}>
+      <label>Ampliación<select autoFocus name="zoom" defaultValue={zoom}>
+        {paintZoomLevels.map((value) => <option key={value} value={value}>{value * 100}%</option>)}
+      </select></label>
+      <Button type="submit">Aceptar</Button>
+      <Button type="button" onClick={() => setDialog(null)}>Cancelar</Button>
+    </form></Overlay>}
+    {dialog === 'color' && <Overlay><form aria-label="Editar colores" onSubmit={(event) => {
+      event.preventDefault()
+      chooseColor(String(new FormData(event.currentTarget).get('color')))
+      setDialog(null)
+    }}>
+      <label>{secondary ? 'Color secundario' : 'Color principal'}<input autoFocus type="color" name="color" defaultValue={secondary ? bg : fg} /></label>
+      <Button type="submit">Aceptar</Button>
+      <Button type="button" onClick={() => setDialog(null)}>Cancelar</Button>
     </form></Overlay>}
   </Panel>
 }

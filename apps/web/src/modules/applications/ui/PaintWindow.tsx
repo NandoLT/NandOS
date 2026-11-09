@@ -9,9 +9,13 @@ import type { PaintImage } from '../domain/explorer'
 import { floodFill, MAX_PAINT_SIDE, traceLine } from '../domain/paint-raster'
 import type { PaintPoint } from '../domain/paint-raster'
 import { canvasPng, loadPaintBlob, readPngSize } from '../infrastructure/paint-storage'
-import { hasShapeStyle, paintTools, paintZoomLevels } from '../domain/paint-tools'
-import { PaintToolbox } from './PaintToolbox'
+import { hasShapeStyle, isSelectionTool, paintTools, paintZoomLevels } from '../domain/paint-tools'
 import type { BrushTip, PaintTool, ShapeStyle } from '../domain/paint-tools'
+import { eraseRegion, hasEnclosedArea, liftRegion, paintRegion, placeRegion, regionPath } from '../domain/paint-selection'
+import type { PaintClipboard, PaintRegion } from '../domain/paint-selection'
+import { defaultPaintTextStyle, drawPaintText } from '../domain/paint-text'
+import { PaintToolbox } from './PaintToolbox'
+import { PaintTextEditor, PaintTextToolbar } from './PaintTextEditor'
 
 const Panel = styled.section`
   position: relative; height: 100%; min-width: 0; display: grid;
@@ -40,7 +44,8 @@ const Viewport = styled.div`
   }
 `
 const CanvasSurface = styled.div`
-  position: relative; width: max-content;
+  position: relative; width: max-content; overflow: hidden;
+  > .selection-outline { position: absolute; inset: 0; pointer-events: none; }
   > .pixel-grid {
     position: absolute; inset: 0; pointer-events: none;
     background-image: linear-gradient(to right, #80808066 1px, transparent 1px),
@@ -78,6 +83,25 @@ type Stroke = {
   pointer: number; start: PaintPoint; last: PaintPoint; before: Snapshot
   tool: PaintTool; color: string; background: string; size: number; tip: BrushTip; style: ShapeStyle
 }
+type RegionGesture =
+  | { kind: 'outline'; pointer: number; start: PaintPoint; freehand?: PaintPoint[] }
+  | { kind: 'move'; pointer: number; start: PaintPoint; region: PaintRegion; moved: PaintRegion
+      before: Snapshot; pixels: PaintClipboard }
+
+function SelectionOutline({ region, width, height, zoom }: {
+  region: PaintRegion; width: number; height: number; zoom: number
+}) {
+  const points = region.path?.map(({ x, y }) => (region.x + x) + ',' + (region.y + y)).join(' ')
+  const outline = points
+    ? <polygon points={points} vectorEffect="non-scaling-stroke" />
+    : <rect x={region.x + .5} y={region.y + .5} width={Math.max(.5, region.width - 1)} height={Math.max(.5, region.height - 1)} vectorEffect="non-scaling-stroke" />
+  return <svg aria-hidden="true" className="selection-outline" width={width * zoom} height={height * zoom}
+    viewBox={'0 0 ' + width + ' ' + height} fill="none" shapeRendering="crispEdges">
+    <g stroke="white">{outline}</g>
+    <g stroke="black" strokeDasharray="3 3">{outline}</g>
+  </svg>
+}
+
 const isShape = (tool: PaintTool) => tool === 'line' || hasShapeStyle(tool)
 
 function draw(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, stroke: Stroke) {
@@ -117,8 +141,9 @@ function draw(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, s
   if (style !== 'solid') ctx.stroke()
 }
 
-export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
-  initial: PaintImage | null; dirty: boolean; onDirty: (dirty: boolean) => void; onNew: () => void; onBrowse: (folder: string) => void
+export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew, onBrowse }: {
+  initial: PaintImage | null; dirty: boolean; clipboard: PaintClipboard | null;
+  onCopy: (clipboard: PaintClipboard) => void; onDirty: (dirty: boolean) => void; onNew: () => void; onBrowse: (folder: string) => void
 }) {
   const folders = useShellStore((state) => state.userDesktopItems)
   const files = useShellStore((state) => state.fileNodes)
@@ -127,6 +152,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
   const fileInput = useRef<HTMLInputElement>(null)
   const magnification = useRef(2)
   const stroke = useRef<Stroke | null>(null)
+  const regionGesture = useRef<RegionGesture | null>(null)
   const history = useRef({ undo: [] as Snapshot[], redo: [] as Snapshot[], revision: 0, next: 0, saved: 0 })
   const operation = useRef(false)
   const [saved, setSaved] = useState(initial)
@@ -140,6 +166,12 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
   const [brush, setBrush] = useState<{ tip: BrushTip; size: number }>({ tip: 'round', size: 5 })
   const [eraser, setEraser] = useState(4)
   const [lineWidth, setLineWidth] = useState(1)
+  const [selection, setSelection] = useState<PaintRegion | null>(null)
+  const [outline, setOutline] = useState<PaintRegion | null>(null)
+  const [textBox, setTextBox] = useState<{ box: PaintRegion; text: string } | null>(null)
+  const [textStyle, setTextStyle] = useState(defaultPaintTextStyle)
+  const [transparentSelection, setTransparentSelection] = useState(false)
+  const [transparentText, setTransparentText] = useState(true)
   const [shape, setShape] = useState<ShapeStyle>('outline')
   const [chrome, setChrome] = useState({ toolbox: true, palette: true, status: true, grid: false })
   const [dialog, setDialog] = useState<'help' | 'attributes' | 'color' | 'zoom' | null>(null)
@@ -181,10 +213,11 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     return () => { live = false }
   }, [initial])
 
-  const report = () => {
+  const report = (pendingText = false) => {
     const state = history.current
-    setCounts({ undo: state.undo.length, redo: state.redo.length })
-    onDirty(state.saved !== state.revision)
+    setCounts((current) => current.undo === state.undo.length && current.redo === state.redo.length ? current :
+      { undo: state.undo.length, redo: state.redo.length })
+    onDirty(pendingText || state.saved !== state.revision)
   }
   const snapshot = (target: CanvasRenderingContext2D): Snapshot => ({
     pixels: target.getImageData(0, 0, target.canvas.width, target.canvas.height), revision: history.current.revision,
@@ -198,9 +231,66 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     state.revision = ++state.next
     report()
   }
+  const closeText = (apply: boolean) => {
+    if (!textBox) return
+    const target = ctx()
+    if (apply && target && textBox.text.trim()) {
+      const before = snapshot(target)
+      drawPaintText(target, textBox.box, textBox.text, textStyle, fg, transparentText ? undefined : bg)
+      record(before)
+    } else report()
+    setTextBox(null)
+  }
+  const changeTool = (value: PaintTool) => {
+    if (stroke.current || regionGesture.current) return
+    if (value !== tool) {
+      closeText(true)
+      if (!isSelectionTool(value)) setSelection(null)
+      setTool(value)
+    }
+    setStatus('')
+  }
+  const selectAll = () => {
+    if (!available || stroke.current || regionGesture.current) return
+    changeTool('select')
+    setSelection({ x: 0, y: 0, ...dimensions })
+  }
+  const editSelection = (action: 'copy' | 'cut' | 'delete') => {
+    const target = ctx()
+    if (!available || !selection || !target || regionGesture.current) return
+    if (action !== 'delete') {
+      onCopy(liftRegion(target, selection, transparentSelection ? bg : undefined))
+      setStatus(action === 'cut' ? 'Selección cortada.' : 'Selección copiada al portapapeles de Paint.')
+    }
+    if (action !== 'copy') {
+      const before = snapshot(target)
+      eraseRegion(target, selection, bg)
+      setSelection(null)
+      record(before)
+    }
+  }
+  const pasteSelection = () => {
+    const target = ctx()
+    const clip = clipboard
+    if (!available || !target || !clip || stroke.current || regionGesture.current) return
+    changeTool('select')
+    const before = snapshot(target)
+    const region = placeRegion({
+      x: 0, y: 0, width: Math.min(clip.bitmap.width, dimensions.width),
+      height: Math.min(clip.bitmap.height, dimensions.height), path: clip.path,
+    }, selection ? { x: selection.x + 8, y: selection.y + 8 } : { x: 0, y: 0 }, dimensions)
+    target.drawImage(clip.bitmap, region.x, region.y)
+    setSelection(region)
+    record(before)
+  }
   const step = (direction: 'undo' | 'redo') => {
     const target = ctx()
-    if (!available || !target || stroke.current) return
+    if (!available || !target || stroke.current || regionGesture.current) return
+    if (textBox?.text.trim()) {
+      if (direction === 'undo') closeText(false)
+      return
+    }
+    closeText(false)
     const state = history.current
     const previous = state[direction].pop()
     if (!previous) return
@@ -211,6 +301,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       target.canvas.height = height
       setDimensions({ width, height })
     }
+    setSelection(null)
     target.putImageData(previous.pixels, 0, 0)
     state.revision = previous.revision
     report()
@@ -229,13 +320,74 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       y: Math.max(0, Math.min(height - 1, Math.floor((event.clientY - rect.top) * height / rect.height))),
     }
   }
+  const beginRegion = (event: PointerEvent<HTMLCanvasElement>, target: CanvasRenderingContext2D, start: PaintPoint) => {
+    const pointer = event.pointerId
+    event.currentTarget.setPointerCapture(pointer)
+    if (isSelectionTool(tool) && selection && target.isPointInPath(regionPath(selection), start.x + .5, start.y + .5, 'evenodd')) {
+      regionGesture.current = { kind: 'move', pointer, start, region: selection, moved: selection,
+        before: snapshot(target), pixels: liftRegion(target, selection, transparentSelection ? bg : undefined) }
+      return
+    }
+    setSelection(null)
+    regionGesture.current = { kind: 'outline', pointer, start, freehand: tool === 'free-select' ? [start] : undefined }
+  }
+  const updateRegion = (gesture: RegionGesture, next: PaintPoint, target: CanvasRenderingContext2D) => {
+    if (gesture.kind === 'outline') {
+      const last = gesture.freehand?.at(-1)
+      if (last && (last.x !== next.x || last.y !== next.y)) gesture.freehand?.push(next)
+      setOutline(paintRegion(gesture.start, next, gesture.freehand))
+      return
+    }
+    const { region, start, moved } = gesture
+    const destination = placeRegion(region, { x: region.x + next.x - start.x, y: region.y + next.y - start.y }, dimensions)
+    if (destination.x === moved.x && destination.y === moved.y) return
+    gesture.moved = destination
+    target.putImageData(gesture.before.pixels, 0, 0)
+    if (destination.x !== region.x || destination.y !== region.y) {
+      eraseRegion(target, region, bg)
+      target.drawImage(gesture.pixels.bitmap, destination.x, destination.y)
+    }
+    setSelection(destination)
+  }
+  const finishRegion = (gesture: RegionGesture, target: CanvasRenderingContext2D, next: PaintPoint, cancelled: boolean) => {
+    if (!cancelled) updateRegion(gesture, next, target)
+    regionGesture.current = null
+    setOutline(null)
+    if (gesture.kind === 'move') {
+      if (cancelled) {
+        target.putImageData(gesture.before.pixels, 0, 0)
+        setSelection(gesture.region)
+      } else if (gesture.moved.x !== gesture.region.x || gesture.moved.y !== gesture.region.y) {
+        record(gesture.before)
+      }
+      return
+    }
+    if (cancelled) return
+    const region = paintRegion(gesture.start, next, gesture.freehand)
+    if (tool === 'text') {
+      const click = region.width === 1 && region.height === 1
+      const box = {
+        ...region, width: Math.min(dimensions.width, click ? 240 : Math.max(38, region.width)),
+        height: Math.min(dimensions.height, click ? 90 : Math.max(28, region.height)),
+      }
+      setTextBox({ box: placeRegion(box, region, dimensions), text: '' })
+    } else if (gesture.freehand ? hasEnclosedArea(gesture.freehand) : region.width > 1 || region.height > 1) {
+      setSelection(region)
+    }
+  }
   const pointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (!available || form || dialog || stroke.current || (event.button !== 0 && event.button !== 2)) return
+    if (!available || form || dialog || stroke.current || regionGesture.current || (event.button !== 0 && event.button !== 2)) return
     const target = ctx()
     if (!target) return
     event.currentTarget.focus({ preventScroll: true })
     const start = coords(event)
     setPosition(start)
+    if (isSelectionTool(tool) || tool === 'text') {
+      if (event.button !== 0) return
+      if (textBox) { closeText(true); return }
+      beginRegion(event, target, start)
+      return
+    }
     const alternate = event.button === 2 || (event.pointerType !== 'mouse' && secondary)
     const color = tool === 'eraser' || alternate ? bg : fg
     if (tool === 'zoom') { changeZoom(zoom === 1 ? magnification.current : 1); return }
@@ -263,12 +415,23 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     setPosition((previous) => previous?.x === next.x && previous.y === next.y ? previous : next)
     const gesture = stroke.current
     const target = ctx()
+    const region = regionGesture.current
+    if (region?.pointer === event.pointerId && target) {
+      updateRegion(region, next, target)
+      return
+    }
     if (!gesture || gesture.pointer !== event.pointerId || !target) return
     if (isShape(gesture.tool)) target.putImageData(gesture.before.pixels, 0, 0)
     draw(target, isShape(gesture.tool) ? gesture.start : gesture.last, next, gesture)
     gesture.last = next
   }
   const finish = (event: PointerEvent<HTMLCanvasElement>, cancelled = false) => {
+    const region = regionGesture.current
+    const target = ctx()
+    if (region?.pointer === event.pointerId && target) {
+      finishRegion(region, target, coords(event), cancelled)
+      return
+    }
     const gesture = stroke.current
     if (!gesture || gesture.pointer !== event.pointerId) return
     if (!cancelled) pointerMove(event)
@@ -277,7 +440,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     else record(gesture.before)
   }
   const perform = async (task: () => Promise<void>) => {
-    if (operation.current || stroke.current) return
+    if (operation.current || stroke.current || regionGesture.current) return
     operation.current = true
     setBusy(true); setStatus(''); setError('')
     try { await task() }
@@ -285,12 +448,14 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     finally { operation.current = false; setBusy(false) }
   }
   const saveAs = () => {
-    if (stroke.current) return
+    if (stroke.current || regionGesture.current) return
+    closeText(true)
     setError('')
     setForm({ name: saved?.name.replace(/\.png$/iu, '') ?? 'Sin título',
       parent: saved && tree.writable(saved.parentId) ? saved.parentId : DOCUMENTS_DIRECTORY })
   }
   const saveTo = (name: string, parentId: string, id?: string) => void perform(async () => {
+    closeText(true)
     const png = await canvasPng(canvas.current!)
     setSaved(await useShellStore.getState().savePaintImage({ name, parentId, ...dimensions, png }, id))
     history.current.saved = history.current.revision
@@ -300,6 +465,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
   })
   const save = () => saved ? saveTo(saved.name, saved.parentId, saved.id) : saveAs()
   const exportPng = () => void perform(async () => {
+    closeText(true)
     const url = URL.createObjectURL(await canvasPng(canvas.current!))
     const link = document.createElement('a')
     link.href = url
@@ -319,6 +485,8 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       target.canvas.height = bitmap.height
       target.drawImage(bitmap, 0, 0)
       setDimensions(dimensions)
+      setSelection(null)
+      setTextBox(null)
       history.current = { undo: [], redo: [], revision: 1, next: 1, saved: 0 }
       report()
       setReady(true); setZoom(1); setSaved(null); setStatus('PNG abierto.')
@@ -326,7 +494,9 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
   })
   const clear = (transparent: boolean) => {
     const target = ctx()
-    if (!target || stroke.current) return
+    if (!target || stroke.current || regionGesture.current) return
+    closeText(true)
+    setSelection(null)
     const before = snapshot(target)
     target.clearRect(0, 0, dimensions.width, dimensions.height)
     if (!transparent) {
@@ -338,7 +508,9 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
 
   const invert = () => {
     const target = ctx()
-    if (!available || !target || stroke.current) return
+    if (!available || !target || stroke.current || regionGesture.current) return
+    closeText(true)
+    setSelection(null)
     const before = snapshot(target)
     const image = target.getImageData(0, 0, dimensions.width, dimensions.height)
     for (let i = 0; i < image.data.length; i += 4) {
@@ -352,9 +524,11 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
 
   const resize = (width: number, height: number) => {
     const target = ctx()
-    if (!available || !target || stroke.current || ![width, height].every((side) =>
+    if (!available || !target || stroke.current || regionGesture.current || ![width, height].every((side) =>
       Number.isInteger(side) && side >= 1 && side <= MAX_PAINT_SIDE)) return
     if (width !== dimensions.width || height !== dimensions.height) {
+      closeText(true)
+      setSelection(null)
       const before = snapshot(target)
       target.canvas.width = width
       target.canvas.height = height
@@ -378,8 +552,13 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       { label: 'Exportar PNG…', run: exportPng, disabled: !available },
     ] },
     { name: 'Edición', commands: [
-      { label: 'Deshacer', run: () => step('undo'), disabled: !available || !counts.undo },
-      { label: 'Rehacer', run: () => step('redo'), disabled: !available || !counts.redo },
+      { label: 'Deshacer', run: () => step('undo'), disabled: !available || (!counts.undo && !textBox?.text.trim()) },
+      { label: 'Rehacer', run: () => step('redo'), disabled: !available || !counts.redo || Boolean(textBox?.text.trim()) },
+      { label: 'Cortar', run: () => editSelection('cut'), disabled: !available || !selection },
+      { label: 'Copiar', run: () => editSelection('copy'), disabled: !available || !selection },
+      { label: 'Pegar', run: pasteSelection, disabled: !available || !clipboard },
+      { label: 'Eliminar selección', run: () => editSelection('delete'), disabled: !available || !selection },
+      { label: 'Seleccionar todo', run: selectAll, disabled: !available },
     ] },
     { name: 'Ver', commands: [
       { label: 'Caja de herramientas', run: () => toggleChrome('toolbox'), pressed: chrome.toolbox },
@@ -400,21 +579,43 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
     { name: 'Ayuda', commands: [{ label: 'Temas de ayuda', run: () => setDialog('help') }] },
   ]
 
+  const activeOutline = outline ?? selection
   return <Panel aria-label="Editor Paint" onKeyDown={(event) => {
     if (event.key === 'Escape' && (form || dialog)) {
       event.preventDefault(); event.stopPropagation(); setForm(null); setDialog(null); return
     }
-    if (form || dialog || !available || (!event.ctrlKey && !event.metaKey)) return
+    if (form || dialog || !available || stroke.current || regionGesture.current) return
+    if (event.key === 'Escape' && (textBox || selection)) {
+      event.preventDefault(); event.stopPropagation(); closeText(false); setSelection(null); canvas.current?.focus(); return
+    }
     const key = event.key.toLowerCase()
-    if (key === 's') { event.preventDefault(); save() }
+    const modified = event.ctrlKey || event.metaKey
+    if (modified && key === 's') { event.preventDefault(); save(); return }
+    if (event.target instanceof HTMLTextAreaElement) {
+      if (modified && key === 'enter') { event.preventDefault(); closeText(true); canvas.current?.focus() }
+      return
+    }
+    if (key === 'delete' && selection) { event.preventDefault(); editSelection('delete'); return }
+    if (!modified) return
     if (key === 'z' || key === 'y') { event.preventDefault(); step(key === 'y' || event.shiftKey ? 'redo' : 'undo') }
+    if (key === 'a') { event.preventDefault(); selectAll() }
+    if (key === 'c' && selection) { event.preventDefault(); editSelection('copy') }
+    if (key === 'x' && selection) { event.preventDefault(); editSelection('cut') }
+    if (key === 'v' && clipboard) { event.preventDefault(); pasteSelection() }
   }}>
-    <AppMenuBar label="Menús de Paint" menus={menus} />
+    <div>
+      <AppMenuBar label="Menús de Paint" menus={menus} />
+      {textBox && <PaintTextToolbar style={textStyle} onStyle={setTextStyle}
+        onApply={() => { closeText(true); canvas.current?.focus() }}
+        onCancel={() => { closeText(false); canvas.current?.focus() }} />}
+    </div>
     <Workspace>
       {chrome.toolbox && <PaintToolbox tool={tool} available={available}
-        onTool={(value) => { setTool(value); setStatus('') }} zoom={zoom} onZoom={changeZoom}
+        onTool={changeTool} zoom={zoom} onZoom={changeZoom}
         eraser={eraser} onEraser={setEraser} brush={brush} onBrush={setBrush}
-        width={lineWidth} onWidth={setLineWidth} shape={shape} onShape={setShape} />}
+        width={lineWidth} onWidth={setLineWidth} shape={shape} onShape={setShape}
+        transparent={tool === 'text' ? transparentText : transparentSelection}
+        onTransparency={tool === 'text' ? setTransparentText : setTransparentSelection} />}
       <Viewport aria-label="Área de dibujo">
         <CanvasSurface>
           <canvas ref={canvas} tabIndex={0} aria-label="Lienzo de dibujo" style={{ width: dimensions.width * zoom, height: dimensions.height * zoom }}
@@ -422,6 +623,10 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
             onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)}
             onLostPointerCapture={(event) => finish(event, true)} />
           {chrome.grid && zoom >= 6 && <div className="pixel-grid" aria-hidden="true" style={{ backgroundSize: zoom + 'px ' + zoom + 'px' }} />}
+          {activeOutline && <SelectionOutline region={activeOutline} {...dimensions} zoom={zoom} />}
+          {textBox && <PaintTextEditor box={textBox.box} zoom={zoom} text={textBox.text} style={textStyle}
+            color={fg} background={transparentText ? 'transparent' : bg}
+            onText={(text) => { setTextBox({ ...textBox, text }); report(Boolean(text.trim())) }} />}
         </CanvasSurface>
       </Viewport>
     </Workspace>
@@ -458,7 +663,7 @@ export function PaintWindow({ initial, dirty, onDirty, onNew, onBrowse }: {
       <Button type="button" disabled={busy} onClick={() => { setForm(null); setError('') }}>Cancelar</Button>
     </form></Overlay>}
     {dialog === 'help' && <Overlay><form aria-label="Temas de ayuda de Paint" onSubmit={(event) => { event.preventDefault(); setDialog(null) }}>
-      <p>Elige una herramienta y dibuja. Sus opciones aparecen debajo de los iconos. El botón derecho usa el color secundario. En móvil puedes elegirlo en la paleta. Guarda el dibujo para abrirlo desde el Explorador o exporta un PNG.</p>
+      <p>Elige una herramienta y dibuja. Arrastra para seleccionar un área y vuelve a arrastrarla para moverla. Usa Edición para cortar, copiar y pegar. Con Texto puedes escribir sobre el lienzo y pulsar Aplicar texto para fijarlo. El botón derecho usa el color secundario. En móvil puedes elegirlo en la paleta. Guarda el dibujo para abrirlo desde el Explorador o exporta un PNG.</p>
       <Button type="submit" autoFocus>Entendido</Button>
     </form></Overlay>}
     {dialog === 'attributes' && <Overlay><form aria-label="Atributos de la imagen" onSubmit={(event) => {

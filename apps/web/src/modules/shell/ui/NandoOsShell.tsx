@@ -1,3 +1,4 @@
+import type { PaintClipboard } from '../../applications/domain/paint-selection'
 import type { PaintImage } from '../../applications/domain/explorer'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -803,6 +804,7 @@ function DesktopShell() {
   const [explorerEntry, setExplorerEntry] = useState({ directory: COMPUTER_DIRECTORY, revision: 0 })
   const [writer, setWriter] = useState<{ draft: WriterDraft; revision: number }>({ draft: emptyWriterDraft, revision: 0 })
   const [paint, setPaint] = useState<{ image: PaintImage | null; dirty: boolean; revision: number }>({ image: null, dirty: false, revision: 0 })
+  const [paintClipboard, setPaintClipboard] = useState<PaintClipboard | null>(null)
   const writerDirty = writer.draft.markdown !== (writer.draft.document?.markdown ?? '')
   const unsavedApp = writerDirty && paint.dirty ? 'Writer y Paint tienen' : writerDirty ? 'Writer tiene' : paint.dirty ? 'Paint tiene' : null
   const [clock, setClock] = useState(() => new Date())
@@ -917,12 +919,14 @@ function DesktopShell() {
     endGuestSession()
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     setPaint({ image: null, dirty: false, revision: 0 })
+    setPaintClipboard(null)
     setScreen('desktop')
   }, [endGuestSession])
   const startShutdown = useCallback(() => {
     if (unsavedApp && !window.confirm(unsavedApp + ' cambios sin guardar. ¿Quieres apagar de todas formas?')) return
     leavePortfolioEntry()
     setPaint({ image: null, dirty: false, revision: 0 })
+    setPaintClipboard(null)
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     closeStartMenu()
     setNotice(null)
@@ -933,6 +937,7 @@ function DesktopShell() {
     if (unsavedApp && !window.confirm(unsavedApp + ' cambios sin guardar. ¿Quieres cerrar la sesión?')) return
     leavePortfolioEntry()
     setPaint({ image: null, dirty: false, revision: 0 })
+    setPaintClipboard(null)
     setWriter({ draft: emptyWriterDraft, revision: 0 })
     setRenamingDesktopItem(null)
     setSelectedDesktopItem(null)
@@ -1432,7 +1437,7 @@ function DesktopShell() {
               onCv={openCv} onExit={() => closeShellWindow('terminal')} />
           ) : windowState.id === 'paint' ? (
             <Suspense fallback={<p role="status">Abriendo Paint…</p>}>
-              <PaintWindow key={paint.revision} initial={paint.image} dirty={paint.dirty}
+              <PaintWindow key={paint.revision} initial={paint.image} dirty={paint.dirty} clipboard={paintClipboard} onCopy={setPaintClipboard}
                 onDirty={(dirty) => setPaint((current) => current.revision === paint.revision && current.dirty !== dirty ? { ...current, dirty } : current)}
                 onNew={() => startPaint(null)} onBrowse={openExplorer} />
             </Suspense>

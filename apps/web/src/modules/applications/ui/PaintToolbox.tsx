@@ -1,7 +1,7 @@
 import styled from '@emotion/styled'
 import type { ReactNode } from 'react'
 
-import { hasShapeStyle, paintTools } from '../domain/paint-tools'
+import { hasShapeStyle, isSelectionTool, paintTools } from '../domain/paint-tools'
 import type { BrushTip, PaintTool, ShapeStyle } from '../domain/paint-tools'
 
 const icons: Record<PaintTool, ReactNode> = {
@@ -47,19 +47,20 @@ const ToolButton = styled.button`
   &:disabled { cursor: default; }
   &:focus-visible { outline: 1px dotted currentColor; outline-offset: -3px; }
 `
-const coming = new Set<PaintTool>(['free-select', 'select', 'spray', 'text', 'curve', 'polygon'])
+const coming = new Set<PaintTool>(['spray', 'curve', 'polygon'])
 const tips: ReadonlyArray<[BrushTip, string]> = [['round', 'Redonda'], ['square', 'Cuadrada'], ['forward', 'Diagonal ascendente'], ['backward', 'Diagonal descendente']]
 const styles: ReadonlyArray<[ShapeStyle, string]> = [['outline', 'Solo contorno'], ['both', 'Contorno y relleno'], ['solid', 'Solo relleno']]
 
 type ToolOption = { label: string; active: boolean; select: () => void; preview: ReactNode }
 
-export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, onEraser, brush, onBrush, width, onWidth, shape, onShape }: {
+export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, onEraser, brush, onBrush, width, onWidth, shape, onShape, transparent, onTransparency }: {
   tool: PaintTool; available: boolean; onTool: (value: PaintTool) => void
   zoom: number; onZoom: (value: number) => void
   eraser: number; onEraser: (value: number) => void
   brush: { tip: BrushTip; size: number }; onBrush: (value: { tip: BrushTip; size: number }) => void
   width: number; onWidth: (value: number) => void
   shape: ShapeStyle; onShape: (value: ShapeStyle) => void
+  transparent: boolean; onTransparency: (value: boolean) => void
 }) {
   let options: ToolOption[] = []
   let columns = 1
@@ -90,6 +91,16 @@ export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, on
       preview: <svg width="38" height="13" viewBox="0 0 38 13" aria-hidden="true">
         <rect x="1" y="1" width="36" height="11" fill={value === 'outline' ? 'none' : 'currentColor'}
           fillOpacity={value === 'both' ? '.38' : '1'} stroke={value === 'solid' ? 'none' : 'currentColor'} />
+      </svg>,
+    }))
+  } else if (isSelectionTool(tool) || tool === 'text') {
+    options = [false, true].map((value) => ({
+      label: value ? 'Fondo transparente' : 'Fondo opaco', active: transparent === value,
+      select: () => onTransparency(value),
+      preview: <svg width="32" height="14" viewBox="0 0 32 14" aria-hidden="true">
+        <rect x="3" y="2" width="10" height="8" fill="currentColor" fillOpacity=".45" />
+        <rect x="10" y="4" width="18" height="9" fill={value ? 'none' : 'currentColor'}
+          fillOpacity=".75" stroke="currentColor" strokeDasharray={value ? '2 1' : undefined} />
       </svg>,
     }))
   } else if (tool === 'zoom') {

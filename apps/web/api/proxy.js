@@ -3,6 +3,7 @@ const excludedRequestHeaders = new Set([
   'content-length',
   'host',
   'transfer-encoding',
+  'x-forwarded-proto',
 ])
 
 const excludedResponseHeaders = new Set([
@@ -45,6 +46,13 @@ export default async function handler(request, response) {
   upstreamUrl.search = incomingUrl.search
   if (upstreamUrl.origin !== apiOrigin.origin || !upstreamUrl.pathname.startsWith('/api/')) {
     response.status(400).json({ error: 'Ruta del API no válida.' })
+    return
+  }
+
+  const privateRoute = upstreamUrl.pathname.startsWith('/api/auth/') || upstreamUrl.pathname.startsWith('/api/admin/')
+  if (privateRoute && process.env.VERCEL === '1' && request.headers['x-forwarded-proto'] !== 'https') {
+    response.setHeader('cache-control', 'private, no-store')
+    response.status(403).json({ error: 'La administración requiere una conexión HTTPS.' })
     return
   }
 

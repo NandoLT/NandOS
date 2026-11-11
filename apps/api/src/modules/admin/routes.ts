@@ -7,6 +7,9 @@ import {
   digestSessionToken,
   hashPassword,
   normalizeUsername,
+  MAX_PASSWORD_LENGTH,
+  MIN_NEW_PASSWORD_LENGTH,
+  passwordHashNeedsUpgrade,
   validPassword,
   validUsername,
   verifyPassword,
@@ -19,6 +22,8 @@ import {
   findAdminSession,
   hasAdminAccount,
   storeAdminSession,
+  reserveAuthAttempt,
+  SESSION_MAX_AGE_SECONDS,
 } from './infrastructure/admin-repository.js'
 import {
   createCvUpload,
@@ -32,7 +37,8 @@ import { parsePortfolioContent } from '../portfolio/domain/portfolio-content.js'
 import { registerWikiRoutes } from '../wiki/routes.js'
 
 export const ADMIN_SESSION_COOKIE = 'nandos_admin_session'
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
+const DUMMY_PASSWORD_HASH = 'scrypt$131072$8$1$' + '00'.repeat(16) + '$' + '00'.repeat(64)
+const passwordLengthMessage = `La contraseña debe tener entre ${MIN_NEW_PASSWORD_LENGTH} y ${MAX_PASSWORD_LENGTH} caracteres.`
 const MAX_CV_SIZE_BYTES = 4 * 1024 * 1024
 
 type CredentialsBody = { username: string; password: string }
@@ -53,32 +59,39 @@ function rejectUntrustedOrigin(request: FastifyRequest, reply: FastifyReply) {
   return true
 }
 
-function setSessionCookie(reply: FastifyReply, token: string) {
+function sessionCookieOptions() {
   const secure = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
-  reply.setCookie(ADMIN_SESSION_COOKIE, token, {
+  return {
     path: '/',
     httpOnly: true,
     secure,
-    sameSite: secure ? 'none' : 'lax',
-    maxAge: SESSION_TTL_SECONDS,
-  })
+    sameSite: 'lax' as const,
+  }
 }
 
-async function startSession(reply: FastifyReply, adminUserId: string) {
+async function startSession(reply: FastifyReply, admin: { id: string; passwordHash: string }, upgradedHash = admin.passwordHash) {
   const token = createSessionToken()
-  await storeAdminSession(adminUserId, digestSessionToken(token), new Date(Date.now() + SESSION_TTL_SECONDS * 1000))
-  setSessionCookie(reply, token)
+  if (!(await storeAdminSession(admin, digestSessionToken(token), upgradedHash))) return false
+  reply.setCookie(ADMIN_SESSION_COOKIE, token, { ...sessionCookieOptions(), maxAge: SESSION_MAX_AGE_SECONDS })
+  return true
 }
 
-async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+async function rejectExcessAttempts(reply: FastifyReply, scope: Parameters<typeof reserveAuthAttempt>[0]) {
+  const wait = await reserveAuthAttempt(scope)
+  if (!wait) return false
+  reply.header('retry-after', String(wait)).code(429).send({ error: 'Demasiados intentos. Vuelve a intentarlo más tarde.' })
+  return true
+}
+
+async function requireAdmin(request: FastifyRequest, reply: FastifyReply, refreshActivity = true) {
   const token = request.cookies[ADMIN_SESSION_COOKIE]
   if (!token) {
     reply.code(401).send({ error: 'Inicia sesión para continuar.' })
     return null
   }
-  const admin = await findAdminSession(digestSessionToken(token))
+  const admin = await findAdminSession(digestSessionToken(token), refreshActivity && request.headers['sec-fetch-site'] !== 'cross-site')
   if (!admin) {
-    reply.clearCookie(ADMIN_SESSION_COOKIE, { path: '/' })
+    reply.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions())
     reply.code(401).send({ error: 'La sesión ha caducado. Inicia sesión de nuevo.' })
     return null
   }
@@ -88,14 +101,20 @@ async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
 function isValidCredentialsBody(value: unknown): value is CredentialsBody {
   if (typeof value !== 'object' || value === null) return false
   const body = value as Record<string, unknown>
-  return typeof body.username === 'string' && typeof body.password === 'string'
+  return typeof body.username === 'string' && typeof body.password === 'string' && body.password.length <= MAX_PASSWORD_LENGTH
 }
 
 function isValidChangeBody(value: unknown): value is ChangeCredentialsBody {
   if (typeof value !== 'object' || value === null) return false
   const body = value as Record<string, unknown>
-  return typeof body.currentPassword === 'string' && typeof body.username === 'string' &&
+  return typeof body.currentPassword === 'string' && body.currentPassword.length <= MAX_PASSWORD_LENGTH && typeof body.username === 'string' &&
     (body.newPassword === undefined || typeof body.newPassword === 'string')
+}
+
+function uniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) return false
+  const cause = error.cause ?? error
+  return typeof cause === 'object' && cause !== null && 'code' in cause && cause.code === '23505'
 }
 
 function pdfFilename(language: CvLanguage) {
@@ -109,10 +128,11 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     canSetup: Boolean(process.env.ADMIN_BOOTSTRAP_KEY && process.env.ADMIN_BOOTSTRAP_KEY.length >= 32),
   }))
 
-  app.get('/api/auth/session', async (request) => {
+  app.get('/api/auth/session', async (request, reply) => {
     const token = request.cookies[ADMIN_SESSION_COOKIE]
     if (!token) return { authenticated: false }
-    const admin = await findAdminSession(digestSessionToken(token))
+    const admin = await findAdminSession(digestSessionToken(token), false)
+    if (!admin) reply.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions())
     return admin ? { authenticated: true, username: admin.username } : { authenticated: false }
   })
 
@@ -126,6 +146,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!bootstrapKey || bootstrapKey.length < 32) {
       return reply.code(503).send({ error: 'Falta configurar la clave inicial en el servidor.' })
     }
+    if (await rejectExcessAttempts(reply, 'setup')) return
     const providedBootstrapKey = request.headers['x-admin-bootstrap-key']
     if (typeof providedBootstrapKey !== 'string' || !constantTimeSecretMatches(providedBootstrapKey, bootstrapKey)) {
       return reply.code(403).send({ error: 'La clave inicial no es correcta.' })
@@ -135,15 +156,16 @@ export async function registerAdminRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: 'El usuario debe tener entre 3 y 48 caracteres: letras, números, punto, guion o guion bajo.' })
     }
     if (!validPassword(request.body.password)) {
-      return reply.code(400).send({ error: 'La contraseña debe tener entre 12 y 256 caracteres.' })
+      return reply.code(400).send({ error: passwordLengthMessage })
     }
 
     try {
-      const admin = await createAdminAccount(username, await hashPassword(request.body.password))
-      await startSession(reply, admin.id)
+      const passwordHash = await hashPassword(request.body.password)
+      const admin = await createAdminAccount(username, passwordHash)
+      if (!(await startSession(reply, { id: admin.id, passwordHash }))) return reply.code(409).send({ error: 'Inicia sesión con la cuenta configurada.' })
       return reply.code(201).send({ authenticated: true, username: admin.username })
     } catch (error) {
-      request.log.warn({ err: error }, 'Initial administrator setup was not completed')
+      if (!uniqueViolation(error)) throw error
       return reply.code(409).send({ error: 'La cuenta inicial ya se creó. Inicia sesión.' })
     }
   })
@@ -153,13 +175,16 @@ export async function registerAdminRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     if (rejectUntrustedOrigin(request, reply)) return
     if (!isValidCredentialsBody(request.body)) return reply.code(400).send({ error: 'Revisa los campos del formulario.' })
+    if (await rejectExcessAttempts(reply, 'login')) return
     const username = normalizeUsername(request.body.username)
-    const admin = await findAdminByUsername(username)
-    const passwordMatches = admin
-      ? await verifyPassword(request.body.password, admin.passwordHash)
-      : false
+    const admin = validUsername(username) ? await findAdminByUsername(username) : null
+    const password = request.body.password
+    const passwordMatches = await verifyPassword(password, admin?.passwordHash ?? DUMMY_PASSWORD_HASH)
     if (!admin || !passwordMatches) return reply.code(401).send({ error: 'Usuario o contraseña incorrectos.' })
-    await startSession(reply, admin.id)
+    const upgradedHash = passwordHashNeedsUpgrade(admin.passwordHash) ? await hashPassword(password) : admin.passwordHash
+    if (!(await startSession(reply, admin, upgradedHash))) {
+      return reply.code(409).send({ error: 'La cuenta cambió durante el acceso. Inténtalo de nuevo.' })
+    }
     return { authenticated: true, username: admin.username }
   })
 
@@ -167,7 +192,7 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (rejectUntrustedOrigin(request, reply)) return
     const token = request.cookies[ADMIN_SESSION_COOKIE]
     if (token) await deleteAdminSession(digestSessionToken(token))
-    reply.clearCookie(ADMIN_SESSION_COOKIE, { path: '/' })
+    reply.clearCookie(ADMIN_SESSION_COOKIE, sessionCookieOptions())
     return { authenticated: false }
   })
 
@@ -181,25 +206,25 @@ export async function registerAdminRoutes(app: FastifyInstance) {
     if (!validUsername(currentUsername)) {
       return reply.code(400).send({ error: 'El usuario debe tener entre 3 y 48 caracteres: letras, números, punto, guion o guion bajo.' })
     }
+    if (await rejectExcessAttempts(reply, 'credentials')) return
     const account = await findAdminByUsername(admin.username)
     if (!account || !(await verifyPassword(request.body.currentPassword, account.passwordHash))) {
       return reply.code(401).send({ error: 'La contraseña actual no es correcta.' })
     }
-    const newPassword = request.body.newPassword?.trim() ?? ''
+    const newPassword = request.body.newPassword ?? ''
     if (newPassword && !validPassword(newPassword)) {
-      return reply.code(400).send({ error: 'La nueva contraseña debe tener entre 12 y 256 caracteres.' })
+      return reply.code(400).send({ error: passwordLengthMessage })
     }
 
     try {
-      const updated = await changeAdminCredentials(
-        admin.id,
-        currentUsername,
-        await hashPassword(newPassword || request.body.currentPassword)
-      )
-      await startSession(reply, updated.id)
+      const passwordHash = await hashPassword(newPassword || request.body.currentPassword)
+      const updated = await changeAdminCredentials(admin.id, account.passwordHash, currentUsername, passwordHash)
+      if (!updated || !(await startSession(reply, { id: admin.id, passwordHash }))) {
+        return reply.code(409).send({ error: 'La cuenta cambió durante la operación. Inicia sesión de nuevo.' })
+      }
       return { authenticated: true, username: updated.username }
     } catch (error) {
-      request.log.warn({ err: error }, 'Administrator credentials could not be changed')
+      if (!uniqueViolation(error)) throw error
       return reply.code(409).send({ error: 'Ese nombre de usuario ya está en uso.' })
     }
   })

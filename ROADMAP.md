@@ -599,18 +599,16 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - El proxy usa `URLSearchParams` directamente en lugar de `request.query`, evitando el parser auxiliar del runtime y rechazando rutas reescritas duplicadas. Conservar cuerpos de petición y cookies.
 - Validación local: cero avisos de lint, tipos y compilación correctos, 126 pruebas (110 web y 16 API), también con deprecaciones configuradas como errores durante las pruebas. Comprobado por separado que un warning de muestra hace fallar el control de calidad. Pendiente subir esta corrección y confirmar los nuevos logs de Vercel; los registros de despliegues anteriores no se modifican.
 
-### Seguridad de administración — pendiente, después del editor de wiki
+### Seguridad de administración
 
 - Incidencia de credenciales de BD (31 de octubre): se compartió una conexión privada en la conversación. El propietario renovó las credenciales; development quedó validado con `.env` y las variables gestionadas de Neon se renovaron en Vercel. Un redeploy de `nandos-api` con el mismo commit `6db1eb9` restableció producción: consultas reales de administración y portfolio verificadas con HTTP 200, tanto directamente como a través del proxy web. No registrar el valor expuesto ni el nuevo en documentos, comandos, logs o Git. No usar la conexión de development para producción.
 
-- Decisión del propietario: priorizar ahora la wiki; retomar este refuerzo después. Recordatorio pospuesto por el propietario al 5 de noviembre de 2026 a las 10:00 (Europe/Madrid).
-- Mantener credenciales en el cuerpo de un POST por HTTPS; verlas en DevTools es normal y no equivale a que viajen sin cifrar. No sustituir TLS por un hash reutilizable generado en React. El usuario es un identificador normal; la contraseña se almacena como hash con sal en servidor.
-- Estado revisado en código: scrypt con sal aleatoria, comparación constante, tokens de sesión aleatorios con digest en BD, cookie HttpOnly/Secure en producción, comprobación de Origin y revocación de sesiones al cambiar credenciales. No confundir revisión del repositorio con auditoría de la configuración/BD reales de producción.
-- Reforzar coste de scrypt (actual N=32768, r=8, p=1) o evaluar Argon2id. Migración compatible con hashes existentes y actualización progresiva; no cambiar parámetros de forma que se bloquee el acceso actual.
-- Hacer compartido el límite de intentos entre instancias de Vercel; el contador actual es en memoria de cada instancia.
-- Revisar SameSite=None de producción frente a Lax/Strict con el proxy del mismo origen; reducir duración absoluta actual de siete días y añadir caducidad por inactividad según la experiencia deseada.
-- Añadir redacción explícita de contraseñas, claves y tokens en logs, además de las cabeceras que ya se ocultan. Revisar protección CSRF, entradas de autenticación y pruebas de regresión.
-- Recomendar contraseña larga, única y en gestor; valorar doble factor/passkeys con recuperación segura. No cambiar credenciales ni contratar servicios sin aprobación.
+- Refuerzo implementado en el repositorio y verificado con PostgreSQL temporal. El proxy y el API exigen HTTPS para administración en Vercel. Las escrituras conservan la comprobación de Origin y las respuestas privadas usan `no-store`. Los registros excluyen cuerpos, consultas y secretos de administración.
+- Las contraseñas se derivan en servidor con scrypt `N=131072, r=8, p=1`. Los hashes anteriores se verifican y actualizan al iniciar sesión correctamente. Las contraseñas nuevas tienen un mínimo de 15 caracteres.
+- Neon comparte los límites de inicio de sesión, alta inicial y cambios de credenciales entre instancias. Se conserva también el límite por instancia en alta y login.
+- Las cookies de producción usan `HttpOnly`, `Secure` y `SameSite=Lax`. El servidor aplica 12 horas de duración máxima y 30 minutos de inactividad. La consulta periódica de sincronización de la wiki no cuenta como actividad.
+- La migración 0002 está aplicada y registrada en Neon development. Para activar el refuerzo en producción, aplicar la misma migración en Neon main antes de desplegar el API y verificar el acceso real a través del dominio de NandOS. Las sesiones anteriores sin actividad registrada se evalúan desde su creación y pueden pedir un nuevo inicio de sesión.
+- Segundo factor evaluado como ampliación. Para la cuenta única de administración, las passkeys son la opción preferida si se define también cómo recuperar el acceso y cómo registrar una segunda llave. La autenticación actual permite una contraseña larga y única guardada en un gestor.
 
 ### Laboratorio local de la mascota (SVG + React)
 

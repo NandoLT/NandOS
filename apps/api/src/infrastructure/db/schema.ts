@@ -35,7 +35,14 @@ export const adminSessions = pgTable('admin_sessions', {
   adminUserId: uuid('admin_user_id').notNull().references(() => adminUsers.id, { onDelete: 'cascade' }),
   tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const adminAuthLimits = pgTable('admin_auth_limits', {
+  scope: text('scope').primaryKey(),
+  attempts: integer('attempts').notNull(),
+  resetAt: timestamp('reset_at', { withTimezone: true }).notNull(),
 })
 
 // Separate aggregate: portfolio publishing never publishes knowledge articles.

@@ -800,7 +800,7 @@ function AccountEditor({ username, onUsernameChange }: { username: string; onUse
           <Fields>
             <Field label="Nuevo nombre de usuario" value={nextUsername} onChange={setNextUsername} />
             <Field label="Contraseña actual" value={currentPassword} onChange={setCurrentPassword} type="password" />
-            <Field label="Nueva contraseña · déjala vacía para conservarla" value={newPassword} onChange={setNewPassword} type="password" required={false} hint="Mínimo 12 caracteres." />
+            <Field label="Nueva contraseña · déjala vacía para conservarla" value={newPassword} onChange={setNewPassword} type="password" required={false} hint="Mínimo 15 caracteres. Usa una contraseña larga y única." />
             <Field label="Repite la nueva contraseña" value={confirmPassword} onChange={setConfirmPassword} type="password" required={Boolean(newPassword)} />
           </Fields>
           {message && <Status role={error ? 'alert' : 'status'} $error={error}>{message}</Status>}

@@ -2,9 +2,7 @@ export function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-export function taskbarHeight() {
-  return window.matchMedia?.('(max-width: 640px), (pointer: coarse)').matches ? 56 : 42
-}
+export const TASKBAR_HEIGHT = 42
 
 const bootPreferenceKey = 'nandos:boot-completed'
 

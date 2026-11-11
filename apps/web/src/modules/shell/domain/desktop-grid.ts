@@ -1,3 +1,4 @@
+import { TASKBAR_HEIGHT } from '../../../shared/lib/input-preferences'
 import type { DesktopPosition } from './types'
 
 const GRID = {
@@ -7,7 +8,6 @@ const GRID = {
   rowHeight: 84,
   iconWidth: 88,
   iconHeight: 76,
-  taskbarHeight: 42,
 } as const
 
 type DesktopBounds = {
@@ -39,7 +39,7 @@ export function findNearestDesktopGridPosition(
   const maxRow = Math.max(
     0,
     Math.floor(
-      (bounds.height - (bounds.taskbarHeight ?? GRID.taskbarHeight) - GRID.originY - GRID.iconHeight) / GRID.rowHeight
+      (bounds.height - (bounds.taskbarHeight ?? TASKBAR_HEIGHT) - GRID.originY - GRID.iconHeight) / GRID.rowHeight
     )
   )
   const occupiedCells = new Set(

@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import { fitHelpWindowBounds } from '../domain/help-window-bounds'
-import { taskbarHeight } from '../../../shared/lib/input-preferences'
+import { TASKBAR_HEIGHT } from '../../../shared/lib/input-preferences'
 import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
 import { createExplorerTree, DESKTOP_DIRECTORY, DOCUMENTS_DIRECTORY, excludeSubtrees, MAX_MARKDOWN_LENGTH, virtualName } from '../../applications/domain/explorer'
 import type { PaintImage, VirtualNode, WriterDocument } from '../../applications/domain/explorer'
@@ -110,7 +110,7 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
         ? { ...defaultBounds, width: 700, height: 480 }
         : isHelp
           ? fitHelpWindowBounds({ ...defaultBounds, width: 760 }, {
-            x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - taskbarHeight(),
+            x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - TASKBAR_HEIGHT,
           }, false)
           : isPortfolioSection
             ? { ...defaultBounds, width: 720, height: 500 }
@@ -181,7 +181,7 @@ export const useShellStore = create<ShellState>()(
         const id = `user-folder-${crypto.randomUUID()}`
         if (parentId === DESKTOP_DIRECTORY) {
           const position = findNearestDesktopGridPosition({ x: 18, y: 24 },
-            { width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight() },
+            { width: window.innerWidth, height: window.innerHeight, taskbarHeight: TASKBAR_HEIGHT },
             [...Object.values(state.desktopPositions), ...state.userDesktopItems])
           set({ userDesktopItems: [...state.userDesktopItems, { ...position, id, name, kind: 'folder', icon: '📁', origin: 'user' }] })
         } else {
@@ -473,7 +473,7 @@ export const useShellStore = create<ShellState>()(
         for (const id of ['projects', 'contact'] as const) {
           if (persisted.desktopPositions?.[id]) continue
           const position = findNearestDesktopGridPosition(defaultDesktopPositions[id], {
-            width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight(),
+            width: window.innerWidth, height: window.innerHeight, taskbarHeight: TASKBAR_HEIGHT,
           }, occupied)
           desktopPositions[id] = position
           occupied.push(position)

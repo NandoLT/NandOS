@@ -28,7 +28,7 @@ import { usePortfolioContent } from '../../portfolio/application/usePortfolioCon
 import { AdminDashboard } from '../../admin/ui/AdminDashboard'
 import { AdminLogin } from '../../admin/ui/AdminLogin'
 import { useThemeStore } from '../../../shared/styles/theme.store'
-import { rememberBoot, shouldPlayBoot, taskbarHeight } from '../../../shared/lib/input-preferences'
+import { rememberBoot, shouldPlayBoot, TASKBAR_HEIGHT } from '../../../shared/lib/input-preferences'
 import { useTouchPress } from '../../../shared/lib/useTouchPress'
 import { AppIcon } from '../../../shared/lib/AppIcon'
 import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
@@ -205,6 +205,8 @@ const Taskbar = styled.footer`
   border-top: var(--os-raised-border);
   background: var(--os-taskbar);
   backdrop-filter: blur(14px);
+
+  & button { min-height: 0; }
 `
 
 const TaskbarButton = styled.button<{ $active?: boolean }>`
@@ -443,7 +445,6 @@ const Tray = styled.div`
   border-radius: var(--os-control-radius);
   background: var(--os-taskbar);
   font-size: 12px;
-  @media (max-width: 640px), (pointer: coarse) { height: 44px; padding: 0 2px; gap: 0; }
 `
 
 const TrayControl = styled.button`
@@ -457,7 +458,6 @@ const TrayControl = styled.button`
   background: transparent;
   font-size: 14px;
   cursor: pointer;
-  @media (max-width: 640px), (pointer: coarse) { min-width: 44px; height: 44px; }
 
   &:hover,
   &:focus-visible {
@@ -566,9 +566,9 @@ function getMenuFlyoutPlacement(anchor: HTMLElement): MenuFlyoutPlacement {
   const bounds = anchor.getBoundingClientRect()
   const gutter = 8
   if (window.innerWidth <= 640) {
-    const maxHeight = Math.min(520, window.innerHeight - taskbarHeight() - gutter * 2)
+    const maxHeight = Math.min(520, window.innerHeight - TASKBAR_HEIGHT - gutter * 2)
     return {
-      left: gutter, top: Math.max(gutter, window.innerHeight - taskbarHeight() - maxHeight - gutter),
+      left: gutter, top: Math.max(gutter, window.innerHeight - TASKBAR_HEIGHT - maxHeight - gutter),
       width: window.innerWidth - gutter * 2, maxHeight,
     }
   }
@@ -677,7 +677,7 @@ function DesktopShortcut({
     const surface = event.currentTarget.closest('[data-desktop-surface="true"]')
     const bounds = surface?.getBoundingClientRect()
     const maxX = Math.max(0, (bounds?.width ?? window.innerWidth) - 96)
-    const maxY = Math.max(0, (bounds?.height ?? window.innerHeight) - taskbarHeight() - 82)
+    const maxY = Math.max(0, (bounds?.height ?? window.innerHeight) - TASKBAR_HEIGHT - 82)
     setDragPosition({
       x: Math.max(0, Math.min(maxX, currentDrag.origin.x + deltaX)),
       y: Math.max(0, Math.min(maxY, currentDrag.origin.y + deltaY)),
@@ -814,7 +814,7 @@ function DesktopShell() {
     x: 0,
     y: 0,
     width: window.innerWidth,
-    height: window.innerHeight - taskbarHeight(),
+    height: window.innerHeight - TASKBAR_HEIGHT,
   })
   const [notice, setNotice] = useState<string | null>(null)
   const [selectedDesktopItem, setSelectedDesktopItem] = useState<string | null>(null)
@@ -981,7 +981,7 @@ function DesktopShell() {
   useEffect(() => {
     const clockTimer = window.setInterval(() => setClock(new Date()), 1000)
     const handleResize = () => {
-      setViewport({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - taskbarHeight() })
+      setViewport({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - TASKBAR_HEIGHT })
       if (openStartCategoryAnchorRef.current) {
         setOpenStartCategoryPlacement(getMenuFlyoutPlacement(openStartCategoryAnchorRef.current))
       }
@@ -1258,7 +1258,7 @@ function DesktopShell() {
     if (target.kind !== 'desktop') return
     const position = findNearestDesktopGridPosition(
       target.position,
-      { width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight() },
+      { width: window.innerWidth, height: window.innerHeight, taskbarHeight: TASKBAR_HEIGHT },
       [...Object.values(desktopPositions), ...userDesktopItems]
     )
     createDesktopFolder(position)
@@ -1280,7 +1280,7 @@ function DesktopShell() {
     ]
     return findNearestDesktopGridPosition(
       position,
-      { width: window.innerWidth, height: window.innerHeight, taskbarHeight: taskbarHeight() },
+      { width: window.innerWidth, height: window.innerHeight, taskbarHeight: TASKBAR_HEIGHT },
       occupiedPositions
     )
   }

@@ -1,4 +1,5 @@
 import { Global, css } from '@emotion/react'
+import { TASKBAR_HEIGHT } from '../lib/input-preferences'
 import type { NandoOsTheme } from './theme'
 
 export function GlobalStyles({ theme }: { theme: NandoOsTheme }) {
@@ -6,7 +7,7 @@ export function GlobalStyles({ theme }: { theme: NandoOsTheme }) {
     <Global
       styles={css`
         :root {
-          --os-taskbar-height: 42px;
+          --os-taskbar-height: ${TASKBAR_HEIGHT}px;
           --os-desktop: ${theme.colors.desktop};
           --os-desktop-text: ${theme.colors.desktopText};
           --os-desktop-selection: ${theme.colors.desktopSelection};
@@ -83,7 +84,6 @@ export function GlobalStyles({ theme }: { theme: NandoOsTheme }) {
         }
 
         @media (max-width: 640px), (pointer: coarse) {
-          :root { --os-taskbar-height: 56px; }
           button, input, select { min-height: 44px; }
         }
 

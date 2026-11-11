@@ -1,7 +1,7 @@
 import styled from '@emotion/styled'
 import type { ReactNode } from 'react'
 
-import { hasShapeStyle, isSelectionTool, paintTools } from '../domain/paint-tools'
+import { hasShapeStyle, isSelectionTool, paintTools, sprayRadii } from '../domain/paint-tools'
 import type { BrushTip, PaintTool, ShapeStyle } from '../domain/paint-tools'
 
 const icons: Record<PaintTool, ReactNode> = {
@@ -47,17 +47,17 @@ const ToolButton = styled.button`
   &:disabled { cursor: default; }
   &:focus-visible { outline: 1px dotted currentColor; outline-offset: -3px; }
 `
-const coming = new Set<PaintTool>(['spray', 'curve', 'polygon'])
 const tips: ReadonlyArray<[BrushTip, string]> = [['round', 'Redonda'], ['square', 'Cuadrada'], ['forward', 'Diagonal ascendente'], ['backward', 'Diagonal descendente']]
 const styles: ReadonlyArray<[ShapeStyle, string]> = [['outline', 'Solo contorno'], ['both', 'Contorno y relleno'], ['solid', 'Solo relleno']]
 
 type ToolOption = { label: string; active: boolean; select: () => void; preview: ReactNode }
 
-export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, onEraser, brush, onBrush, width, onWidth, shape, onShape, transparent, onTransparency }: {
+export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, onEraser, brush, onBrush, sprayRadius, onSprayRadius, width, onWidth, shape, onShape, transparent, onTransparency }: {
   tool: PaintTool; available: boolean; onTool: (value: PaintTool) => void
   zoom: number; onZoom: (value: number) => void
   eraser: number; onEraser: (value: number) => void
   brush: { tip: BrushTip; size: number }; onBrush: (value: { tip: BrushTip; size: number }) => void
+  sprayRadius: number; onSprayRadius: (radius: number) => void
   width: number; onWidth: (value: number) => void
   shape: ShapeStyle; onShape: (value: ShapeStyle) => void
   transparent: boolean; onTransparency: (value: boolean) => void
@@ -80,12 +80,22 @@ export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, on
       label: 'Goma de ' + size + ' px', active: eraser === size, select: () => onEraser(size),
       preview: <span aria-hidden="true" style={{ width: size, height: size, background: 'currentColor' }} />,
     }))
-  } else if (tool === 'line') {
+  } else if (tool === 'spray') {
+    options = sprayRadii.map((radius) => ({
+      label: 'Aerógrafo de ' + radius * 2 + ' px', active: sprayRadius === radius, select: () => onSprayRadius(radius),
+      preview: <svg width="36" height="16" viewBox="0 0 36 16" aria-hidden="true">
+        <g transform={'translate(18 8) scale(' + radius / 12 + ')'}>
+          <path d="M-10 0h1m4-5h1m2 7h1m2-6h1m3 4h1m3 5h1m-6-1h1m-11 3h1m8-5h1m6-4h1m-14 2h1m-4-2h1"
+            stroke="currentColor" strokeWidth="1.5" />
+        </g>
+      </svg>,
+    }))
+  } else if (tool === 'line' || tool === 'curve') {
     options = [1, 2, 3, 4, 5].map((size) => ({
-      label: 'Línea de ' + size + ' px', active: width === size, select: () => onWidth(size),
+      label: (tool === 'curve' ? 'Curva de ' : 'Línea de ') + size + ' px', active: width === size, select: () => onWidth(size),
       preview: <span aria-hidden="true" style={{ width: 35, height: size, background: 'currentColor' }} />,
     }))
-  } else if (hasShapeStyle(tool)) {
+  } else if (hasShapeStyle(tool) || tool === 'polygon') {
     options = styles.map(([value, label]) => ({
       label, active: shape === value, select: () => onShape(value),
       preview: <svg width="38" height="13" viewBox="0 0 38 13" aria-hidden="true">
@@ -113,8 +123,8 @@ export function PaintToolbox({ tool, available, onTool, zoom, onZoom, eraser, on
   return <Toolbox aria-label="Caja de herramientas">
     <Tools role="group" aria-label="Herramientas de dibujo">
       {paintTools.map(([id, label]) => <ToolButton type="button" key={id} aria-label={label}
-        title={coming.has(id) ? label + ' · Próximamente' : label} aria-pressed={tool === id}
-        disabled={!available || coming.has(id)} onClick={() => onTool(id)}>
+        title={label} aria-pressed={tool === id}
+        disabled={!available} onClick={() => onTool(id)}>
         <svg width="17" height="17" viewBox="0 0 17 17" fill="#161616" stroke="#161616" strokeLinejoin="round" aria-hidden="true">{icons[id]}</svg>
       </ToolButton>)}
     </Tools>

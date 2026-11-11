@@ -127,7 +127,7 @@ const SaveForm = styled.form`
 export function WriterWindow({ draft, onChange, onNew, onOpen, onSaved }: {
   draft: WriterDraft
   onChange: (markdown: string) => void
-  onNew: () => boolean
+  onNew: () => void
   onOpen: () => void
   onSaved: (document: WriterDocument) => void
 }) {

@@ -145,8 +145,9 @@ function draw(ctx: CanvasRenderingContext2D, from: PaintPoint, to: PaintPoint, s
   if (style !== 'solid') ctx.stroke()
 }
 
-export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew, onBrowse }: {
+export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew, onBrowse, onConfirmReplace }: {
   initial: PaintImage | null; dirty: boolean; clipboard: PaintClipboard | null;
+  onConfirmReplace: (replace: () => void) => void
   onCopy: (clipboard: PaintClipboard) => void; onDirty: (dirty: boolean) => void; onNew: () => void; onBrowse: (folder: string) => void
 }) {
   const folders = useShellStore((state) => state.userDesktopItems)
@@ -610,7 +611,6 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     setStatus('PNG preparado para descargar.')
   })
   const importPng = (file: File) => void perform(async () => {
-    if (dirty && !window.confirm('Paint tiene cambios sin guardar. ¿Quieres reemplazar el lienzo?')) return
     const dimensions = await readPngSize(file)
     const bitmap = await createImageBitmap(file)
     try {
@@ -811,7 +811,7 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     <input ref={fileInput} type="file" hidden accept="image/png,.png" onChange={(event) => {
       const file = event.target.files?.[0]
       event.target.value = ''
-      if (file) importPng(file)
+      if (file) onConfirmReplace(() => importPng(file))
     }} />
     {form && <Overlay><form aria-label="Guardar dibujo" onSubmit={(event) => { event.preventDefault(); saveTo(form.name, form.parent) }}>
       <label>Nombre del dibujo<input autoFocus required maxLength={76} value={form.name}

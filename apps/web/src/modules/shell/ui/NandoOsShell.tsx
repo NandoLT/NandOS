@@ -39,6 +39,7 @@ import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBound
 import { WindowFrame } from './WindowFrame'
 import { BootScreen, GuestLogin, ShutdownScreen } from './SessionScreens'
 import { DesktopFolderNameEditor } from './DesktopFolderNameEditor'
+import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 
 // An explicit local-only opt-in: no test controls in production.
 const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.search).get('mascot') === '1'
@@ -806,7 +807,8 @@ function DesktopShell() {
   const [paint, setPaint] = useState<{ image: PaintImage | null; dirty: boolean; revision: number }>({ image: null, dirty: false, revision: 0 })
   const [paintClipboard, setPaintClipboard] = useState<PaintClipboard | null>(null)
   const writerDirty = writer.draft.markdown !== (writer.draft.document?.markdown ?? '')
-  const unsavedApp = writerDirty && paint.dirty ? 'Writer y Paint tienen' : writerDirty ? 'Writer tiene' : paint.dirty ? 'Paint tiene' : null
+  const unsavedApps = writerDirty && paint.dirty ? 'Writer y Paint' : writerDirty ? 'Writer' : paint.dirty ? 'Paint' : null
+  const [discardRequest, setDiscardRequest] = useState<{ apps: string; question: string; run: () => void } | null>(null)
   const [clock, setClock] = useState(() => new Date())
   const [viewport, setViewport] = useState<WindowBounds>({
     x: 0,
@@ -922,8 +924,12 @@ function DesktopShell() {
     setPaintClipboard(null)
     setScreen('desktop')
   }, [endGuestSession])
-  const startShutdown = useCallback(() => {
-    if (unsavedApp && !window.confirm(unsavedApp + ' cambios sin guardar. ¿Quieres apagar de todas formas?')) return
+  const confirmDiscard = (apps: string | null, question: string, run: () => void) => {
+    if (apps) setDiscardRequest({ apps, question, run })
+    else run()
+  }
+
+  const startShutdown = () => confirmDiscard(unsavedApps, '¿Quieres apagar NandOS?', () => {
     leavePortfolioEntry()
     setPaint({ image: null, dirty: false, revision: 0 })
     setPaintClipboard(null)
@@ -931,10 +937,9 @@ function DesktopShell() {
     closeStartMenu()
     setNotice(null)
     setScreen('shutdown')
-  }, [closeStartMenu, leavePortfolioEntry, unsavedApp])
+  })
 
-  const logOffGuest = () => {
-    if (unsavedApp && !window.confirm(unsavedApp + ' cambios sin guardar. ¿Quieres cerrar la sesión?')) return
+  const logOffGuest = () => confirmDiscard(unsavedApps, '¿Quieres cerrar la sesión?', () => {
     leavePortfolioEntry()
     setPaint({ image: null, dirty: false, revision: 0 })
     setPaintClipboard(null)
@@ -947,20 +952,22 @@ function DesktopShell() {
     setProtectedItem(null)
     setNotice(null)
     setScreen('login')
-  }
+  })
 
   useEffect(() => {
-    if (!unsavedApp) return
+    if (!unsavedApps) return
+    // The browser owns the confirmation when the tab itself is closed or reloaded.
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [unsavedApp])
+  }, [unsavedApps])
 
   useEffect(() => {
     // A cookie alone must never choose administration. Fresh documents start
     // at login; history can also restore this entire React tree from bfcache.
     const handlePageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return
+      setDiscardRequest(null)
       setAdminUsername(null)
       setRenamingDesktopItem(null)
       setContextMenu(null)
@@ -1050,25 +1057,22 @@ function DesktopShell() {
   const downloadCv = (language: 'es' | 'en') => accessCv(language, 'download')
   const openCv = (language: 'es' | 'en') => accessCv(language, 'open')
 
-  const canLeaveWriter = () => !writerDirty || window.confirm('Writer tiene cambios sin guardar. ¿Quieres descartarlos?')
-  const startWriter = (draft: WriterDraft) => {
-    if (!canLeaveWriter()) return false
-    setWriter(({ revision }) => ({ draft, revision: revision + 1 }))
-    openShellWindow('writer')
-    return true
-  }
+  const startWriter = (draft: WriterDraft) => confirmDiscard(writerDirty ? 'Writer' : null,
+    '¿Quieres abrir otro documento?', () => {
+      setWriter(({ revision }) => ({ draft, revision: revision + 1 }))
+      openShellWindow('writer')
+    })
   const openWriterDocument = (id: string) => {
     if (writer.draft.document?.id === id) { openShellWindow('writer'); return }
     const document = createExplorerTree(userDesktopItems, fileNodes).getDocument(id)
     if (document) startWriter({ document, parentId: document.parentId, markdown: document.markdown })
     else setNotice('El documento ya no está disponible.')
   }
-  const canLeavePaint = () => !paint.dirty || window.confirm('Paint tiene cambios sin guardar. ¿Quieres descartarlos?')
-  const startPaint = (image: PaintImage | null) => {
-    if (!canLeavePaint()) return
-    setPaint(({ revision }) => ({ image, dirty: false, revision: revision + 1 }))
-    openShellWindow('paint')
-  }
+  const startPaint = (image: PaintImage | null) => confirmDiscard(paint.dirty ? 'Paint' : null,
+    '¿Quieres abrir otro dibujo?', () => {
+      setPaint(({ revision }) => ({ image, dirty: false, revision: revision + 1 }))
+      openShellWindow('paint')
+    })
   const openPaintImage = (id: string) => {
     if (paint.image?.id === id) { openShellWindow('paint'); return }
     const image = createExplorerTree(userDesktopItems, fileNodes).getImage(id)
@@ -1076,15 +1080,12 @@ function DesktopShell() {
     else setNotice('El dibujo ya no está disponible.')
   }
   const closeShellWindow = (id: WindowId) => {
-    if (id === 'writer') {
-      if (!canLeaveWriter()) return
-      setWriter({ draft: emptyWriterDraft, revision: 0 })
-    }
-    if (id === 'paint') {
-      if (!canLeavePaint()) return
-      setPaint(({ revision }) => ({ image: null, dirty: false, revision: revision + 1 }))
-    }
-    closeWindow(id)
+    const apps = id === 'writer' && writerDirty ? 'Writer' : id === 'paint' && paint.dirty ? 'Paint' : null
+    confirmDiscard(apps, '¿Quieres cerrar la ventana?', () => {
+      if (id === 'writer') setWriter({ draft: emptyWriterDraft, revision: 0 })
+      if (id === 'paint') setPaint(({ revision }) => ({ image: null, dirty: false, revision: revision + 1 }))
+      closeWindow(id)
+    })
   }
 
   const launchApp = (id: AppId) => {
@@ -1439,7 +1440,8 @@ function DesktopShell() {
             <Suspense fallback={<p role="status">Abriendo Paint…</p>}>
               <PaintWindow key={paint.revision} initial={paint.image} dirty={paint.dirty} clipboard={paintClipboard} onCopy={setPaintClipboard}
                 onDirty={(dirty) => setPaint((current) => current.revision === paint.revision && current.dirty !== dirty ? { ...current, dirty } : current)}
-                onNew={() => startPaint(null)} onBrowse={openExplorer} />
+                onNew={() => startPaint(null)} onBrowse={openExplorer}
+                onConfirmReplace={(replace) => confirmDiscard(paint.dirty ? 'Paint' : null, '¿Quieres reemplazar el dibujo?', replace)} />
             </Suspense>
           ) : windowState.id === 'writer' ? (
             <Suspense fallback={<p role="status">Abriendo Writer…</p>}>
@@ -1516,6 +1518,10 @@ function DesktopShell() {
           )}
         </ContextMenu>
       )}
+
+      {discardRequest && <UnsavedChangesDialog apps={discardRequest.apps} question={discardRequest.question}
+        onCancel={() => setDiscardRequest(null)}
+        onDiscard={() => { setDiscardRequest(null); discardRequest.run() }} />}
 
       {protectedItem && (
         <ProtectedOverlay>

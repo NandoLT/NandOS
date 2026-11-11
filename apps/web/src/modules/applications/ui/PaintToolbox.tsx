@@ -42,6 +42,7 @@ const Options = styled.div`
   button[aria-pressed='true'] { background: var(--os-menu-hover); color: var(--os-menu-hover-text); }
 `
 const ToolButton = styled.button`
+  min-height: 0;
   color: var(--os-window-text); background: var(--os-window);
   cursor: pointer;
   &:disabled { cursor: default; }

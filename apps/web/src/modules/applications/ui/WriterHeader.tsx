@@ -42,6 +42,7 @@ const Row = styled.div`
     place-items: center;
     width: 28px;
     height: 25px;
+    min-height: 0;
     padding: 0;
     border: var(--os-raised-border);
     background: var(--os-window);
@@ -51,6 +52,7 @@ const Row = styled.div`
   select {
     width: 112px;
     height: 25px;
+    min-height: 0;
     border: var(--os-inset-border);
     background: var(--os-input);
     color: var(--os-input-text);

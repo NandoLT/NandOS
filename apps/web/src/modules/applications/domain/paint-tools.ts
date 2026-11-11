@@ -17,3 +17,5 @@ export const paintZoomLevels = [.25, .5, 1, 2, 6, 8]
 export const hasShapeStyle = (tool: PaintTool) => tool === 'rectangle' || tool === 'ellipse' || tool === 'rounded'
 
 export const isSelectionTool = (tool: PaintTool) => tool === 'select' || tool === 'free-select'
+
+export const sprayRadii = [4, 8, 12] as const

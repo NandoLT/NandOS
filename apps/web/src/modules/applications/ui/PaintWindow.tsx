@@ -14,6 +14,8 @@ import type { BrushTip, PaintTool, ShapeStyle } from '../domain/paint-tools'
 import { eraseRegion, hasEnclosedArea, liftRegion, paintRegion, placeRegion, regionPath } from '../domain/paint-selection'
 import type { PaintClipboard, PaintRegion } from '../domain/paint-selection'
 import { defaultPaintTextStyle, drawPaintText } from '../domain/paint-text'
+import { canFinishPaintPath, paintPathColors, paintPathData, samePaintPoint, sprayPaint } from '../domain/paint-path'
+import type { PaintPath } from '../domain/paint-path'
 import { PaintToolbox } from './PaintToolbox'
 import { PaintTextEditor, PaintTextToolbar } from './PaintTextEditor'
 
@@ -45,7 +47,7 @@ const Viewport = styled.div`
 `
 const CanvasSurface = styled.div`
   position: relative; width: max-content; overflow: hidden;
-  > .selection-outline { position: absolute; inset: 0; pointer-events: none; }
+  > .selection-outline, > .path-preview { position: absolute; inset: 0; pointer-events: none; }
   > .pixel-grid {
     position: absolute; inset: 0; pointer-events: none;
     background-image: linear-gradient(to right, #80808066 1px, transparent 1px),
@@ -83,6 +85,8 @@ type Stroke = {
   pointer: number; start: PaintPoint; last: PaintPoint; before: Snapshot
   tool: PaintTool; color: string; background: string; size: number; tip: BrushTip; style: ShapeStyle
 }
+type PathGesture = { pointer: number; start: PaintPoint; base: PaintPath }
+
 type RegionGesture =
   | { kind: 'outline'; pointer: number; start: PaintPoint; freehand?: PaintPoint[] }
   | { kind: 'move'; pointer: number; start: PaintPoint; region: PaintRegion; moved: PaintRegion
@@ -152,6 +156,9 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
   const fileInput = useRef<HTMLInputElement>(null)
   const magnification = useRef(2)
   const stroke = useRef<Stroke | null>(null)
+  const sprayTimer = useRef<number | null>(null)
+  const pathGesture = useRef<PathGesture | null>(null)
+  const pathDraft = useRef<PaintPath | null>(null)
   const regionGesture = useRef<RegionGesture | null>(null)
   const history = useRef({ undo: [] as Snapshot[], redo: [] as Snapshot[], revision: 0, next: 0, saved: 0 })
   const operation = useRef(false)
@@ -165,6 +172,9 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
   const [zoom, setZoom] = useState(1)
   const [brush, setBrush] = useState<{ tip: BrushTip; size: number }>({ tip: 'round', size: 5 })
   const [eraser, setEraser] = useState(4)
+  const [sprayRadius, setSprayRadius] = useState(8)
+  const [pathPreview, setPathPreview] = useState<PaintPath | null>(null)
+  const [pathHover, setPathHover] = useState<PaintPoint>()
   const [lineWidth, setLineWidth] = useState(1)
   const [selection, setSelection] = useState<PaintRegion | null>(null)
   const [outline, setOutline] = useState<PaintRegion | null>(null)
@@ -213,11 +223,17 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     return () => { live = false }
   }, [initial])
 
+  useEffect(() => () => {
+    if (sprayTimer.current !== null) window.clearInterval(sprayTimer.current)
+  }, [])
+
+  const gestureInProgress = () => stroke.current || regionGesture.current || pathGesture.current
+
   const report = (pendingText = false) => {
     const state = history.current
     setCounts((current) => current.undo === state.undo.length && current.redo === state.redo.length ? current :
       { undo: state.undo.length, redo: state.redo.length })
-    onDirty(pendingText || state.saved !== state.revision)
+    onDirty(pendingText || pathDraft.current !== null || state.saved !== state.revision)
   }
   const snapshot = (target: CanvasRenderingContext2D): Snapshot => ({
     pixels: target.getImageData(0, 0, target.canvas.width, target.canvas.height), revision: history.current.revision,
@@ -241,17 +257,48 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     } else report()
     setTextBox(null)
   }
+  const closePath = (apply: boolean) => {
+    const path = pathDraft.current
+    if (!path && !pathGesture.current) return
+    pathDraft.current = null
+    pathGesture.current = null
+    setPathPreview(null)
+    setPathHover(undefined)
+    if (!path) return
+    const target = ctx()
+    if (apply && target && canFinishPaintPath(path)) {
+      const before = snapshot(target)
+      const shape = new Path2D(paintPathData(path))
+      const { fill, stroke } = paintPathColors(path)
+      if (fill !== 'none') {
+        target.fillStyle = fill
+        target.fill(shape)
+      }
+      if (stroke !== 'none') {
+        target.save()
+        target.strokeStyle = stroke
+        target.lineWidth = path.width
+        target.lineJoin = 'round'
+        target.lineCap = 'round'
+        target.stroke(shape)
+        target.restore()
+      }
+      record(before)
+    } else report()
+    setStatus('')
+  }
   const changeTool = (value: PaintTool) => {
-    if (stroke.current || regionGesture.current) return
+    if (gestureInProgress()) return
     if (value !== tool) {
       closeText(true)
+      closePath(true)
       if (!isSelectionTool(value)) setSelection(null)
       setTool(value)
     }
     setStatus('')
   }
   const selectAll = () => {
-    if (!available || stroke.current || regionGesture.current) return
+    if (!available || gestureInProgress()) return
     changeTool('select')
     setSelection({ x: 0, y: 0, ...dimensions })
   }
@@ -272,7 +319,7 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
   const pasteSelection = () => {
     const target = ctx()
     const clip = clipboard
-    if (!available || !target || !clip || stroke.current || regionGesture.current) return
+    if (!available || !target || !clip || gestureInProgress()) return
     changeTool('select')
     const before = snapshot(target)
     const region = placeRegion({
@@ -285,7 +332,11 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
   }
   const step = (direction: 'undo' | 'redo') => {
     const target = ctx()
-    if (!available || !target || stroke.current || regionGesture.current) return
+    if (!available || !target || gestureInProgress()) return
+    if (pathDraft.current) {
+      if (direction === 'undo') closePath(false)
+      return
+    }
     if (textBox?.text.trim()) {
       if (direction === 'undo') closeText(false)
       return
@@ -375,8 +426,55 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
       setSelection(region)
     }
   }
+  const pathAt = ({ start, base }: PathGesture, point: PaintPoint): PaintPath => {
+    if (base.kind === 'curve') {
+      return pathDraft.current ? { ...base, controls: [...base.controls, point] } : { ...base, end: point }
+    }
+    const vertices = base.vertices
+    if (vertices.length === 0) return { ...base, vertices: samePaintPoint(start, point) ? [start] : [start, point] }
+    if (samePaintPoint(vertices[vertices.length - 1], point)) return base
+    return { ...base, vertices: [...vertices, point] }
+  }
+  const beginPath = (event: PointerEvent<HTMLCanvasElement>, start: PaintPoint, color: string, background: string) => {
+    const style = { color, background, width: lineWidth, style: shape }
+    const base = pathDraft.current ?? (tool === 'curve'
+      ? { ...style, kind: 'curve', start, end: start, controls: [] }
+      : { ...style, kind: 'polygon', vertices: [] })
+    event.currentTarget.setPointerCapture(event.pointerId)
+    pathGesture.current = { pointer: event.pointerId, start, base }
+    setPathHover(undefined)
+    setPathPreview(pathAt(pathGesture.current, start))
+  }
+  const finishPath = (gesture: PathGesture, point: PaintPoint, cancelled: boolean) => {
+    pathGesture.current = null
+    if (cancelled) {
+      setPathPreview(pathDraft.current)
+      return
+    }
+    const next = pathAt(gesture, point)
+    if (next.kind === 'curve' && !canFinishPaintPath(next)) {
+      setPathPreview(null)
+      return
+    }
+    if (gesture.base.kind === 'polygon' && gesture.base.vertices.length >= 3) {
+      const first = gesture.base.vertices[0]
+      if (Math.hypot(first.x - point.x, first.y - point.y) * zoom <= 5) {
+        closePath(true)
+        return
+      }
+    }
+    pathDraft.current = next
+    if (next.kind === 'curve' && next.controls.length === 2) {
+      closePath(true)
+      return
+    }
+    setPathPreview(next)
+    report()
+    setStatus(next.kind === 'polygon' ? 'Añade vértices. Cierra con doble clic, en el primer vértice o con Intro.'
+      : next.controls.length ? 'Arrastra para ajustar la segunda curvatura.' : 'Arrastra para ajustar la primera curvatura.')
+  }
   const pointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (!available || form || dialog || stroke.current || regionGesture.current || (event.button !== 0 && event.button !== 2)) return
+    if (!available || form || dialog || gestureInProgress() || (event.button !== 0 && event.button !== 2)) return
     const target = ctx()
     if (!target) return
     event.currentTarget.focus({ preventScroll: true })
@@ -390,6 +488,10 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     }
     const alternate = event.button === 2 || (event.pointerType !== 'mouse' && secondary)
     const color = tool === 'eraser' || alternate ? bg : fg
+    if (tool === 'curve' || tool === 'polygon') {
+      beginPath(event, start, color, alternate ? fg : bg)
+      return
+    }
     if (tool === 'zoom') { changeZoom(zoom === 1 ? magnification.current : 1); return }
     if (tool === 'picker') {
       const [r,g,b] = target.getImageData(start.x, start.y, 1, 1).data
@@ -404,15 +506,24 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
       return
     }
     event.currentTarget.setPointerCapture(event.pointerId)
-    const size = tool === 'pencil' ? 1 : tool === 'brush' ? brush.size : tool === 'eraser' ? eraser : lineWidth
+    const size = tool === 'spray' ? sprayRadius : tool === 'pencil' ? 1 : tool === 'brush' ? brush.size : tool === 'eraser' ? eraser : lineWidth
     const gesture = { pointer: event.pointerId, start, last: start, before, tool, color, size,
       tip: brush.tip, style: shape, background: alternate ? fg : bg }
     stroke.current = gesture
-    draw(target, start, start, gesture)
+    if (tool === 'spray') {
+      sprayPaint(target, start, size, color)
+      sprayTimer.current = window.setInterval(() => sprayPaint(target, gesture.last, size, color), 45)
+    } else draw(target, start, start, gesture)
   }
   const pointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
     const next = coords(event)
     setPosition((previous) => previous?.x === next.x && previous.y === next.y ? previous : next)
+    const path = pathGesture.current
+    if (path?.pointer === event.pointerId) {
+      setPathPreview(pathAt(path, next))
+      return
+    }
+    if (!path && pathDraft.current?.kind === 'polygon' && event.pointerType === 'mouse') setPathHover(next)
     const gesture = stroke.current
     const target = ctx()
     const region = regionGesture.current
@@ -421,11 +532,28 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
       return
     }
     if (!gesture || gesture.pointer !== event.pointerId || !target) return
+    if (gesture.tool === 'spray') {
+      if (!samePaintPoint(gesture.last, next)) {
+        const spacing = Math.max(1, Math.floor(gesture.size / 3))
+        let distance = 0
+        traceLine(gesture.last, next, (x, y) => {
+          if (++distance % spacing === 0) sprayPaint(target, { x, y }, gesture.size, gesture.color)
+        })
+        sprayPaint(target, next, gesture.size, gesture.color)
+      }
+      gesture.last = next
+      return
+    }
     if (isShape(gesture.tool)) target.putImageData(gesture.before.pixels, 0, 0)
     draw(target, isShape(gesture.tool) ? gesture.start : gesture.last, next, gesture)
     gesture.last = next
   }
   const finish = (event: PointerEvent<HTMLCanvasElement>, cancelled = false) => {
+    const path = pathGesture.current
+    if (path?.pointer === event.pointerId) {
+      finishPath(path, coords(event), cancelled)
+      return
+    }
     const region = regionGesture.current
     const target = ctx()
     if (region?.pointer === event.pointerId && target) {
@@ -436,11 +564,15 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     if (!gesture || gesture.pointer !== event.pointerId) return
     if (!cancelled) pointerMove(event)
     stroke.current = null
+    if (sprayTimer.current !== null) {
+      window.clearInterval(sprayTimer.current)
+      sprayTimer.current = null
+    }
     if (cancelled) ctx()?.putImageData(gesture.before.pixels, 0, 0)
     else record(gesture.before)
   }
   const perform = async (task: () => Promise<void>) => {
-    if (operation.current || stroke.current || regionGesture.current) return
+    if (operation.current || gestureInProgress()) return
     operation.current = true
     setBusy(true); setStatus(''); setError('')
     try { await task() }
@@ -448,14 +580,16 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     finally { operation.current = false; setBusy(false) }
   }
   const saveAs = () => {
-    if (stroke.current || regionGesture.current) return
+    if (gestureInProgress()) return
     closeText(true)
+    closePath(true)
     setError('')
     setForm({ name: saved?.name.replace(/\.png$/iu, '') ?? 'Sin título',
       parent: saved && tree.writable(saved.parentId) ? saved.parentId : DOCUMENTS_DIRECTORY })
   }
   const saveTo = (name: string, parentId: string, id?: string) => void perform(async () => {
     closeText(true)
+    closePath(true)
     const png = await canvasPng(canvas.current!)
     setSaved(await useShellStore.getState().savePaintImage({ name, parentId, ...dimensions, png }, id))
     history.current.saved = history.current.revision
@@ -466,6 +600,7 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
   const save = () => saved ? saveTo(saved.name, saved.parentId, saved.id) : saveAs()
   const exportPng = () => void perform(async () => {
     closeText(true)
+    closePath(true)
     const url = URL.createObjectURL(await canvasPng(canvas.current!))
     const link = document.createElement('a')
     link.href = url
@@ -481,6 +616,7 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     try {
       const target = ctx()
       if (!target || bitmap.width !== dimensions.width || bitmap.height !== dimensions.height) throw new Error('El archivo PNG no es válido.')
+      closePath(false)
       target.canvas.width = bitmap.width
       target.canvas.height = bitmap.height
       target.drawImage(bitmap, 0, 0)
@@ -494,8 +630,9 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
   })
   const clear = (transparent: boolean) => {
     const target = ctx()
-    if (!target || stroke.current || regionGesture.current) return
+    if (!target || gestureInProgress()) return
     closeText(true)
+    closePath(true)
     setSelection(null)
     const before = snapshot(target)
     target.clearRect(0, 0, dimensions.width, dimensions.height)
@@ -508,8 +645,9 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
 
   const invert = () => {
     const target = ctx()
-    if (!available || !target || stroke.current || regionGesture.current) return
+    if (!available || !target || gestureInProgress()) return
     closeText(true)
+    closePath(true)
     setSelection(null)
     const before = snapshot(target)
     const image = target.getImageData(0, 0, dimensions.width, dimensions.height)
@@ -524,10 +662,11 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
 
   const resize = (width: number, height: number) => {
     const target = ctx()
-    if (!available || !target || stroke.current || regionGesture.current || ![width, height].every((side) =>
+    if (!available || !target || gestureInProgress() || ![width, height].every((side) =>
       Number.isInteger(side) && side >= 1 && side <= MAX_PAINT_SIDE)) return
     if (width !== dimensions.width || height !== dimensions.height) {
       closeText(true)
+      closePath(true)
       setSelection(null)
       const before = snapshot(target)
       target.canvas.width = width
@@ -552,8 +691,8 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
       { label: 'Exportar PNG…', run: exportPng, disabled: !available },
     ] },
     { name: 'Edición', commands: [
-      { label: 'Deshacer', run: () => step('undo'), disabled: !available || (!counts.undo && !textBox?.text.trim()) },
-      { label: 'Rehacer', run: () => step('redo'), disabled: !available || !counts.redo || Boolean(textBox?.text.trim()) },
+      { label: 'Deshacer', run: () => step('undo'), disabled: !available || (!counts.undo && !pathPreview && !textBox?.text.trim()) },
+      { label: 'Rehacer', run: () => step('redo'), disabled: !available || !counts.redo || Boolean(pathPreview || textBox?.text.trim()) },
       { label: 'Cortar', run: () => editSelection('cut'), disabled: !available || !selection },
       { label: 'Copiar', run: () => editSelection('copy'), disabled: !available || !selection },
       { label: 'Pegar', run: pasteSelection, disabled: !available || !clipboard },
@@ -584,7 +723,19 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
     if (event.key === 'Escape' && (form || dialog)) {
       event.preventDefault(); event.stopPropagation(); setForm(null); setDialog(null); return
     }
-    if (form || dialog || !available || stroke.current || regionGesture.current) return
+    if (form || dialog || !available) return
+    if (event.key === 'Escape' && pathPreview) {
+      event.preventDefault()
+      event.stopPropagation()
+      closePath(false)
+      return
+    }
+    if (gestureInProgress()) return
+    if (event.key === 'Enter' && event.target === canvas.current && pathDraft.current) {
+      event.preventDefault()
+      if (canFinishPaintPath(pathDraft.current)) closePath(true)
+      return
+    }
     if (event.key === 'Escape' && (textBox || selection)) {
       event.preventDefault(); event.stopPropagation(); closeText(false); setSelection(null); canvas.current?.focus(); return
     }
@@ -613,6 +764,7 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
       {chrome.toolbox && <PaintToolbox tool={tool} available={available}
         onTool={changeTool} zoom={zoom} onZoom={changeZoom}
         eraser={eraser} onEraser={setEraser} brush={brush} onBrush={setBrush}
+        sprayRadius={sprayRadius} onSprayRadius={setSprayRadius}
         width={lineWidth} onWidth={setLineWidth} shape={shape} onShape={setShape}
         transparent={tool === 'text' ? transparentText : transparentSelection}
         onTransparency={tool === 'text' ? setTransparentText : setTransparentSelection} />}
@@ -620,9 +772,19 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
         <CanvasSurface>
           <canvas ref={canvas} tabIndex={0} aria-label="Lienzo de dibujo" style={{ width: dimensions.width * zoom, height: dimensions.height * zoom }}
             onContextMenu={(event) => event.preventDefault()} onPointerDown={pointerDown} onPointerMove={pointerMove}
+            onPointerLeave={() => setPathHover(undefined)}
+            onDoubleClick={() => {
+              const path = pathDraft.current
+              if (path?.kind === 'polygon') closePath(canFinishPaintPath(path))
+            }}
             onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)}
             onLostPointerCapture={(event) => finish(event, true)} />
           {chrome.grid && zoom >= 6 && <div className="pixel-grid" aria-hidden="true" style={{ backgroundSize: zoom + 'px ' + zoom + 'px' }} />}
+          {pathPreview && <svg aria-hidden="true" className="path-preview" width={dimensions.width * zoom} height={dimensions.height * zoom}
+            viewBox={'0 0 ' + dimensions.width + ' ' + dimensions.height}>
+            <path d={paintPathData(pathPreview, pathHover)} {...paintPathColors(pathPreview)}
+              strokeWidth={pathPreview.width} strokeLinejoin="round" strokeLinecap="round" />
+          </svg>}
           {activeOutline && <SelectionOutline region={activeOutline} {...dimensions} zoom={zoom} />}
           {textBox && <PaintTextEditor box={textBox.box} zoom={zoom} text={textBox.text} style={textStyle}
             color={fg} background={transparentText ? 'transparent' : bg}
@@ -663,7 +825,7 @@ export function PaintWindow({ initial, dirty, clipboard, onCopy, onDirty, onNew,
       <Button type="button" disabled={busy} onClick={() => { setForm(null); setError('') }}>Cancelar</Button>
     </form></Overlay>}
     {dialog === 'help' && <Overlay><form aria-label="Temas de ayuda de Paint" onSubmit={(event) => { event.preventDefault(); setDialog(null) }}>
-      <p>Elige una herramienta y dibuja. Arrastra para seleccionar un área y vuelve a arrastrarla para moverla. Usa Edición para cortar, copiar y pegar. Con Texto puedes escribir sobre el lienzo y pulsar Aplicar texto para fijarlo. El botón derecho usa el color secundario. En móvil puedes elegirlo en la paleta. Guarda el dibujo para abrirlo desde el Explorador o exporta un PNG.</p>
+      <p>Elige una herramienta y dibuja. Arrastra para seleccionar un área y vuelve a arrastrarla para moverla. Usa Edición para cortar, copiar y pegar. Con Texto puedes escribir sobre el lienzo y pulsar Aplicar texto para fijarlo. Mantén pulsado el aerógrafo para rociar. En Curva, arrastra una línea y después ajusta dos puntos de control. En Polígono, marca los vértices y cierra con doble clic, pulsando el primero o con Intro. Esc cancela el trazado en curso. El botón derecho usa el color secundario. En móvil puedes elegirlo en la paleta. Guarda el dibujo para abrirlo desde el Explorador o exporta un PNG.</p>
       <Button type="submit" autoFocus>Entendido</Button>
     </form></Overlay>}
     {dialog === 'attributes' && <Overlay><form aria-label="Atributos de la imagen" onSubmit={(event) => {

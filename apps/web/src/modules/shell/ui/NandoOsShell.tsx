@@ -19,6 +19,7 @@ import { emptyWriterDraft } from '../../applications/domain/writer'
 import type { WriterDraft } from '../../applications/domain/writer'
 import { RecycleBin } from '../../applications/ui/RecycleBin'
 import { SettingsWindow } from '../../applications/ui/SettingsWindow'
+import { CalculatorWindow } from '../../applications/ui/CalculatorWindow'
 import { TaskManagerWindow } from '../../applications/ui/TaskManagerWindow'
 import { portfolioEntry } from '../../portfolio/domain/portfolio-links'
 import { WRITER_DEMO_MARKDOWN } from '../../portfolio/ui/NandosProjectCase'
@@ -1110,7 +1111,7 @@ function DesktopShell() {
     if (
       id === 'about' || id === 'recycle-bin' || id === 'settings' ||
       id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact' || id === 'terminal' ||
-      id === 'task-manager'
+      id === 'task-manager' || id === 'calculator'
     ) {
       openShellWindow(id)
     }
@@ -1395,7 +1396,8 @@ function DesktopShell() {
           isActive={activeWindowId === windowState.id}
           viewport={viewport}
           contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer' || windowState.id === 'terminal' || windowState.id === 'paint'
-            ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' } : undefined}
+            ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' }
+            : windowState.id === 'calculator' ? { padding: 0, gridArea: '2 / 1 / -1 / 2' } : undefined}
           onFocus={() => focusWindow(windowState.id)}
           onClose={() => closeShellWindow(windowState.id)}
           onMinimize={() => minimizeWindow(windowState.id)}
@@ -1428,6 +1430,8 @@ function DesktopShell() {
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
+          ) : windowState.id === 'calculator' ? (
+            <CalculatorWindow />
           ) : windowState.id === 'task-manager' ? (
             <TaskManagerWindow windows={windows} activeWindowId={activeWindowId}
               onSwitchTo={restoreWindow} onCloseTask={closeShellWindow} />

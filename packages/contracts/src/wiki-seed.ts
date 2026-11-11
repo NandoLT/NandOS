@@ -23,9 +23,9 @@ El acceso de administración es independiente y requiere credenciales reales. Nu
 - **Apagar:** finalizar la experiencia con una animación.
 
 Los submenús se colocan donde hay espacio. Las funciones futuras muestran un aviso al pasar el puntero o recibir foco.`],
-  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV, Contacto, Terminal, Writer, Paint y Administrador de tareas.
+  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV, Contacto, Terminal, Writer, Paint, Calculadora y Administrador de tareas.
 
-También muestra Calculadora, Nando Browser, Mail, Media Player, Calendar, Code Editor y Buscaminas como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
+También muestra Nando Browser, Mail, Media Player, Calendar, Code Editor y Buscaminas como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
 
 Configuración tiene su propia sección en Start. Consulta el artículo individual de cada aplicación para conocer su propósito.`],
   ['Start > Documentos', 'Menú Start', `Mis documentos y Este equipo abren File Explorer, el explorador virtual de NandOS; no leen tu disco real.
@@ -109,7 +109,7 @@ const apps: Array<[string, string, string, boolean]> = [
   ['writer', 'Writer', 'Editor visual de documentos con estética retro. Guarda archivos .doc virtuales que puedes volver a abrir desde File Explorer.', true],
   ['paint', 'Paint', 'Lienzo retro para dibujar con lápiz, pincel, relleno y formas. Permite guardar PNG en el sistema de archivos virtual, reabrirlos desde File Explorer y descargarlos.', true],
   ['task-manager', 'Administrador de tareas', 'En Start > Programas puedes ver las ventanas abiertas o minimizadas de NandOS. Selecciona una aplicación para volver a su ventana o cerrarla. Writer y Paint piden confirmación si hay cambios sin guardar.', true],
-  ['calculator', 'Calculadora', 'Propuesta de calculadora de escritorio con operaciones básicas.', false],
+  ['calculator', 'Calculadora', 'Calculadora estándar con operaciones básicas, porcentajes, raíz cuadrada, inverso y memoria. Funciona con los botones o con el teclado.', true],
   ['browser', 'Nando Browser', 'Propuesta de navegador retro dentro de NandOS para explorar contenido y enlaces de la experiencia.', false],
   ['mail', 'Mail', 'Propuesta de aplicación de correo/contacto con interfaz retro. Hoy el contacto se realiza desde la sección Contacto.', false],
   ['media-player', 'Media Player', 'Propuesta de reproductor multimedia con aspecto clásico.', false],

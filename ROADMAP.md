@@ -76,7 +76,8 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Settings con themes, sonido, escala y accesibilidad.
 - Administrador de tareas disponible en Start > Programas. Muestra las ventanas reales de la sesión y permite activarlas, restaurarlas o cerrarlas. Writer y Paint conservan la confirmación si hay cambios sin guardar.
 - Writer / Notepad para explicar proyectos, principios y forma de trabajo.
-- Paint disponible en Start > Programas. Primera versión con dibujo, paleta, historial y archivos PNG virtuales. Quedan pendientes selección, texto y herramientas adicionales.
+- Paint disponible en Start > Programas. Incluye las 16 herramientas clásicas, historial y archivos PNG virtuales.
+- Calculadora estándar con estética de Windows 95, operaciones básicas, porcentaje, memoria y teclado.
 
 ### Aplicaciones futuras
 
@@ -85,14 +86,13 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - mIRC / IRC Chat: cliente IRC real integrado mediante iframe en una ventana de NandOS, con inspiración visual en mIRC.
 - Media Player.
 - Calendar / Timeline.
-- Calculator.
 - Code Editor.
 - System Information.
 - Minesweeper o Solitaire como easter eggs.
 
 Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se utilizará necesariamente el atributo HTML `disabled`, porque debe poder mostrarse información al recibir foco o hover. Se usará `aria-disabled="true"`, se bloqueará la acción y se mostrará un popover:
 
-> Calculadora estará disponible próximamente.
+> Buscaminas estará disponible próximamente.
 
 El popover debe funcionar con hover, teclado y toque en móvil.
 

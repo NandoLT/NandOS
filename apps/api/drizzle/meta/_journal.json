@@ -15,6 +15,13 @@
       "when": 1793482137033,
       "tag": "0001_wiki_articles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794391574174,
+      "tag": "0002_skinny_ozymandias",
+      "breakpoints": true
     }
   ]
 }

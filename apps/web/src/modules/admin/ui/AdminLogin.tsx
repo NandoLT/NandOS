@@ -225,7 +225,7 @@ export function AdminLogin({ onAuthenticated, onBackToGuest }: AdminLoginProps) 
                 autoComplete={isSetup ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                minLength={12}
+                minLength={isSetup ? 15 : 12}
                 maxLength={256}
                 required
               />
@@ -237,7 +237,7 @@ export function AdminLogin({ onAuthenticated, onBackToGuest }: AdminLoginProps) 
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  minLength={12}
+                  minLength={15}
                   maxLength={256}
                   required
                 />

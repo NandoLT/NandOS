@@ -76,7 +76,8 @@ describe('Vercel API proxy', () => {
 
   it('preserves authentication request bodies, origins and session cookies', async () => {
     vi.stubEnv('NANDOS_API_ORIGIN', 'https://nandos-api.vercel.app')
-    const cookie = 'nandos_admin_session=test-session; Path=/; HttpOnly; Secure; SameSite=None'
+    vi.stubEnv('VERCEL', '1')
+    const cookie = 'nandos_admin_session=test-session; Path=/; HttpOnly; Secure; SameSite=Lax'
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"authenticated":true}', {
       headers: { 'set-cookie': cookie },
     }))
@@ -84,7 +85,7 @@ describe('Vercel API proxy', () => {
     const request = {
       url: '/api/proxy?__nandos_path=auth%2Flogin',
       method: 'POST',
-      headers: { origin: 'https://nand-os.vercel.app', 'content-type': 'application/json' },
+      headers: { origin: 'https://nand-os.vercel.app', 'content-type': 'application/json', 'x-forwarded-proto': 'https' },
     }
     const response = createResponse()
 
@@ -94,7 +95,25 @@ describe('Vercel API proxy', () => {
     expect(options.method).toBe('POST')
     expect(options.body).toBe(request)
     expect(options.headers.get('origin')).toBe('https://nand-os.vercel.app')
+    expect(options.headers.has('x-forwarded-proto')).toBe(false)
     expect(response.headers.get('set-cookie')).toEqual([cookie])
+  })
+
+  it('rejects HTTP for private endpoints before sending the request upstream', async () => {
+    vi.stubEnv('VERCEL', '1')
+    vi.stubEnv('NANDOS_API_ORIGIN', 'https://nandos-api.vercel.app')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const response = createResponse()
+
+    await handler({
+      url: '/api/proxy?__nandos_path=auth%2Flogin', method: 'POST',
+      headers: { 'x-forwarded-proto': 'http' },
+    }, response)
+
+    expect(response.statusCode).toBe(403)
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('rejects rewritten paths that escape the API prefix', async () => {

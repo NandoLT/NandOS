@@ -8,7 +8,7 @@ import { createLocalWikiSynchronization } from '../knowledge/infrastructure/loca
 import { KnowledgeBusyError } from '../knowledge/domain/corpus.js'
 
 interface WikiGuards {
-  requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<unknown>
+  requireAdmin(request: FastifyRequest, reply: FastifyReply, refreshActivity?: boolean): Promise<unknown>
   rejectUntrustedOrigin(request: FastifyRequest, reply: FastifyReply): boolean
 }
 
@@ -20,10 +20,10 @@ export async function registerWikiRoutes(app: FastifyInstance, guards: WikiGuard
     if (synchronization === undefined) synchronization = synchronizationFactory()
     return synchronization
   }
-  async function authorize(request: FastifyRequest, reply: FastifyReply, write = false) {
+  async function authorize(request: FastifyRequest, reply: FastifyReply, write = false, refreshActivity = true) {
     reply.header('cache-control', 'private, no-store')
     if (write && guards.rejectUntrustedOrigin(request, reply)) return false
-    return Boolean(await guards.requireAdmin(request, reply))
+    return Boolean(await guards.requireAdmin(request, reply, refreshActivity))
   }
   async function execute<T>(reply: FastifyReply, action: () => Promise<T>) {
     try { return await action() } catch (error) {
@@ -32,7 +32,7 @@ export async function registerWikiRoutes(app: FastifyInstance, guards: WikiGuard
     }
   }
   app.get('/api/admin/wiki/synchronization', async (request, reply): Promise<WikiSynchronizationStatus | undefined> => {
-    if (!(await authorize(request, reply))) return
+    if (!(await authorize(request, reply, false, false))) return
     try {
       const sync = getSynchronization()
       return sync ? await sync.status() : { state: 'not-configured', publishedArticles: null, indexedArticles: null, indexedChunks: null,

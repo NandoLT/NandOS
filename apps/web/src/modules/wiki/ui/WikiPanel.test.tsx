@@ -141,10 +141,10 @@ describe('Wiki editor', () => {
     await screen.findByRole('button', { name: /Bienvenido a NandOS/ })
     expect((await repository.list()).every((article) => article.published === null)).toBe(true)
     await user.selectOptions(screen.getByLabelText('Categoría'), 'Aplicaciones futuras')
-    await user.type(screen.getByLabelText('Buscar artículo'), 'Calculadora')
+    await user.type(screen.getByLabelText('Buscar artículo'), 'Buscaminas')
     const list = screen.getByLabelText('Lista de artículos')
     expect(within(list).getAllByRole('button')).toHaveLength(1)
-    expect(within(list).getByRole('button', { name: /Calculadora/ })).toBeInTheDocument()
+    expect(within(list).getByRole('button', { name: /Buscaminas/ })).toBeInTheDocument()
     expect(await repository.seed()).toBe(0)
   })
   it('warns before discarding unsaved edits and keeps text after save conflicts', async () => {

@@ -53,6 +53,12 @@ Development contiene los 37 artículos iniciales; el 4 de noviembre se publicaro
 
 Nunca pegues conexiones completas ni contraseñas en el chat o el repositorio. Si se expone una clave, renueva el rol en cada rama donde esa clave siga siendo válida. La rotación de `development` no rota `main`. Para producción, actualiza `DATABASE_URL` en Vercel con la conexión de `main` y haz un redeploy del backend con el mismo código para activar la nueva configuración; no reutilices la conexión local. Los cambios de contraseña deben hacerlos directamente los responsables de las credenciales.
 
+## Publicación del refuerzo de administración
+
+Aplica `apps/api/drizzle/0002_skinny_ozymandias.sql` con `pnpm --filter @nandoos/api db:migrate` contra la rama de Neon que usa el despliegue, antes de publicar el API. Confirma que el destino y el historial de Drizzle coinciden. La migración añade el contador compartido y rellena la última actividad de las sesiones anteriores con su fecha de creación. Las sesiones antiguas que superen la nueva caducidad requerirán un inicio de sesión.
+
+Tras el despliegue, comprueba el acceso por HTTPS desde el dominio de la web y la cookie `Secure; HttpOnly; SameSite=Lax`. Comprueba también que la consulta de contenido privado devuelve 401 tras cerrar sesión. La primera autenticación correcta actualiza el hash de scrypt. Una vez actualizados los hashes, cualquier versión a la que se revierta debe poder verificar el coste nuevo de scrypt.
+
 ## Sesión local de Invitado
 
 La sesión de Invitado siempre empieza sin ventanas abiertas, tanto al recargar y entrar de nuevo como después de Log off. Las ventanas, el foco y el orden de apilado son estado en memoria; no se recuperan del almacenamiento local. Se conservan las carpetas del visitante, la papelera, las posiciones de iconos y el tema. La migración de preferencias v5 descarta únicamente los antiguos campos de ventanas, sin borrar los datos del escritorio.

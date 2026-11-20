@@ -89,6 +89,7 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   writer: { title: 'Writer', icon: '📝' },
   paint: { title: 'Paint', icon: '🎨' },
   terminal: { title: 'Terminal', icon: '⌨️' },
+  calculator: { title: 'Calculadora', icon: '🧮' },
   'task-manager': { title: 'Administrador de tareas', icon: '📊' },
 }
 
@@ -98,7 +99,9 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
   const isSettings = id === 'settings'
   const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
-  const bounds = id === 'paint'
+  const bounds = id === 'calculator'
+    ? { ...defaultBounds, width: 340, height: 312 }
+    : id === 'paint'
     ? { ...defaultBounds, width: 740, height: 540 }
     : id === 'writer'
     ? { ...defaultBounds, width: 740, height: 510 }

@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
 import { renderWithProviders as render } from '../../../test/render'
 import { touchPointer } from '../../../test/touch'
@@ -26,6 +26,11 @@ function enterGuest() {
 }
 
 describe('desktop interactions', () => {
+  beforeAll(async () => {
+    // Load the editor dependency graph before timing the desktop interactions.
+    await import('../../applications/ui/WriterWindow')
+  }, 15_000)
+
   it('manages real windows from Start and respects the Writer discard confirmation', async () => {
     enterGuest()
     const launch = (name: string) => {

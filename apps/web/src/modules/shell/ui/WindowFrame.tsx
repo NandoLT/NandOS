@@ -163,7 +163,9 @@ export function WindowFrame({
       focused !== document.body && !frameRef.current?.contains(focused)) {
       openerRef.current = focused
     }
-    frameRef.current?.focus({ preventScroll: true })
+    const frame = frameRef.current
+    const target = frame?.querySelector<HTMLElement>('[data-window-initial-focus]') ?? frame
+    target?.focus({ preventScroll: true })
   }, [isActive, windowState.isMinimized])
 
   const leaveWindow = (action: () => void) => {

@@ -1,4 +1,4 @@
-export type WindowId = 'about' | 'file-explorer' | 'recycle-bin' | 'settings' | 'experience' | 'projects' | 'skills' | 'contact' | 'help' | 'writer' | 'terminal' | 'task-manager' | 'paint'
+export type WindowId = 'about' | 'file-explorer' | 'recycle-bin' | 'settings' | 'experience' | 'projects' | 'skills' | 'contact' | 'help' | 'writer' | 'terminal' | 'task-manager' | 'paint' | 'calculator'
 
 export type DesktopSystemItemId = 'about' | 'file-explorer' | 'recycle-bin' | 'cv' | 'projects' | 'contact'
 

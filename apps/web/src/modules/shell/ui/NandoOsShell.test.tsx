@@ -28,7 +28,13 @@ function enterGuest() {
 function openProgram(name: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
   fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
-  fireEvent.click(within(screen.getByRole('group', { name: 'Programas' })).getByRole('button', { name }))
+  const paths: Record<string, string[]> = {
+    Buscaminas: ['Accesorios', 'Juegos'], Writer: ['Accesorios'],
+    'Administrador de tareas': ['Accesorios', 'Herramientas del sistema'],
+  }
+  for (const folder of paths[name] ?? []) fireEvent.click(screen.getByRole('button', { name: folder }))
+  const group = paths[name]?.at(-1) ?? 'Programas'
+  fireEvent.click(within(screen.getByRole('group', { name: group })).getByRole('button', { name }))
 }
 
 describe('desktop interactions', () => {
@@ -433,10 +439,10 @@ describe('desktop interactions', () => {
     expect(programs).toHaveFocus()
     fireEvent.keyDown(programs, { key: 'ArrowRight' })
     const submenu = screen.getByRole('group', { name: 'Programas' })
-    const first = within(submenu).getByRole('button', { name: 'About Me' })
+    const first = within(submenu).getByRole('button', { name: 'Portfolio' })
     await waitFor(() => expect(first).toHaveFocus())
     fireEvent.keyDown(first, { key: 'ArrowDown' })
-    expect(within(submenu).getByRole('button', { name: 'File Explorer' })).toHaveFocus()
+    expect(within(submenu).getByRole('button', { name: 'Accesorios' })).toHaveFocus()
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
     expect(programs).toHaveFocus()
     expect(screen.queryByRole('group', { name: 'Programas' })).not.toBeInTheDocument()

@@ -11,7 +11,6 @@ import { createPortal } from 'react-dom'
 import styled from '@emotion/styled'
 import type { AppId } from '@nandoos/contracts'
 import { DEFAULT_PORTFOLIO_CONTENT } from '@nandoos/contracts'
-import { appRegistry } from '../../applications/domain/app-registry'
 import { COMPUTER_DIRECTORY, DOCUMENTS_DIRECTORY, createExplorerTree } from '../../applications/domain/explorer'
 import { FileExplorer } from '../../applications/ui/FileExplorer'
 import { TerminalWindow } from '../../applications/ui/TerminalWindow'
@@ -38,6 +37,7 @@ import { useShellStore } from '../application/shell.store'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import type { DesktopPosition, DesktopSystemItemId, UserDesktopItem, WindowBounds, WindowId } from '../domain/types'
 import { WindowFrame } from './WindowFrame'
+import { ProgramMenu } from './ProgramMenu'
 import { BootScreen, GuestLogin, ShutdownScreen } from './SessionScreens'
 import { DesktopFolderNameEditor } from './DesktopFolderNameEditor'
 import { UnsavedChangesDialog } from './UnsavedChangesDialog'
@@ -1119,25 +1119,12 @@ function DesktopShell() {
     }
   }
 
-  const appEntry = (id: AppId): StartMenuEntry => {
-    const app = appRegistry.find((registeredApp) => registeredApp.id === id)
-    if (!app) return { label: id, icon: '📦', disabled: true, onActivate: () => undefined }
-    const tooltip = `${app.name} estará disponible próximamente.`
-    return {
-      label: app.name,
-      icon: app.icon,
-      disabled: app.status !== 'available',
-      tooltip: app.status !== 'available' ? tooltip : undefined,
-      onActivate: () => launchApp(app.id),
-    }
-  }
-
   const startMenuCategories: StartMenuCategory[] = [
     {
       id: 'programs',
       label: 'Programas',
       icon: '📂',
-      entries: appRegistry.filter((app) => app.id !== 'settings').map((app) => appEntry(app.id)),
+      entries: [],
     },
     {
       id: 'documents',
@@ -1623,7 +1610,11 @@ function DesktopShell() {
                   <span>{category.label}</span>
                   <MenuArrow aria-hidden="true">▶</MenuArrow>
                 </MenuCategoryButton>
-                {openStartCategory === category.id && openStartCategoryPlacement && createPortal(
+                {openStartCategory === category.id && openStartCategoryPlacement && (category.id === 'programs' ? (
+                  <ProgramMenu placement={openStartCategoryPlacement} mobile={viewport.width <= 640}
+                    onBack={returnToStartCategory} onLaunch={(id) => { launchApp(id); closeStartMenu() }}
+                    onUnavailable={setNotice} tooltipProps={menuTooltipProps} />
+                ) : createPortal(
                   <MenuFlyout
                     data-start-flyout
                     id={`start-flyout-${category.id}`}
@@ -1661,7 +1652,7 @@ function DesktopShell() {
                     })}
                   </MenuFlyout>,
                   document.body
-                )}
+                ))}
               </MenuCategoryGroup>
             ))}
             <MenuItem

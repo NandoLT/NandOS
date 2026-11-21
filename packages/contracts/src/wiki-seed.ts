@@ -23,11 +23,20 @@ El acceso de administración es independiente y requiere credenciales reales. Nu
 - **Apagar:** finalizar la experiencia con una animación.
 
 Los submenús se colocan donde hay espacio. Las funciones futuras muestran un aviso al pasar el puntero o recibir foco.`],
-  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV, Contacto, Terminal, Writer, Paint, Calculadora, Administrador de tareas y Buscaminas.
+  ['Start > Programas', 'Menú Start', `Las aplicaciones se organizan en carpetas, como en el menú clásico de Windows 95:
 
-También muestra Nando Browser, Mail, Media Player, Calendar y Code Editor como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
+- **Portfolio:** About Me, Experiencia, Proyectos, Habilidades, CV y Contacto.
+- **Accesorios:** Calculadora, Calendar (futuro), Paint y Writer.
+- **Accesorios > Juegos:** Buscaminas. Solitario y Pinball están previstos para futuras entregas.
+- **Accesorios > Multimedia:** Media Player (futuro).
+- **Accesorios > Herramientas del sistema:** Administrador de tareas y Papelera de reciclaje.
+- **Internet:** Nando Browser y Mail (futuros).
+- **Desarrollo:** Code Editor (futuro).
+- **File Explorer y Terminal:** accesos directos dentro de Programas.
 
-Configuración tiene su propia sección en Start. Consulta el artículo individual de cada aplicación para conocer su propósito.`],
+En escritorio los menús se despliegan en cascada. Usa flechas para navegar, Intro para abrir y flecha izquierda o Esc para regresar. En móvil se muestra un nivel cada vez con un botón Volver. Las aplicaciones futuras mantienen su aviso y no se pueden ejecutar.
+
+Configuración tiene su propia sección en Start. Los accesos directos del escritorio y de Documentos siguen disponibles.`],
   ['Start > Documentos', 'Menú Start', `Mis documentos y Este equipo abren File Explorer, el explorador virtual de NandOS; no leen tu disco real.
 
 CV (Español) y CV (English) abren el PDF correspondiente en una pestaña nueva. Si el navegador bloquea la apertura, permite ventanas emergentes para este sitio. Los PDF y sus versiones se gestionan desde administración.`],
@@ -62,10 +71,10 @@ El navegador conserva preferencias de interacción mediante almacenamiento local
   ['Volumen, red y reloj', 'Configuración', `La zona de estado de la barra de tareas muestra volumen, red y hora. Es parte de la simulación: no controla el volumen ni la red de tu sistema operativo.
 
 La edición de hora y los controles detallados de volumen/red son ampliaciones futuras. No interpretes los iconos como permisos concedidos al sitio sobre tu ordenador.`],
-  ['CV: consultar y descargar', 'Información profesional', `El acceso PDF del escritorio se llama CV_Fernando_Lopez. Puedes abrir el CV desde ese acceso, desde Programas > CV o desde Documentos > CV (Español) / CV (English).
+  ['CV: consultar y descargar', 'Información profesional', `El acceso PDF del escritorio se llama CV_Fernando_Lopez. Puedes abrir el CV desde ese acceso, desde Programas > Portfolio > CV o desde Documentos > CV (Español) / CV (English).
 
 El PDF se abre en una pestaña nueva. El visor de tu navegador permite descargarlo. Los enlaces usan la versión pública configurada para cada idioma; subir un documento al panel no lo sustituye públicamente hasta publicar los cambios correspondientes del portfolio.`],
-  ['Contacto con Fernando', 'Información profesional', `Abre Start > Programas > Contacto o el acceso de Contacto disponible en el escritorio/explorador.
+  ['Contacto con Fernando', 'Información profesional', `Abre Start > Programas > Portfolio > Contacto o el acceso de Contacto disponible en el escritorio/explorador.
 
 Los canales públicos de referencia son:
 - Correo: [fernando.lopez.dev@hotmail.com](mailto:fernando.lopez.dev@hotmail.com).
@@ -108,23 +117,33 @@ const apps: Array<[string, string, string, boolean]> = [
   ['terminal', 'Terminal', 'Consola del sistema de archivos virtual. Escribe help para listar los comandos o dir --help para ver la ayuda de dir.', true],
   ['writer', 'Writer', 'Editor visual de documentos con estética retro. Guarda archivos .doc virtuales que puedes volver a abrir desde File Explorer.', true],
   ['paint', 'Paint', 'Lienzo retro para dibujar con lápiz, pincel, relleno y formas. Permite guardar PNG en el sistema de archivos virtual, reabrirlos desde File Explorer y descargarlos.', true],
-  ['task-manager', 'Administrador de tareas', 'En Start > Programas puedes ver las ventanas abiertas o minimizadas de NandOS. Selecciona una aplicación para volver a su ventana o cerrarla. Writer y Paint piden confirmación si hay cambios sin guardar.', true],
+  ['task-manager', 'Administrador de tareas', 'En Start > Programas > Accesorios > Herramientas del sistema puedes ver las ventanas abiertas o minimizadas de NandOS. Selecciona una aplicación para volver a su ventana o cerrarla. Writer y Paint piden confirmación si hay cambios sin guardar.', true],
   ['calculator', 'Calculadora', 'Calculadora estándar con operaciones básicas, porcentajes, raíz cuadrada, inverso y memoria. Funciona con los botones o con el teclado.', true],
   ['browser', 'Nando Browser', 'Propuesta de navegador retro dentro de NandOS para explorar contenido y enlaces de la experiencia.', false],
   ['mail', 'Mail', 'Propuesta de aplicación de correo/contacto con interfaz retro. Hoy el contacto se realiza desde la sección Contacto.', false],
   ['media-player', 'Media Player', 'Propuesta de reproductor multimedia con aspecto clásico.', false],
   ['calendar', 'Calendar', 'Propuesta de calendario de escritorio. No implica integración con agendas externas ni reservas disponibles.', false],
   ['code-editor', 'Code Editor', 'Propuesta de editor de código retro para mostrar o explorar ejemplos. No ofrece ejecución de código por ahora.', false],
-  ['minesweeper', 'Buscaminas', 'Juego clásico disponible en Start > Programas. Incluye tres dificultades, campo personalizado, banderas, interrogaciones, cronómetro y mejores marcas locales. La primera casilla es segura. Usa clic para descubrir, botón derecho o F para marcar; en móvil activa Banderas. Pulsa la carita o F2 para empezar otra partida.', true],
+  ['minesweeper', 'Buscaminas', 'Juego clásico disponible en Start > Programas > Accesorios > Juegos. Incluye tres dificultades, campo personalizado, banderas, interrogaciones, cronómetro y mejores marcas locales. La primera casilla es segura. Usa clic para descubrir, botón derecho o F para marcar; en móvil activa Banderas. Pulsa la carita o F2 para empezar otra partida.', true],
 ]
 
 export const WIKI_DOCUMENTED_APP_IDS = apps.map(([id]) => id)
 const seedId = (index: number) => `10000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+const appGroupPath: Record<string, string> = {
+  about: 'Portfolio', experience: 'Portfolio', projects: 'Portfolio', skills: 'Portfolio', 'cv-viewer': 'Portfolio', contact: 'Portfolio',
+  writer: 'Accesorios', paint: 'Accesorios', calculator: 'Accesorios', calendar: 'Accesorios',
+  'task-manager': 'Accesorios > Herramientas del sistema', 'recycle-bin': 'Accesorios > Herramientas del sistema',
+  minesweeper: 'Accesorios > Juegos', 'media-player': 'Accesorios > Multimedia',
+  browser: 'Internet', mail: 'Internet', 'code-editor': 'Desarrollo',
+}
+const appAccess = (id: string, title: string) => id === 'settings' ? 'Start > Configuración'
+  : 'Start > Programas > ' + (appGroupPath[id] ? appGroupPath[id] + ' > ' : '') + title
+
 export const INITIAL_WIKI_ARTICLES: Array<{ id: string; draft: WikiContent }> = [
   ...guides.map(([title, category, markdown], index) => ({ id: seedId(index + 1), draft: { title, category, markdown: `# ${title}\n\n${markdown}` } })),
-  ...apps.map(([, title, description, available], index) => ({ id: seedId(index + 1001), draft: { title: `Aplicación: ${title}`,
+  ...apps.map(([id, title, description, available], index) => ({ id: seedId(index + 1001), draft: { title: `Aplicación: ${title}`,
     category: available ? 'Aplicaciones disponibles' : 'Aplicaciones futuras',
     markdown: `# ${title}\n\n**Estado: ${available ? 'disponible' : 'próximamente; deshabilitada'}.**\n\n${description}\n\n${available
-      ? 'Acceso: Start > ' + (title === 'Configuración' ? 'Configuración' : `Programas > ${title}`) + '.'
-      : 'Figura en Start > Programas como acceso deshabilitado. Al situarte encima aparece el aviso de disponibilidad futura. No hay fecha de lanzamiento confirmada ni se puede abrir todavía.'}` } })),
+      ? 'Acceso: ' + appAccess(id, title) + '.'
+      : 'Figura en ' + appAccess(id, title) + ' como acceso deshabilitado. Al situarte encima aparece el aviso de disponibilidad futura. No hay fecha de lanzamiento confirmada ni se puede abrir todavía.'}` } })),
 ]

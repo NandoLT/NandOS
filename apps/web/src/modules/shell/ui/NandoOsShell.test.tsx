@@ -29,7 +29,7 @@ function openProgram(name: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
   fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
   const paths: Record<string, string[]> = {
-    Buscaminas: ['Accesorios', 'Juegos'], Solitario: ['Accesorios', 'Juegos'], Writer: ['Accesorios'],
+    Pinball: ['Accesorios', 'Juegos'], Buscaminas: ['Accesorios', 'Juegos'], Solitario: ['Accesorios', 'Juegos'], Writer: ['Accesorios'],
     'Administrador de tareas': ['Accesorios', 'Herramientas del sistema'],
   }
   for (const folder of paths[name] ?? []) fireEvent.click(screen.getByRole('button', { name: folder }))
@@ -40,8 +40,17 @@ function openProgram(name: string) {
 describe('desktop interactions', () => {
   beforeAll(async () => {
     // Load the editor dependency graph before timing the desktop interactions.
-    await Promise.all([import('../../applications/ui/WriterWindow'), import('../../applications/ui/MinesweeperWindow'), import('../../applications/ui/SolitaireWindow')])
+    await Promise.all([import('../../applications/ui/WriterWindow'), import('../../applications/ui/MinesweeperWindow'), import('../../applications/ui/SolitaireWindow'), import('../../applications/ui/PinballWindow')])
   }, 15_000)
+
+  it('launches Pinball from Games and offers a fallback without WebGL', async () => {
+    enterGuest()
+    openProgram('Pinball')
+    const frame = within(screen.getByRole('dialog', { name: 'Pinball' }))
+    expect(await frame.findByText('Este navegador no dispone de WebGL 2.')).toBeInTheDocument()
+    fireEvent.click(frame.getByLabelText('Cerrar'))
+    expect(screen.queryByRole('dialog', { name: 'Pinball' })).not.toBeInTheDocument()
+  })
 
   it('launches Solitario from Games and preserves the cards when minimized', async () => {
     enterGuest()

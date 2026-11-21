@@ -27,7 +27,7 @@ Los submenús se colocan donde hay espacio. Las funciones futuras muestran un av
 
 - **Portfolio:** About Me, Experiencia, Proyectos, Habilidades, CV y Contacto.
 - **Accesorios:** Calculadora, Calendar (futuro), Paint y Writer.
-- **Accesorios > Juegos:** Buscaminas y Solitario. Pinball está previsto para una futura entrega.
+- **Accesorios > Juegos:** Buscaminas, Solitario y el prototipo jugable de Pinball.
 - **Accesorios > Multimedia:** Media Player (futuro).
 - **Accesorios > Herramientas del sistema:** Administrador de tareas y Papelera de reciclaje.
 - **Internet:** Nando Browser y Mail (futuros).
@@ -126,6 +126,7 @@ const apps: Array<[string, string, string, boolean]> = [
   ['code-editor', 'Code Editor', 'Propuesta de editor de código retro para mostrar o explorar ejemplos. No ofrece ejecución de código por ahora.', false],
   ['minesweeper', 'Buscaminas', 'Juego clásico disponible en Start > Programas > Accesorios > Juegos. Incluye tres dificultades, campo personalizado, banderas, interrogaciones, cronómetro y mejores marcas locales. La primera casilla es segura. Usa clic para descubrir, botón derecho o F para marcar; en móvil activa Banderas. Pulsa la carita o F2 para empezar otra partida.', true],
   ['solitaire', 'Solitario', 'Klondike clásico de Windows 95 en Accesorios > Juegos. Incluye robo de una o tres cartas, movimientos por arrastre o pulsando origen y destino, doble clic a bases, deshacer, puntuación estándar y tres reversos. Alterna colores en orden descendente en las columnas; lleva cada palo del as al rey a las cuatro bases. Solo un rey puede iniciar una columna vacía. Minimizar pausa la partida; cerrar la termina.', true],
+  ['pinball', 'Pinball', 'Prototipo jugable 3D en Accesorios > Juegos. Mantén Espacio o Lanzador y suelta para lanzar. Usa las flechas o Z y / para los flippers; P pausa y F2 reinicia. Controles táctiles simultáneos e intentos ilimitados para ajustar las físicas. Puntuación, sonido, rampas y misiones pendientes. Requiere WebGL 2.', true],
 ]
 
 export const WIKI_DOCUMENTED_APP_IDS = apps.map(([id]) => id)
@@ -134,7 +135,7 @@ const appGroupPath: Record<string, string> = {
   about: 'Portfolio', experience: 'Portfolio', projects: 'Portfolio', skills: 'Portfolio', 'cv-viewer': 'Portfolio', contact: 'Portfolio',
   writer: 'Accesorios', paint: 'Accesorios', calculator: 'Accesorios', calendar: 'Accesorios',
   'task-manager': 'Accesorios > Herramientas del sistema', 'recycle-bin': 'Accesorios > Herramientas del sistema',
-  minesweeper: 'Accesorios > Juegos', solitaire: 'Accesorios > Juegos', 'media-player': 'Accesorios > Multimedia',
+  minesweeper: 'Accesorios > Juegos', solitaire: 'Accesorios > Juegos', pinball: 'Accesorios > Juegos', 'media-player': 'Accesorios > Multimedia',
   browser: 'Internet', mail: 'Internet', 'code-editor': 'Desarrollo',
 }
 const appAccess = (id: string, title: string) => id === 'settings' ? 'Start > Configuración'

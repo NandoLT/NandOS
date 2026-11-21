@@ -22,6 +22,7 @@ export type AppId =
   | 'code-editor'
   | 'minesweeper'
   | 'solitaire'
+  | 'pinball'
 
 export type AppDefinition = {
   id: AppId

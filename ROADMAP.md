@@ -90,7 +90,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Calendar / Timeline.
 - Code Editor.
 - System Information.
-- Pinball como futuro juego clásico en Accesorios > Juegos.
+- Pinball: prototipo 3D jugable local en Accesorios > Juegos; pendiente de depurar el tacto y completar el juego.
 
 Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se utilizará necesariamente el atributo HTML `disabled`, porque debe poder mostrarse información al recibir foco o hover. Se usará `aria-disabled="true"`, se bloqueará la acción y se mostrará un popover:
 
@@ -659,3 +659,21 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Plan: probar reglas y conservación de cartas, interfaz y pausa del reloj al minimizar/ocultar; integrar en Accesorios > Juegos; actualizar documentación inicial sin modificar Neon; compilación/lint/tipos y revisión visual en escritorio/móvil.
 - Verificación completada: 270 pruebas (209 web, 48 API y 13 infraestructura), compilación, tipos y lint correctos. Revisión real en escritorio y móvil de 390 px: lanzamiento desde Start, arrastre, selección por clic, doble clic a bases y opciones de robo. Consola sin avisos ni errores. Reglas de victoria y pausa del reloj verificadas en pruebas automatizadas.
 - Revisado por el propietario y autorizado para integrar mediante PR, en un commit propio. Sin cambios en Neon.
+
+### Pinball — prototipo jugable (21 de noviembre de 2026)
+
+- Objetivo: validar el tacto del juego antes del acabado final. Tablero 3D con cámara fija, bola, lanzador con carga, dos flippers, obstáculos y salida inferior; teclado y controles táctiles simultáneos.
+- Criterios: físicas independientes de los fotogramas, colisiones estables a alta velocidad, reinicio rápido para ensayar, pausa al minimizar/ocultar/perder el foco y liberación de recursos al cerrar. Carga diferida para no añadir el motor 3D al arranque del portfolio.
+- Plan: motor de físicas aislado y comprobable sin GPU; escena Three.js con React Three Fiber; ventana y menús compartidos; pruebas de lanzamiento/colisiones/flippers y revisión real de escritorio/móvil.
+- Implementado: motor Rapier 3D con paso fijo de 1/120 s, profundidad bloqueada en el prototipo y detección continua para la bola; flippers cinemáticos, carga de lanzador y recuperación automática de salidas. Contadores de ensayo, sin puntuación de partida todavía.
+- Three.js 0.182 y React Three Fiber 9: versiones compatibles con el reloj utilizado por Fiber. Three.js dividido en módulos y WASM de Rapier separado del JavaScript; ambos se cargan al abrir el tablero. No se silencian avisos ni se amplían los límites de tamaño de compilación.
+- Verificación: `pnpm verify` correcto, 282 pruebas (221 web, 48 API y 13 infraestructura), compilación/tipos/lint sin avisos. Pruebas del motor real para colisiones rápidas, flippers, frecuencia de simulación, lanzamientos y recuperación; controles simultáneos y cancelación/pausa en pruebas de interfaz. Revisión real en escritorio y móvil de 390 px, lanzamiento por teclado y botón, pausa/restauración y consola limpia en una pestaña nueva.
+- En móvil, el pie reserva espacio para el acceso flotante de nandBot y evita que tape los botones del juego. Contenido inicial de ayuda actualizado sin modificar artículos ni publicaciones de Neon.
+- Fuentes técnicas: [React Three Fiber](https://r3f.docs.pmnd.rs/getting-started/introduction), [CCD de Rapier](https://rapier.rs/docs/user_guides/javascript/rigid_body_ccd/), [reloj usado por Fiber 9.8.2](https://github.com/pmndrs/react-three-fiber/blob/v9.8.2/packages/fiber/src/core/store.ts) y [deprecación de Clock desde Three.js r183](https://github.com/mrdoob/three.js/blob/r185/src/core/Clock.js).
+- Punto de recuperación: rama `feat/pinball-prototype`, prototipo local listo para revisión. Siguiente paso: depurar el tacto con el propietario antes de incorporar puntuación, bolas, sonido, rampas o misiones. No subir ni desplegar en esta iteración.
+
+### Documentación técnica de las aplicaciones — después de Pinball
+
+- Antes de pasar a la siguiente aplicación, crear un apartado de documentación del proyecto que explique cómo se han construido las implementaciones especiales: Paint, Writer, Buscaminas, Solitario, Pinball y otras aplicaciones con lógica propia.
+- Incluir arquitectura y componentes reutilizados, modelo de datos/estado, algoritmos y decisiones relevantes, persistencia, interacción de teclado/táctil, limitaciones y pruebas; enlaces al código y diagramas cuando ayuden.
+- Registrar ahora el trabajo pendiente. Redactar este bloque al terminar Pinball para reflejar la implementación final.

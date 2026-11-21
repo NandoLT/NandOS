@@ -703,3 +703,14 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Las cargas insuficientes regresan al lanzador para reintentar sin incrementar salidas; cuatro cargas suficientes se comprueban hasta su entrada efectiva al tablero y pérdida normal. Añadidas pruebas de rechazo inverso de la compuerta y cancelación del retorno del muelle.
 - Verificación: 286 pruebas (225 web, 48 API y 13 infraestructura), compilación, tipos y lint correctos. Una primera ejecución se interrumpió con SIGTERM; la repetición completa terminó con éxito. Revisión real de compresión al 100 %, liberación con teclado y botón móvil, encuadre móvil de 390 px y consola sin avisos ni errores.
 - Recuperación: `/tmp/nandos-pinball-before-launcher.tgz`, sobre la rama local `feat/pinball-prototype`. Listo para revisión del propietario. No subir ni desplegar en esta iteración. El acabado del resto de mecanismos y los sistemas de puntuación/misiones permanecen como bloques posteriores; la documentación técnica global sigue prevista al terminar Pinball.
+
+### Pinball — más espacio para el tablero
+
+- Retirada la franja inferior visible: botones e instrucciones. El tablero utiliza toda la altura restante bajo los menús; las instrucciones se consultan desde Ayuda.
+- Controles directos sobre el tablero: zonas de pulsación sobre flippers y muelle, con captura/liberación de cada puntero para mantener la interacción táctil. Se conservan controles accesibles de teclado/lector sin reservar altura; solo se muestran al recibir foco de teclado.
+- Verificación: compilación, tipos y lint correctos; 225 pruebas web superadas. Revisión real en escritorio y móvil de 390 px, carga sobre el muelle, accionamiento de flipper, Ayuda y consola limpia. Cambio local pendiente de revisión, sin despliegue.
+
+### Entrega de Pinball autorizada
+
+- El propietario autoriza subir el trabajo acumulado. Entrega separada en cuatro commits: prototipo e integración; tablero Space Cadet; mecanismo de lanzamiento; ampliación de espacio y controles directos. Integración mediante PR con Verify monorepo y despliegue habitual de Vercel.
+- Próxima sesión: continuar afinando el aspecto y los mecanismos de Pinball. La documentación técnica de las aplicaciones se mantiene prevista para cuando termine Pinball, antes de comenzar otra aplicación.

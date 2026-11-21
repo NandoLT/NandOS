@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Group, Mesh, PerspectiveCamera } from 'three'
 import { BALL_RADIUS, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_Y, SHOOTER_GATE } from '../domain/pinball'
-import type { PinballInputs, PinballSnapshot } from '../domain/pinball'
+import type { PinballControl, PinballInputs, PinballSnapshot } from '../domain/pinball'
 import { PinballTable } from './PinballTable'
 import { PinballLauncher } from './PinballLauncher'
 import type { PinballEngine } from '../infrastructure/pinball-engine'
@@ -24,7 +24,7 @@ function CameraRig() {
   }, [size.width, size.height, set, get])
   return null
 }
-function Machine({ engine, inputs, onSnapshot }: { engine: PinballEngine; inputs: RefObject<PinballInputs>; onSnapshot: (snapshot: PinballSnapshot) => void }) {
+function Machine({ engine, inputs, onSnapshot, onControl, onCancel }: { engine: PinballEngine; inputs: RefObject<PinballInputs>; onSnapshot: (snapshot: PinballSnapshot) => void; onControl: ControlHandler; onCancel: () => void }) {
   const ball = useRef<Mesh>(null)
   const left = useRef<Group>(null)
   const right = useRef<Group>(null)
@@ -47,7 +47,17 @@ function Machine({ engine, inputs, onSnapshot }: { engine: PinballEngine; inputs
   return <>
     <PinballTable />
     <PinballLauncher engine={engine} />
-
+    {([
+      { name: 'left', x: -1.2, y: FLIPPER_Y, width: 2.2, height: 1.7 },
+      { name: 'right', x: 1.2, y: FLIPPER_Y, width: 2.2, height: 1.7 },
+      { name: 'launch', x: 4, y: -6.2, width: 1.1, height: 2.6 },
+    ] as const).map(({ name, x, y, width, height }) => <mesh key={name} position={[x, y, .9]}
+      onPointerDown={(event) => { event.stopPropagation(); event.nativeEvent.preventDefault(); (event.target as Element).setPointerCapture(event.pointerId); onControl(name, 'pointer-' + event.pointerId, true) }}
+      onPointerUp={(event) => { event.stopPropagation(); onControl(name, 'pointer-' + event.pointerId, false); (event.target as Element).releasePointerCapture(event.pointerId) }}
+      onPointerCancel={onCancel}
+      onLostPointerCapture={(event) => onControl(name, 'pointer-' + event.pointerId, false)}>
+      <planeGeometry args={[width, height]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>)}
     <group position={[SHOOTER_GATE.x, SHOOTER_GATE.y, .3]}>
       <group ref={gate}><mesh position={[SHOOTER_GATE.length / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[.035, .035, SHOOTER_GATE.length, 12]} /><meshStandardMaterial color="#ebdba1" metalness={.6} roughness={.25} />
@@ -64,8 +74,9 @@ function Machine({ engine, inputs, onSnapshot }: { engine: PinballEngine; inputs
     <mesh ref={ball}><sphereGeometry args={[BALL_RADIUS, 24, 16]} /><meshStandardMaterial color="#f3f8ff" metalness={.7} roughness={.14} /></mesh>
   </>
 }
-export function PinballScene({ paused, releaseKey, inputs, onSnapshot, onReady, onError }: {
-  paused: boolean; releaseKey: number; inputs: RefObject<PinballInputs>; onSnapshot: (snapshot: PinballSnapshot) => void; onReady: () => void; onError: () => void
+type ControlHandler = (name: PinballControl, source: string, down: boolean) => void
+export function PinballScene({ paused, releaseKey, inputs, onControl, onCancel, onSnapshot, onReady, onError }: {
+  paused: boolean; releaseKey: number; inputs: RefObject<PinballInputs>; onControl: ControlHandler; onCancel: () => void; onSnapshot: (snapshot: PinballSnapshot) => void; onReady: () => void; onError: () => void
 }) {
   const [engine, setEngine] = useState<PinballEngine | null>(null)
   useEffect(() => {
@@ -85,6 +96,6 @@ export function PinballScene({ paused, releaseKey, inputs, onSnapshot, onReady, 
     <ambientLight intensity={1.7} />
     <directionalLight position={[-3, 5, 10]} intensity={3} />
     <pointLight position={[4, -4, 7]} intensity={45} color="#76baff" />
-    {engine && <Machine engine={engine} inputs={inputs} onSnapshot={onSnapshot} />}
+    {engine && <Machine engine={engine} inputs={inputs} onSnapshot={onSnapshot} onControl={onControl} onCancel={onCancel} />}
   </Canvas>
 }

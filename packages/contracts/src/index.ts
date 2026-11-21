@@ -21,6 +21,7 @@ export type AppId =
   | 'calendar'
   | 'code-editor'
   | 'minesweeper'
+  | 'solitaire'
 
 export type AppDefinition = {
   id: AppId

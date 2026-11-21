@@ -21,7 +21,7 @@ export const programMenu: ProgramMenuItem[] = [
   folder('portfolio', 'Portfolio', ['about', 'experience', 'projects', 'skills', 'cv-viewer', 'contact'].map((id) => app(id as AppId))),
   folder('accessories', 'Accesorios', [
     folder('system-tools', 'Herramientas del sistema', [app('task-manager'), app('recycle-bin')]),
-    folder('games', 'Juegos', [app('minesweeper')]),
+    folder('games', 'Juegos', [app('minesweeper'), app('solitaire')]),
     folder('multimedia', 'Multimedia', [app('media-player')]),
     app('calculator'), app('calendar'), app('paint'), app('writer'),
   ]),

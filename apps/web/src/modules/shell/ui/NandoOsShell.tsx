@@ -49,6 +49,7 @@ const MascotLab = import.meta.env.DEV && new URLSearchParams(window.location.sea
 const AssistantDock = lazy(() => import('../../assistant/ui/AssistantDock'))
 const WikiReader = lazy(() => import('../../wiki/ui/WikiReader').then((module) => ({ default: module.WikiReader })))
 const PaintWindow = lazy(() => import('../../applications/ui/PaintWindow').then((module) => ({ default: module.PaintWindow })))
+const SolitaireWindow = lazy(() => import('../../applications/ui/SolitaireWindow').then((module) => ({ default: module.SolitaireWindow })))
 const MinesweeperWindow = lazy(() => import('../../applications/ui/MinesweeperWindow').then((module) => ({ default: module.MinesweeperWindow })))
 const WriterWindow = lazy(() => import('../../applications/ui/WriterWindow').then((module) => ({ default: module.WriterWindow })))
 const WikiPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('wiki') === '1'
@@ -1113,7 +1114,7 @@ function DesktopShell() {
     if (
       id === 'about' || id === 'recycle-bin' || id === 'settings' ||
       id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact' || id === 'terminal' ||
-      id === 'task-manager' || id === 'calculator' || id === 'minesweeper'
+      id === 'task-manager' || id === 'calculator' || id === 'minesweeper' || id === 'solitaire'
     ) {
       openShellWindow(id)
     }
@@ -1385,7 +1386,7 @@ function DesktopShell() {
           fitContent={windowState.id === 'minesweeper'}
           isActive={activeWindowId === windowState.id}
           viewport={viewport}
-          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer' || windowState.id === 'terminal' || windowState.id === 'paint' || windowState.id === 'minesweeper'
+          contentStyle={windowState.id === 'file-explorer' || windowState.id === 'writer' || windowState.id === 'terminal' || windowState.id === 'paint' || windowState.id === 'minesweeper' || windowState.id === 'solitaire'
             ? { padding: 0, overflow: 'hidden', gridArea: '2 / 1 / -1 / 2' }
             : windowState.id === 'calculator' ? { padding: 0, gridArea: '2 / 1 / -1 / 2' } : undefined}
           onFocus={() => focusWindow(windowState.id)}
@@ -1420,6 +1421,10 @@ function DesktopShell() {
               onDownloadCv={downloadCv}
               onNotify={setNotice}
             />
+          ) : windowState.id === 'solitaire' ? (
+            <Suspense fallback={<p role="status">Abriendo Solitario…</p>}>
+              <SolitaireWindow isPaused={windowState.isMinimized} onClose={() => closeShellWindow('solitaire')} />
+            </Suspense>
           ) : windowState.id === 'minesweeper' ? (
             <Suspense fallback={<p role="status">Abriendo Buscaminas…</p>}>
               <MinesweeperWindow onClose={() => closeShellWindow('minesweeper')}

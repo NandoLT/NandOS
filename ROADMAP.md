@@ -78,6 +78,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Writer / Notepad para explicar proyectos, principios y forma de trabajo.
 - Paint disponible en Start > Programas. Incluye las 16 herramientas clásicas, historial y archivos PNG virtuales.
 - Calculadora estándar con estética de Windows 95, operaciones básicas, porcentaje, memoria y teclado.
+- Solitario Klondike en Accesorios > Juegos: baraja clásica, robo de una/tres cartas, arrastre, deshacer y opciones de juego.
 - Buscaminas clásico disponible en Start > Programas > Accesorios > Juegos, con tres dificultades, campo personalizado y mejores marcas locales.
 
 ### Aplicaciones futuras
@@ -89,7 +90,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Calendar / Timeline.
 - Code Editor.
 - System Information.
-- Solitario y Pinball como futuros juegos clásicos en Accesorios > Juegos.
+- Pinball como futuro juego clásico en Accesorios > Juegos.
 
 Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se utilizará necesariamente el atributo HTML `disabled`, porque debe poder mostrarse información al recibir foco o hover. Se usará `aria-disabled="true"`, se bloqueará la acción y se mostrará un popover:
 
@@ -650,3 +651,11 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Verificación: cobertura completa del catálogo sin duplicados, navegación por teclado, regreso entre niveles móviles, aplicaciones futuras y apertura de ventanas. Revisión visual en escritorio y móvil, sin avisos ni errores de consola.
 - Referencias: [ayuda original de Windows 95, KB182390](https://ftp.zx.net.nz/pub/Patches/ftp.microsoft.com/MISC/KB/en-us/182/390.HTM) y [tutorial original distribuido en CD](https://guidebookgallery.org/tutorials/windows95/).
 - Revisado por el propietario y autorizado para subir en un commit separado del juego.
+
+### Solitario clásico — trabajo local (21 de noviembre de 2026)
+
+- Objetivo y criterios: Klondike con estética de Windows 95, siete columnas, cuatro bases, robo de una/tres cartas, movimientos de secuencias, volteo, puntuación estándar, deshacer y victoria al completar 52 cartas. Implementación en `feat/classic-solitaire`, revisada por el propietario y autorizada para subir.
+- Cartas SVG propias, tapete verde, tres reversos y menús Juego/Ayuda reutilizados. Arrastre con puntero, selección origen/destino, doble clic a bases y teclado. Sin dependencias nuevas.
+- Plan: probar reglas y conservación de cartas, interfaz y pausa del reloj al minimizar/ocultar; integrar en Accesorios > Juegos; actualizar documentación inicial sin modificar Neon; compilación/lint/tipos y revisión visual en escritorio/móvil.
+- Verificación completada: 270 pruebas (209 web, 48 API y 13 infraestructura), compilación, tipos y lint correctos. Revisión real en escritorio y móvil de 390 px: lanzamiento desde Start, arrastre, selección por clic, doble clic a bases y opciones de robo. Consola sin avisos ni errores. Reglas de victoria y pausa del reloj verificadas en pruebas automatizadas.
+- Revisado por el propietario y autorizado para integrar mediante PR, en un commit propio. Sin cambios en Neon.

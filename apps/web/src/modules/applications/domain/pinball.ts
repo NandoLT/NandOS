@@ -9,7 +9,36 @@ export const FLIPPER_PIVOTS = [-2, 2] as const
 export const FLIPPER_Y = -4.65
 export const FLIPPER_REST = -.42
 export const FLIPPER_UP = .48
-export const pinballBumpers = [ { x: -1.5, y: 2.5 }, { x: 1.25, y: 3.4 }, { x: .1, y: .7 } ]
+export const pinballBumpers = [
+  { x: -.35, y: 3.65, radius: .48 }, { x: 1.15, y: 4.15, radius: .48 },
+  { x: .55, y: 2.55, radius: .46 }, { x: -3.1, y: 5.5, radius: .43 },
+  { x: -3.65, y: -.9, radius: .35 }, { x: -3.05, y: -1.8, radius: .35 },
+]
+export const pinballTargets = [
+  ...[0, 1, 2].map((index) => ({ x: -1.55 + index * .34, y: 1.8, angle: -.2 })),
+  ...[0, 1, 2, 3].map((index) => ({ x: 2.55, y: -.7 + index * .45, angle: Math.PI / 2 })),
+  ...[0, 1, 2].map((index) => ({ x: -.7 + index * .48, y: 5.25, angle: 0 })),
+]
+export function cubicLane(points: readonly [number, number][], steps = 24): [number, number][] {
+  return Array.from({ length: steps + 1 }, (_, index) => {
+    const t = index / steps, u = 1 - t
+    return [u ** 3 * points[0][0] + 3 * u ** 2 * t * points[1][0] + 3 * u * t ** 2 * points[2][0] + t ** 3 * points[3][0],
+      u ** 3 * points[0][1] + 3 * u ** 2 * t * points[1][1] + 3 * u * t ** 2 * points[2][1] + t ** 3 * points[3][1]]
+  })
+}
+export const pinballLanes = [
+  { id: 'launch-ramp', width: .68, points: cubicLane([[-3.6, .1], [-4.7, 4.4], [-2.8, 4.6], [-1, 1.2]]) },
+  { id: 'orbit', width: .58, points: cubicLane([[-2.4, 5.25], [2.4, 6.15], [2.6, 4.3], [2.2, 1.5]]) },
+]
+export const pinballLaneEdges: [number, number][][] = pinballLanes.flatMap(({ points, width }) => {
+  const edges = [-1, 1].map((side) => points.map(([x, y], index) => {
+    const previous = points[Math.max(0, index - 1)], next = points[Math.min(points.length - 1, index + 1)]
+    const dx = next[0] - previous[0], dy = next[1] - previous[1], length = Math.hypot(dx, dy)
+    return [x - dy / length * width / 2 * side, y + dx / length * width / 2 * side] as [number, number]
+  }))
+  return edges
+})
+export const pinballLaneRails: PinballRail[] = pinballLaneEdges.flatMap((edge) => edge.slice(1).map((point, index) => ({ from: edge[index], to: point })))
 export const pinballRails: PinballRail[] = [
   { from: [-4.5, -6.8], to: [-4.5, 5.5] },
   { from: [-4.5, 5.5], to: [-3.6, 6.7] },

@@ -105,7 +105,7 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
   const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
   const bounds = id === 'pinball'
-    ? fitGameWindowBounds({ ...defaultBounds, width: 540, height: 660 }, {
+    ? fitGameWindowBounds({ ...defaultBounds, width: 760, height: 660 }, {
       x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - TASKBAR_HEIGHT,
     })
     : id === 'solitaire'

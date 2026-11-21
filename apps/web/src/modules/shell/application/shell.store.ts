@@ -93,6 +93,7 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   terminal: { title: 'Terminal', icon: '⌨️' },
   calculator: { title: 'Calculadora', icon: '🧮' },
   minesweeper: { title: 'Buscaminas', icon: '💣' },
+  solitaire: { title: 'Solitario', icon: '🃏' },
   'task-manager': { title: 'Administrador de tareas', icon: '📊' },
 }
 
@@ -102,7 +103,11 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
   const isSettings = id === 'settings'
   const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
-  const bounds = id === 'minesweeper'
+  const bounds = id === 'solitaire'
+    ? fitGameWindowBounds({ ...defaultBounds, width: 760, height: 560 }, {
+      x: 0, y: 0, width: window.innerWidth, height: window.innerHeight - TASKBAR_HEIGHT,
+    })
+    : id === 'minesweeper'
     ? { ...defaultBounds, width: 228, height: 320 }
     : id === 'calculator'
     ? { ...defaultBounds, width: 340, height: 312 }

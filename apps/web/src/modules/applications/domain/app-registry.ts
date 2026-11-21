@@ -44,5 +44,6 @@ export const appRegistry: RegisteredApp[] = [
   { id: 'media-player', name: 'Media Player', windowTitle: 'Reproductor multimedia', icon: '🎵', status: 'coming-soon' },
   { id: 'calendar', name: 'Calendar', windowTitle: 'Calendario', icon: '📅', status: 'coming-soon' },
   { id: 'code-editor', name: 'Code Editor', windowTitle: 'Editor de código', icon: '🧑‍💻', status: 'coming-soon' },
+  { id: 'solitaire', name: 'Solitario', windowTitle: 'Solitario', icon: '🃏', status: 'available' },
   { id: 'minesweeper', name: 'Buscaminas', windowTitle: 'Buscaminas', icon: '💣', status: 'available' },
 ]

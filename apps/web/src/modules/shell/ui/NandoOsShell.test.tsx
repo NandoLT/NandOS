@@ -29,7 +29,7 @@ function openProgram(name: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
   fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
   const paths: Record<string, string[]> = {
-    Buscaminas: ['Accesorios', 'Juegos'], Writer: ['Accesorios'],
+    Buscaminas: ['Accesorios', 'Juegos'], Solitario: ['Accesorios', 'Juegos'], Writer: ['Accesorios'],
     'Administrador de tareas': ['Accesorios', 'Herramientas del sistema'],
   }
   for (const folder of paths[name] ?? []) fireEvent.click(screen.getByRole('button', { name: folder }))
@@ -40,8 +40,22 @@ function openProgram(name: string) {
 describe('desktop interactions', () => {
   beforeAll(async () => {
     // Load the editor dependency graph before timing the desktop interactions.
-    await Promise.all([import('../../applications/ui/WriterWindow'), import('../../applications/ui/MinesweeperWindow')])
+    await Promise.all([import('../../applications/ui/WriterWindow'), import('../../applications/ui/MinesweeperWindow'), import('../../applications/ui/SolitaireWindow')])
   }, 15_000)
+
+  it('launches Solitario from Games and preserves the cards when minimized', async () => {
+    enterGuest()
+    openProgram('Solitario')
+    const frame = within(screen.getByRole('dialog', { name: 'Solitario' }))
+    fireEvent.click(await frame.findByLabelText('Robar tres cartas'))
+    const waste = screen.getByLabelText('Descarte')
+    const top = within(waste).getByRole('button').getAttribute('aria-label')!
+    fireEvent.click(frame.getByLabelText('Minimizar'))
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Aplicaciones abiertas' })).getByRole('button', { name: /Solitario/ }))
+    expect(within(screen.getByLabelText('Descarte')).getByLabelText(top)).toBeInTheDocument()
+    fireEvent.click(frame.getByLabelText('Cerrar'))
+    expect(screen.queryByRole('dialog', { name: 'Solitario' })).not.toBeInTheDocument()
+  })
 
   it('launches Buscaminas and preserves the game when minimized', async () => {
     enterGuest()

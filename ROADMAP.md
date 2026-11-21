@@ -78,7 +78,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Writer / Notepad para explicar proyectos, principios y forma de trabajo.
 - Paint disponible en Start > Programas. Incluye las 16 herramientas clásicas, historial y archivos PNG virtuales.
 - Calculadora estándar con estética de Windows 95, operaciones básicas, porcentaje, memoria y teclado.
-- Buscaminas clásico disponible en Start > Programas, con tres dificultades, campo personalizado y mejores marcas locales.
+- Buscaminas clásico disponible en Start > Programas > Accesorios > Juegos, con tres dificultades, campo personalizado y mejores marcas locales.
 
 ### Aplicaciones futuras
 
@@ -89,7 +89,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Calendar / Timeline.
 - Code Editor.
 - System Information.
-- Solitario como futuro juego clásico.
+- Solitario y Pinball como futuros juegos clásicos en Accesorios > Juegos.
 
 Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se utilizará necesariamente el atributo HTML `disabled`, porque debe poder mostrarse información al recibir foco o hover. Se usará `aria-disabled="true"`, se bloqueará la acción y se mostrará un popover:
 
@@ -639,3 +639,14 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Casillas de 24 px en escritorio y móvil, modo táctil Banderas y navegación con flechas, Intro/Espacio y F. Minimizar conserva la partida; cerrar y reabrir inicia otra. Sin maximizado ni redimensionado manual del marco de juego.
 - Verificación: reglas, interacción, ciclo de vida y geometría; revisión visual en escritorio, móvil de 390 px y Experto en 900×600 sin scroll. Compilación, tipos y lint correctos. Documentación inicial actualizada sin cambiar IDs ni publicaciones de Neon.
 - Revisado por el propietario y autorizado para subir al repositorio, separado de la reorganización de Programas.
+
+### Organización de Programas — 21 de noviembre de 2026
+
+- Catálogo tipado de carpetas y componente de submenús reutilizable. Portfolio, Accesorios, Internet y Desarrollo; File Explorer y Terminal mantienen acceso directo. Cada aplicación aparece una vez, excepto Configuración, que conserva su sección de Start.
+- Paint, Writer, Calculadora y el futuro Calendar quedan en Accesorios. Juegos contiene Buscaminas y es la ubicación prevista para Solitario y Pinball. Multimedia agrupa Media Player; Herramientas del sistema, Administrador de tareas y Papelera.
+- Referencia de Windows 95: Accesorios incluye Paint/WordPad y carpetas Juegos, Multimedia y Herramientas del sistema. Portfolio, Internet y Desarrollo son adaptaciones de NandOS.
+- Cascada en escritorio, niveles con Volver en móvil y navegación con flechas, Intro y Escape. Las aplicaciones futuras conservan sus avisos y no se pueden ejecutar.
+- Rutas de la documentación inicial actualizadas sin cambiar IDs ni modificar artículos o publicaciones de Neon.
+- Verificación: cobertura completa del catálogo sin duplicados, navegación por teclado, regreso entre niveles móviles, aplicaciones futuras y apertura de ventanas. Revisión visual en escritorio y móvil, sin avisos ni errores de consola.
+- Referencias: [ayuda original de Windows 95, KB182390](https://ftp.zx.net.nz/pub/Patches/ftp.microsoft.com/MISC/KB/en-us/182/390.HTM) y [tutorial original distribuido en CD](https://guidebookgallery.org/tutorials/windows95/).
+- Revisado por el propietario y autorizado para subir en un commit separado del juego.

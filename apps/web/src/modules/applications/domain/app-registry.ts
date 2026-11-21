@@ -7,6 +7,7 @@ export type RegisteredApp = AppDefinition & {
 }
 
 export const appRegistry: RegisteredApp[] = [
+  { id: 'pinball', name: 'Pinball', windowTitle: 'Pinball', icon: '🪩', status: 'available' },
   {
     id: 'about',
     name: 'About Me',

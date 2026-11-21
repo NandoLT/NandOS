@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { findNearestDesktopGridPosition } from '../domain/desktop-grid'
 import { fitHelpWindowBounds } from '../domain/help-window-bounds'
+import { fitGameWindowBounds } from '../domain/game-window-bounds'
 import { TASKBAR_HEIGHT } from '../../../shared/lib/input-preferences'
 import { ABOUT_ME_ICON } from '../../../shared/lib/app-icons'
 import { createExplorerTree, DESKTOP_DIRECTORY, DOCUMENTS_DIRECTORY, excludeSubtrees, MAX_MARKDOWN_LENGTH, virtualName } from '../../applications/domain/explorer'
@@ -41,6 +42,7 @@ type ShellState = {
   moveWindow: (id: WindowId, x: number, y: number) => void
   resizeWindow: (id: WindowId, width: number, height: number) => void
   setHelpReading: (reading: boolean, viewport: WindowBounds) => void
+  fitGameWindow: (width: number, height: number, viewport: WindowBounds) => void
   moveDesktopItem: (id: DesktopSystemItemId, position: DesktopPosition) => void
   moveUserDesktopItem: (id: string, position: DesktopPosition) => void
   createDesktopFolder: (position: DesktopPosition) => void
@@ -90,6 +92,7 @@ const windowMetadata: Record<WindowId, { title: string; icon: string }> = {
   paint: { title: 'Paint', icon: '🎨' },
   terminal: { title: 'Terminal', icon: '⌨️' },
   calculator: { title: 'Calculadora', icon: '🧮' },
+  minesweeper: { title: 'Buscaminas', icon: '💣' },
   'task-manager': { title: 'Administrador de tareas', icon: '📊' },
 }
 
@@ -99,7 +102,9 @@ function createWindow(id: WindowId, zIndex: number): WindowState {
   const isSettings = id === 'settings'
   const isHelp = id === 'help'
   const isPortfolioSection = id === 'experience' || id === 'projects' || id === 'skills' || id === 'contact'
-  const bounds = id === 'calculator'
+  const bounds = id === 'minesweeper'
+    ? { ...defaultBounds, width: 228, height: 320 }
+    : id === 'calculator'
     ? { ...defaultBounds, width: 340, height: 312 }
     : id === 'paint'
     ? { ...defaultBounds, width: 740, height: 540 }
@@ -356,6 +361,14 @@ export const useShellStore = create<ShellState>()(
         set((state) => ({
           desktopPositions: { ...state.desktopPositions, [id]: position },
         })),
+
+      fitGameWindow: (width, height, viewport) => set((state) => {
+        const game = state.windows.find((item) => item.id === 'minesweeper')
+        if (!game || game.isMaximized) return state
+        const bounds = fitGameWindowBounds({ ...game.bounds, width, height }, viewport)
+        if (Object.entries(bounds).every(([key, value]) => game.bounds[key as keyof WindowBounds] === value)) return state
+        return { windows: state.windows.map((item) => item === game ? { ...item, bounds, previousBounds: bounds } : item) }
+      }),
 
       setHelpReading: (reading, viewport) => set((state) => {
         const current = state.windows.find((window) => window.id === 'help')

@@ -23,9 +23,9 @@ El acceso de administración es independiente y requiere credenciales reales. Nu
 - **Apagar:** finalizar la experiencia con una animación.
 
 Los submenús se colocan donde hay espacio. Las funciones futuras muestran un aviso al pasar el puntero o recibir foco.`],
-  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV, Contacto, Terminal, Writer, Paint, Calculadora y Administrador de tareas.
+  ['Start > Programas', 'Menú Start', `Contiene About Me, File Explorer, Papelera de reciclaje, Experiencia, Proyectos, Habilidades, CV, Contacto, Terminal, Writer, Paint, Calculadora, Administrador de tareas y Buscaminas.
 
-También muestra Nando Browser, Mail, Media Player, Calendar, Code Editor y Buscaminas como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
+También muestra Nando Browser, Mail, Media Player, Calendar y Code Editor como aplicaciones futuras deshabilitadas. Su aparición en el menú no implica que ya se puedan ejecutar.
 
 Configuración tiene su propia sección en Start. Consulta el artículo individual de cada aplicación para conocer su propósito.`],
   ['Start > Documentos', 'Menú Start', `Mis documentos y Este equipo abren File Explorer, el explorador virtual de NandOS; no leen tu disco real.
@@ -115,7 +115,7 @@ const apps: Array<[string, string, string, boolean]> = [
   ['media-player', 'Media Player', 'Propuesta de reproductor multimedia con aspecto clásico.', false],
   ['calendar', 'Calendar', 'Propuesta de calendario de escritorio. No implica integración con agendas externas ni reservas disponibles.', false],
   ['code-editor', 'Code Editor', 'Propuesta de editor de código retro para mostrar o explorar ejemplos. No ofrece ejecución de código por ahora.', false],
-  ['minesweeper', 'Buscaminas', 'Propuesta de juego clásico de Buscaminas para la experiencia retro.', false],
+  ['minesweeper', 'Buscaminas', 'Juego clásico disponible en Start > Programas. Incluye tres dificultades, campo personalizado, banderas, interrogaciones, cronómetro y mejores marcas locales. La primera casilla es segura. Usa clic para descubrir, botón derecho o F para marcar; en móvil activa Banderas. Pulsa la carita o F2 para empezar otra partida.', true],
 ]
 
 export const WIKI_DOCUMENTED_APP_IDS = apps.map(([id]) => id)

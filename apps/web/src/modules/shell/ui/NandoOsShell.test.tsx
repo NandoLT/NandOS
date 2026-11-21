@@ -25,19 +25,44 @@ function enterGuest() {
   fireEvent.click(screen.getByRole('button', { name: 'Entrar como invitado' }))
 }
 
+function openProgram(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Programas' })).getByRole('button', { name }))
+}
+
 describe('desktop interactions', () => {
   beforeAll(async () => {
     // Load the editor dependency graph before timing the desktop interactions.
-    await import('../../applications/ui/WriterWindow')
+    await Promise.all([import('../../applications/ui/WriterWindow'), import('../../applications/ui/MinesweeperWindow')])
   }, 15_000)
+
+  it('launches Buscaminas and preserves the game when minimized', async () => {
+    enterGuest()
+    const launch = () => openProgram('Buscaminas')
+    launch()
+    let game = within(screen.getByRole('dialog', { name: 'Buscaminas' }))
+    const first = await game.findByLabelText('Fila 1, columna 1: cubierta')
+    fireEvent.contextMenu(first)
+    fireEvent.click(game.getByLabelText('Minimizar'))
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Aplicaciones abiertas' })).getByRole('button', { name: /Buscaminas/ }))
+    game = within(screen.getByRole('dialog', { name: 'Buscaminas' }))
+    expect(game.getByLabelText('Fila 1, columna 1: bandera')).toBeInTheDocument()
+  })
+
+  it('starts a fresh Buscaminas game after closing and reopening it', async () => {
+    enterGuest()
+    openProgram('Buscaminas')
+    const game = within(screen.getByRole('dialog', { name: 'Buscaminas' }))
+    fireEvent.contextMenu(await game.findByLabelText('Fila 1, columna 1: cubierta'))
+    fireEvent.click(game.getByLabelText('Cerrar'))
+    openProgram('Buscaminas')
+    expect(await within(screen.getByRole('dialog', { name: 'Buscaminas' })).findByLabelText('Minas restantes: 10')).toBeInTheDocument()
+  })
 
   it('manages real windows from Start and respects the Writer discard confirmation', async () => {
     enterGuest()
-    const launch = (name: string) => {
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de aplicaciones' }))
-      fireEvent.keyDown(screen.getByRole('button', { name: 'Programas' }), { key: 'ArrowRight' })
-      fireEvent.click(within(screen.getByRole('group', { name: 'Programas' })).getByRole('button', { name }))
-    }
+    const launch = openProgram
     launch('Terminal')
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Terminal' })).getByRole('button', { name: 'Minimizar' }))
     launch('Writer')

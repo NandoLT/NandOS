@@ -12,6 +12,7 @@ type WindowFrameProps = {
   viewport: WindowBounds
   children: ReactNode
   contentStyle?: CSSProperties
+  fitContent?: boolean
   onFocus: () => void
   onClose: () => void
   onMinimize: () => void
@@ -20,17 +21,17 @@ type WindowFrameProps = {
   onResize: (width: number, height: number) => void
 }
 
-const Frame = styled.section<{ $window: FrameState }>`
+const Frame = styled.section<{ $window: FrameState; $fitContent: boolean }>`
   position: absolute;
   top: ${({ $window }) => $window.bounds.y}px;
   left: ${({ $window }) => $window.bounds.x}px;
   z-index: ${({ $window }) => $window.zIndex};
   display: ${({ $window }) => ($window.isMinimized ? 'none' : 'grid')};
-  grid-template-rows: 28px minmax(0, 1fr) 18px;
+  grid-template-rows: ${({ $fitContent }) => $fitContent ? '28px minmax(0, 1fr)' : '28px minmax(0, 1fr) 18px'};
   width: ${({ $window }) => $window.bounds.width}px;
   height: ${({ $window }) => $window.bounds.height}px;
-  min-width: 300px;
-  min-height: 180px;
+  min-width: ${({ $fitContent }) => $fitContent ? 0 : 300}px;
+  min-height: ${({ $fitContent }) => $fitContent ? 0 : 180}px;
   overflow: hidden;
   border: var(--os-window-border);
   border-radius: var(--os-window-radius);
@@ -41,8 +42,8 @@ const Frame = styled.section<{ $window: FrameState }>`
   @media (max-width: 640px) {
     top: 8px;
     left: 8px;
-    width: calc(100vw - 16px);
-    height: calc(100dvh - var(--os-taskbar-height) - 16px);
+    width: ${({ $fitContent, $window }) => $fitContent ? `min(${$window.bounds.width}px, calc(100vw - 16px))` : 'calc(100vw - 16px)'};
+    height: ${({ $fitContent, $window }) => $fitContent ? `min(${$window.bounds.height}px, calc(100dvh - var(--os-taskbar-height) - 16px))` : 'calc(100dvh - var(--os-taskbar-height) - 16px)'};
     min-width: 0;
     grid-template-rows: 28px minmax(0, 1fr);
   }
@@ -103,6 +104,7 @@ const WindowButton = styled.button`
   }
 
   &:active > span { border-style: inset; }
+  &:disabled { cursor: default; color: var(--os-disabled); }
 
   &:focus-visible { outline: none; }
   &:focus-visible > span {
@@ -147,6 +149,7 @@ export function WindowFrame({
   viewport,
   children,
   contentStyle,
+  fitContent = false,
   onFocus,
   onClose,
   onMinimize,
@@ -246,6 +249,7 @@ export function WindowFrame({
     <Frame
       ref={frameRef}
       $window={windowState}
+      $fitContent={fitContent}
       aria-label={windowState.title}
       role="dialog"
       tabIndex={-1}
@@ -264,7 +268,7 @@ export function WindowFrame({
         <WindowButton aria-label="Minimizar" onClick={() => leaveWindow(onMinimize)}>
           <span aria-hidden="true">_</span>
         </WindowButton>
-        <WindowButton aria-label={windowState.isMaximized ? 'Restaurar tamaño' : 'Maximizar'} onClick={onMaximize}>
+        <WindowButton disabled={fitContent} aria-label={windowState.isMaximized ? 'Restaurar tamaño' : 'Maximizar'} onClick={onMaximize}>
           <span aria-hidden="true">{windowState.isMaximized ? '❐' : '□'}</span>
         </WindowButton>
         <WindowButton aria-label="Cerrar" onClick={() => leaveWindow(onClose)}>
@@ -272,7 +276,7 @@ export function WindowFrame({
         </WindowButton>
       </TitleBar>
       <Content style={contentStyle}>{children}</Content>
-      <ResizeHandle
+      {!fitContent && <ResizeHandle
         type="button"
         aria-label={`Redimensionar ${windowState.title}`}
         onPointerDown={handleResizePointerDown}
@@ -289,7 +293,7 @@ export function WindowFrame({
             Math.max(200, Math.min(viewport.height - windowState.bounds.y - 8, height)),
           )
         }}
-      />
+      />}
     </Frame>
   )
 }

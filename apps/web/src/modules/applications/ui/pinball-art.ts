@@ -69,7 +69,7 @@ export function createPinballArtwork() {
     line([[side * 4.15, -5.9], [side * 3.3, -5.9], [side * 2.25, -4.75]], '#a5a5a0', 10)
   }
   label('LAUNCH', -2.65, 2.5, 19, '#ddd6bd', -.65)
-  label('RETURN', 2.3, 3.1, 17, '#e3d294', 1.35)
+  label('DEPLOY', 4, 1.8, 17, '#e3d294', -Math.PI / 2)
   label('HYPERSPACE', -2.6, -2.45, 16, '#b9a0c6', -.7)
   label('FUEL', 2.1, .25, 18, '#d9cc76', -Math.PI / 2)
   label('SPACE CADET', -.1, -6.55, 27, '#b3bdbe')

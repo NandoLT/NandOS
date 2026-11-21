@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Group, Mesh, PerspectiveCamera } from 'three'
-import { BALL_RADIUS, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_Y } from '../domain/pinball'
+import { BALL_RADIUS, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_Y, SHOOTER_GATE } from '../domain/pinball'
 import type { PinballInputs, PinballSnapshot } from '../domain/pinball'
 import { PinballTable } from './PinballTable'
+import { PinballLauncher } from './PinballLauncher'
 import type { PinballEngine } from '../infrastructure/pinball-engine'
 
 function CameraRig() {
@@ -28,6 +29,7 @@ function Machine({ engine, inputs, onSnapshot }: { engine: PinballEngine; inputs
   const left = useRef<Group>(null)
   const right = useRef<Group>(null)
   const lastReport = useRef(0)
+  const gate = useRef<Group>(null)
   useFrame((_, delta) => {
     Object.assign(engine.inputs, inputs.current)
     engine.advance(delta)
@@ -37,11 +39,21 @@ function Machine({ engine, inputs, onSnapshot }: { engine: PinballEngine; inputs
       const rotation = engine.flippers[index].rotation()
       ref.current?.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w)
     }
+    const gateRotation = engine.gate.rotation()
+    gate.current?.quaternion.set(gateRotation.x, gateRotation.y, gateRotation.z, gateRotation.w)
     lastReport.current += delta
     if (lastReport.current > .1) { lastReport.current = 0; onSnapshot(engine.snapshot()) }
   })
   return <>
     <PinballTable />
+    <PinballLauncher engine={engine} />
+
+    <group position={[SHOOTER_GATE.x, SHOOTER_GATE.y, .3]}>
+      <group ref={gate}><mesh position={[SHOOTER_GATE.length / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[.035, .035, SHOOTER_GATE.length, 12]} /><meshStandardMaterial color="#ebdba1" metalness={.6} roughness={.25} />
+      </mesh></group>
+      <mesh position={[0, 0, .08]}><sphereGeometry args={[.1, 16, 12]} /><meshStandardMaterial color="#9b3648" /></mesh>
+    </group>
     {FLIPPER_PIVOTS.map((x, side) => <group key={x} position={[x, FLIPPER_Y, .3]}>
       <group ref={side === 0 ? left : right}><mesh position={[FLIPPER_LENGTH / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
         <capsuleGeometry args={[.14, FLIPPER_LENGTH - .28, 4, 12]} />

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { BALL_START, FLIPPER_REST, flipperAngle } from '../domain/pinball'
+import { BALL_START, PLUNGER_STROKE, SHOOTER_EXIT, FLIPPER_REST, flipperAngle } from '../domain/pinball'
 import { PinballEngine } from './pinball-engine'
 let engines: PinballEngine[] = []
 const create = () => { const engine = new PinballEngine(); engines.push(engine); return engine }
 function advance(engine: PinballEngine, seconds: number, delta = 1 / 60) { for (let elapsed = 0; elapsed < seconds - 1e-8; elapsed += delta) engine.advance(delta) }
-function launch(engine: PinballEngine) { engine.inputs.launch = true; advance(engine, 1.2); engine.inputs.launch = false; engine.advance(1 / 120) }
+function launch(engine: PinballEngine) { engine.inputs.launch = true; advance(engine, 1.2); engine.inputs.launch = false; advance(engine, .12) }
 afterEach(() => { for (const engine of engines) engine.dispose(); engines = [] })
 describe('Pinball real physics', () => {
   it('parks the ball, charges and launches only on release', () => {
@@ -13,9 +13,12 @@ describe('Pinball real physics', () => {
     engine.inputs.launch = true; advance(engine, .6)
     expect(engine.snapshot().charge).toBeCloseTo(.5)
     expect(engine.snapshot().shots).toBe(0)
+    expect(engine.launcherCompression()).toBeCloseTo(.5)
     engine.inputs.launch = false; engine.advance(1 / 120)
+    expect(engine.snapshot().shots).toBe(0)
+    advance(engine, .12)
     expect(engine.snapshot().shots).toBe(1)
-    expect(engine.ball.linvel().y).toBeGreaterThan(15)
+    expect(engine.ball.linvel().y).toBeGreaterThan(12)
     engine.inputs.launch = true; advance(engine, .2); engine.inputs.launch = false; advance(engine, .2)
     expect(engine.snapshot().shots).toBe(1)
   })
@@ -29,16 +32,52 @@ describe('Pinball real physics', () => {
     const engine = create(); launch(engine)
     engine.ball.setTranslation({ x: 4, y: -5.8, z: .3 }, true)
     engine.ball.setLinvel({ x: 0, y: -2, z: 0 }, true); engine.advance(1 / 120)
-    expect(engine.snapshot()).toMatchObject({ ready: true, drains: 1 })
+    expect(engine.snapshot()).toMatchObject({ ready: true, drains: 0 })
   })
   it('keeps the new table playable at different launch strengths', () => {
-    for (const charge of [.05, .35, .7, 1.2]) {
+    for (const charge of [.75, .9, 1.05, 1.2]) {
       const engine = create()
-      engine.inputs.launch = true; advance(engine, charge); engine.inputs.launch = false; engine.advance(1 / 120)
-      for (let step = 0; step < 45 * 120 && !engine.snapshot().ready; step++) engine.advance(1 / 120)
+      engine.inputs.launch = true; advance(engine, charge); engine.inputs.launch = false; advance(engine, .12)
+      let deployed = false
+      for (let step = 0; step < 45 * 120 && !engine.snapshot().ready; step++) { engine.advance(1 / 120); deployed ||= engine.hasEnteredPlayfield }
+      expect(deployed, 'launch must enter the playfield at ' + charge).toBe(true)
       expect(engine.snapshot().ready, 'ball must return after charge ' + charge + ': ' + JSON.stringify(engine.ball.translation())).toBe(true)
       expect(engine.snapshot().drains).toBe(1)
     }
+  })
+  it('lets genuinely weak shots return for another try without losing the ball', () => {
+    for (const duration of [.06, .2, .4, .55]) {
+      const engine = create()
+      engine.inputs.launch = true; advance(engine, duration)
+      engine.inputs.launch = false; advance(engine, .12)
+      for (let i = 0; i < 15 * 120 && !engine.snapshot().ready; i++) engine.advance(1 / 120)
+      expect(engine.snapshot(), 'weak shot ' + duration).toMatchObject({ ready: true, shots: 1, drains: 0 })
+      expect(engine.hasEnteredPlayfield).toBe(false)
+    }
+  })
+  it('moves the ball with the plunger and cancels a released spring before impact', () => {
+    const engine = create()
+    engine.inputs.launch = true; advance(engine, .6)
+    expect(engine.ball.translation().y).toBeCloseTo(BALL_START.y - PLUNGER_STROKE * .5)
+    engine.inputs.launch = false; advance(engine, .04)
+    expect(engine.launcherCompression()).toBeGreaterThan(0)
+    expect(engine.launcherCompression()).toBeLessThan(.5)
+    engine.releaseControls(); advance(engine, .2)
+    expect(engine.snapshot().shots).toBe(0)
+    expect(engine.launcherCompression()).toBe(0)
+    expect(engine.ball.translation().y).toBeCloseTo(BALL_START.y)
+  })
+  it('closes the physical gate after deployment and blocks travel back into the lane', () => {
+    const engine = create(); launch(engine)
+    for (let i = 0; i < 5 * 120 && !engine.hasEnteredPlayfield; i++) engine.advance(1 / 120)
+    expect(engine.hasEnteredPlayfield).toBe(true)
+    advance(engine, .4)
+    engine.ball.setTranslation({ x: SHOOTER_EXIT.x + SHOOTER_EXIT.dx * .8, y: SHOOTER_EXIT.y + SHOOTER_EXIT.dy * .8, z: .3 }, true)
+    engine.ball.setLinvel({ x: -SHOOTER_EXIT.dx * 6, y: -SHOOTER_EXIT.dy * 6, z: 0 }, true)
+    advance(engine, .25)
+    const position = engine.ball.translation()
+    const progress = (position.x - SHOOTER_EXIT.x) * SHOOTER_EXIT.dx + (position.y - SHOOTER_EXIT.y) * SHOOTER_EXIT.dy
+    expect(progress).toBeGreaterThan(.15)
   })
   it('uses a fixed timestep independent of rendering frequency', () => {
     const first = create(); const second = create(); launch(first); launch(second)

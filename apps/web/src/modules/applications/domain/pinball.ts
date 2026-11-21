@@ -4,6 +4,9 @@ export type PinballSnapshot = { ready: boolean; charge: number; shots: number; d
 export type PinballRail = { from: [number, number]; to: [number, number] }
 export const BALL_RADIUS = .22
 export const BALL_START = { x: 4, y: -5.7, z: .3 }
+export const PLUNGER_STROKE = .46
+export const PLUNGER_HEAD_Y = BALL_START.y - BALL_RADIUS - .05
+export const PLUNGER_BASE_Y = -6.85
 export const FLIPPER_LENGTH = 1.75
 export const FLIPPER_PIVOTS = [-2, 2] as const
 export const FLIPPER_Y = -4.65
@@ -26,9 +29,23 @@ export function cubicLane(points: readonly [number, number][], steps = 24): [num
       u ** 3 * points[0][1] + 3 * u ** 2 * t * points[1][1] + 3 * u * t ** 2 * points[2][1] + t ** 3 * points[3][1]]
   })
 }
+// A continuous shooter lane replaces the sharp top-corner rebound.
+export const pinballShooterPath: [number, number][] = [
+  [4, -6.5], [4, 3.5],
+  ...cubicLane([[4, 3.5], [4, 5.8], [1.4, 6.2], [-1.9, 5.8]], 40).slice(1),
+  ...cubicLane([[-1.9, 5.8], [-2.4, 5.7], [-2.5, 5.2], [-2.1, 4.6]], 20).slice(1),
+]
+const exit = pinballShooterPath.at(-1)!, beforeExit = pinballShooterPath.at(-2)!
+const exitLength = Math.hypot(exit[0] - beforeExit[0], exit[1] - beforeExit[1])
+export const SHOOTER_EXIT = { x: exit[0], y: exit[1], dx: (exit[0] - beforeExit[0]) / exitLength, dy: (exit[1] - beforeExit[1]) / exitLength }
+export const SHOOTER_GATE = {
+  x: SHOOTER_EXIT.x + SHOOTER_EXIT.dy * .46,
+  y: SHOOTER_EXIT.y - SHOOTER_EXIT.dx * .46,
+  angle: Math.atan2(SHOOTER_EXIT.dx, -SHOOTER_EXIT.dy), length: .92,
+}
 export const pinballLanes = [
   { id: 'launch-ramp', width: .68, points: cubicLane([[-3.6, .1], [-4.7, 4.4], [-2.8, 4.6], [-1, 1.2]]) },
-  { id: 'orbit', width: .58, points: cubicLane([[-2.4, 5.25], [2.4, 6.15], [2.6, 4.3], [2.2, 1.5]]) },
+  { id: 'shooter', width: .95, points: pinballShooterPath },
 ]
 export const pinballLaneEdges: [number, number][][] = pinballLanes.flatMap(({ points, width }) => {
   const edges = [-1, 1].map((side) => points.map(([x, y], index) => {
@@ -45,10 +62,8 @@ export const pinballRails: PinballRail[] = [
   { from: [-3.6, 6.7], to: [2.8, 6.7] },
   { from: [2.8, 6.7], to: [4.5, 5.3] },
   { from: [4.5, 5.3], to: [4.5, -6.8] },
-  { from: [3.35, -6.8], to: [3.35, 4.8] },
   { from: [-4.5, -2.4], to: [-2, -4.65] },
   { from: [3.35, -2.4], to: [2, -4.65] },
-  { from: [3.35, -6.45], to: [4.5, -6.45] },
 ]
 export function railGeometry({ from, to }: PinballRail) {
   return { x: (from[0] + to[0]) / 2, y: (from[1] + to[1]) / 2,

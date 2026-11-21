@@ -21,7 +21,7 @@ export function PinballTable() {
         <mesh position={[0, 0, .31]}><boxGeometry args={[length, .11, .06]} /><meshStandardMaterial color="#d0c9b9" metalness={.7} roughness={.25} /></mesh>
       </group>
     })}
-    {laneCurves.map((curve, index) => <mesh key={index}><tubeGeometry args={[curve, 48, .105, 8, false]} /><meshStandardMaterial color={index < 2 ? '#b9a9b9' : '#a6a398'} metalness={.65} roughness={.3} /></mesh>)}
+    {laneCurves.map((curve, index) => <mesh key={index}><tubeGeometry args={[curve, 96, .09, 8, false]} /><meshStandardMaterial color={index < 2 ? '#b9a9b9' : '#a6a398'} metalness={.65} roughness={.3} /></mesh>)}
     {pinballBumpers.map(({ x, y, radius }, index) => <group key={index} position={[x, y, .3]}>
       <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[radius, radius * 1.12, .42, 24]} /><meshStandardMaterial color="#d7d4c9" metalness={.5} roughness={.35} /></mesh>
       <mesh position={[0, 0, .24]}><torusGeometry args={[radius * .8, .055, 8, 24]} /><meshStandardMaterial color="#7e4a79" metalness={.5} roughness={.35} /></mesh>
@@ -39,7 +39,6 @@ export function PinballTable() {
       <mesh><boxGeometry args={[.85, 1.25, .12]} /><meshStandardMaterial color="#4f364d" metalness={.25} transparent opacity={.7} /></mesh>
       <mesh position={[0, 0, .08]}><planeGeometry args={[.63, .96]} /><meshStandardMaterial color="#453f78" transparent opacity={.45} /></mesh>
     </group>)}
-    <mesh position={[4, -6.05, .3]}><boxGeometry args={[.55, .22, .35]} /><meshStandardMaterial color="#b39c78" metalness={.55} /></mesh>
     <mesh position={[0, -6.95, .04]}><planeGeometry args={[5.8, .09]} /><meshBasicMaterial color="#942e39" /></mesh>
   </>
 }

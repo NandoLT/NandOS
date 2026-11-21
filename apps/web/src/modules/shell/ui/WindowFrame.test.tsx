@@ -14,3 +14,16 @@ it('focuses a window without scrolling the desktop or its taskbar', () => {
     onMinimize={noop} onMaximize={noop} onMove={noop} onResize={noop}>Ayuda</WindowFrame>)
   expect(focus).toHaveBeenCalledWith({ preventScroll: true })
 })
+
+it('keeps a game frame fitted to its contents without changing other window controls', () => {
+  const noop = () => undefined
+  const bounds = { x: 160, y: 92, width: 228, height: 334 }
+  const result = render(<WindowFrame windowState={{ id: 'minesweeper', title: 'Buscaminas', icon: '💣', bounds,
+    previousBounds: bounds, isMinimized: false, isMaximized: false, zIndex: 10 }} fitContent
+    isActive viewport={{ x: 0, y: 0, width: 900, height: 500 }} onFocus={noop} onClose={noop}
+    onMinimize={noop} onMaximize={noop} onMove={noop} onResize={noop}>Tablero</WindowFrame>)
+  expect(result.getByRole('button', { name: 'Maximizar' })).toBeDisabled()
+  expect(result.getByRole('button', { name: 'Minimizar' })).toBeEnabled()
+  expect(result.getByRole('button', { name: 'Cerrar' })).toBeEnabled()
+  expect(result.queryByRole('button', { name: /Redimensionar/ })).not.toBeInTheDocument()
+})

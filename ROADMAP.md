@@ -78,6 +78,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Writer / Notepad para explicar proyectos, principios y forma de trabajo.
 - Paint disponible en Start > Programas. Incluye las 16 herramientas clásicas, historial y archivos PNG virtuales.
 - Calculadora estándar con estética de Windows 95, operaciones básicas, porcentaje, memoria y teclado.
+- Buscaminas clásico disponible en Start > Programas, con tres dificultades, campo personalizado y mejores marcas locales.
 
 ### Aplicaciones futuras
 
@@ -88,7 +89,7 @@ Las aplicaciones se registran en un `App Registry` común para alimentar el escr
 - Calendar / Timeline.
 - Code Editor.
 - System Information.
-- Minesweeper o Solitaire como easter eggs.
+- Solitario como futuro juego clásico.
 
 Las aplicaciones futuras aparecerán en el menú con aspecto desactivado. No se utilizará necesariamente el atributo HTML `disabled`, porque debe poder mostrarse información al recibir foco o hover. Se usará `aria-disabled="true"`, se bloqueará la acción y se mostrará un popover:
 
@@ -629,3 +630,12 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Antes de elegir, verificar disponibilidad y límites actuales, autorización para uso en una web pública, privacidad y tratamiento de datos, licencia, compatibilidad con LiteLLM y calidad en español para nuestro RAG.
 - Comparar por separado las alternativas de conversación y embeddings; validar con preguntas representativas de la wiki. Cambiar el modelo de embeddings requerirá reconstruir el índice correspondiente.
 - No contratar servicios ni activar consumo de pago hasta acordar proveedor y presupuesto.
+
+### Buscaminas — 21 de noviembre de 2026
+
+- Juego clásico con Principiante 8×8/10, Intermedio 16×16/40, Experto 30×16/99 y campos personalizados. Primera casilla segura, apertura de áreas vacías, banderas/interrogaciones y apertura de vecinas al completar las banderas de un número.
+- Contadores rojos de siete segmentos, carita SVG propia redondeada con expresiones, cronómetro y mejores marcas locales. Nueva partida con la carita o F2.
+- Carga diferida y reutilización de ventanas/menús. La ventana se ajusta al tablero y se recoloca dentro de todo el escritorio antes de recortar; en Experto se evita el scroll si el campo completo cabe por encima de la barra de tareas.
+- Casillas de 24 px en escritorio y móvil, modo táctil Banderas y navegación con flechas, Intro/Espacio y F. Minimizar conserva la partida; cerrar y reabrir inicia otra. Sin maximizado ni redimensionado manual del marco de juego.
+- Verificación: reglas, interacción, ciclo de vida y geometría; revisión visual en escritorio, móvil de 390 px y Experto en 900×600 sin scroll. Compilación, tipos y lint correctos. Documentación inicial actualizada sin cambiar IDs ni publicaciones de Neon.
+- Revisado por el propietario y autorizado para subir al repositorio, separado de la reorganización de Programas.

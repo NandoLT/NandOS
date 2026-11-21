@@ -1,5 +1,5 @@
 import RAPIER from '@dimforge/rapier3d/rapier.js'
-import { BALL_RADIUS, BALL_START, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_REST, FLIPPER_UP, FLIPPER_Y, flipperAngle, pinballBumpers, pinballRails, railGeometry, rotationZ } from '../domain/pinball'
+import { BALL_RADIUS, BALL_START, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_REST, FLIPPER_UP, FLIPPER_Y, flipperAngle, pinballBumpers, pinballLaneRails, pinballRails, pinballTargets, railGeometry, rotationZ } from '../domain/pinball'
 import type { PinballInputs, PinballSnapshot } from '../domain/pinball'
 
 const STEP = 1 / 120
@@ -23,13 +23,16 @@ export class PinballEngine {
   constructor() {
     this.world.timestep = STEP
     this.world.integrationParameters.maxCcdSubsteps = 4
-    for (const rail of pinballRails) {
+    for (const rail of [...pinballRails, ...pinballLaneRails]) {
       const { x, y, length, angle } = railGeometry(rail)
       this.world.createCollider(RAPIER.ColliderDesc.cuboid(length / 2, .12, .6).setTranslation(x, y, .3).setRotation(rotationZ(angle)).setRestitution(.65).setFriction(.1))
     }
     for (const bumper of pinballBumpers) {
-      const collider = this.world.createCollider(RAPIER.ColliderDesc.ball(.64).setTranslation(bumper.x, bumper.y, .3).setRestitution(1.15).setFriction(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS))
+      const collider = this.world.createCollider(RAPIER.ColliderDesc.ball(bumper.radius).setTranslation(bumper.x, bumper.y, .3).setRestitution(1.15).setFriction(0).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS))
       this.bumpers.add(collider.handle)
+    }
+    for (const target of pinballTargets) {
+      this.world.createCollider(RAPIER.ColliderDesc.cuboid(.13, .09, .35).setTranslation(target.x, target.y, .3).setRotation(rotationZ(target.angle)).setRestitution(.8))
     }
     this.flippers = FLIPPER_PIVOTS.map((x, side) => {
       const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, FLIPPER_Y, .3).setRotation(rotationZ(flipperAngle(side as 0 | 1, FLIPPER_REST))))

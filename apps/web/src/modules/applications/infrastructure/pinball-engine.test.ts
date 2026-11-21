@@ -31,6 +31,15 @@ describe('Pinball real physics', () => {
     engine.ball.setLinvel({ x: 0, y: -2, z: 0 }, true); engine.advance(1 / 120)
     expect(engine.snapshot()).toMatchObject({ ready: true, drains: 1 })
   })
+  it('keeps the new table playable at different launch strengths', () => {
+    for (const charge of [.05, .35, .7, 1.2]) {
+      const engine = create()
+      engine.inputs.launch = true; advance(engine, charge); engine.inputs.launch = false; engine.advance(1 / 120)
+      for (let step = 0; step < 45 * 120 && !engine.snapshot().ready; step++) engine.advance(1 / 120)
+      expect(engine.snapshot().ready, 'ball must return after charge ' + charge + ': ' + JSON.stringify(engine.ball.translation())).toBe(true)
+      expect(engine.snapshot().drains).toBe(1)
+    }
+  })
   it('uses a fixed timestep independent of rendering frequency', () => {
     const first = create(); const second = create(); launch(first); launch(second)
     advance(first, .5, 1 / 30); advance(second, .5, 1 / 120)

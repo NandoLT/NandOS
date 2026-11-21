@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Group, Mesh, OrthographicCamera } from 'three'
-import { BALL_RADIUS, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_Y, pinballBumpers, pinballRails, railGeometry } from '../domain/pinball'
+import { Group, Mesh, PerspectiveCamera } from 'three'
+import { BALL_RADIUS, FLIPPER_LENGTH, FLIPPER_PIVOTS, FLIPPER_Y } from '../domain/pinball'
 import type { PinballInputs, PinballSnapshot } from '../domain/pinball'
+import { PinballTable } from './PinballTable'
 import type { PinballEngine } from '../infrastructure/pinball-engine'
 
 function CameraRig() {
   const { size, set, get } = useThree()
   useEffect(() => {
     const previous = get().camera
-    const camera = new OrthographicCamera(-size.width / 2, size.width / 2, size.height / 2, -size.height / 2, .1, 100)
-    camera.position.set(0, -8, 22)
-    camera.zoom = Math.min(size.width / 10.8, size.height / 16.3)
+    const aspect = size.width / size.height
+    const camera = new PerspectiveCamera(34, aspect, .1, 120)
+    const tangent = Math.tan(34 * Math.PI / 360)
+    const distance = Math.max(16 / (2 * tangent), 10.8 / (2 * tangent * aspect))
+    camera.position.set(0, -distance * .36, distance * .933)
     camera.lookAt(0, 0, 0)
     camera.updateProjectionMatrix()
     set({ camera })
@@ -38,28 +41,15 @@ function Machine({ engine, inputs, onSnapshot }: { engine: PinballEngine; inputs
     if (lastReport.current > .1) { lastReport.current = 0; onSnapshot(engine.snapshot()) }
   })
   return <>
-    <mesh position={[0, 0, -.25]}><boxGeometry args={[9.6, 14.4, .5]} /><meshStandardMaterial color="#192340" roughness={.65} /></mesh>
-    <mesh position={[0, 0, .01]}><planeGeometry args={[8.9, 13.5]} /><meshStandardMaterial color="#123859" roughness={.8} /></mesh>
-    {[-3.5, -2.5, -1.5, -.5, .5, 1.5, 2.5].map((x) => <mesh key={x} position={[x, .5, .025]}><planeGeometry args={[.015, 11.5]} /><meshBasicMaterial color="#1b4966" /></mesh>)}
-    {pinballRails.map((rail, index) => {
-      const { x, y, length, angle } = railGeometry(rail)
-      return <mesh key={index} position={[x, y, .3]} rotation={[0, 0, angle]}><boxGeometry args={[length, .24, .6]} /><meshStandardMaterial color="#a5c1d1" metalness={.65} roughness={.3} /></mesh>
-    })}
-    {pinballBumpers.map(({ x, y }, index) => <group key={index} position={[x, y, .3]}>
-      <mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.64, .64, .55, 28]} /><meshStandardMaterial color="#e86734" metalness={.3} roughness={.35} /></mesh>
-      <mesh position={[0, 0, .3]}><torusGeometry args={[.46, .07, 8, 32]} /><meshStandardMaterial color="#ffcc60" emissive="#db7817" emissiveIntensity={.6} /></mesh>
-      <mesh position={[0, 0, .31]}><circleGeometry args={[.3, 24]} /><meshBasicMaterial color="#fff2c2" /></mesh>
-    </group>)}
+    <PinballTable />
     {FLIPPER_PIVOTS.map((x, side) => <group key={x} position={[x, FLIPPER_Y, .3]}>
-      <group ref={side === 0 ? left : right}><mesh position={[FLIPPER_LENGTH / 2, 0, 0]}>
-        <boxGeometry args={[FLIPPER_LENGTH, .28, .6]} />
-        <meshStandardMaterial color="#ffcf57" metalness={.25} roughness={.35} />
+      <group ref={side === 0 ? left : right}><mesh position={[FLIPPER_LENGTH / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[.14, FLIPPER_LENGTH - .28, 4, 12]} />
+        <meshStandardMaterial color="#e5d7c4" metalness={.25} roughness={.35} />
       </mesh></group>
       <mesh position={[0, 0, .36]}><sphereGeometry args={[.2, 16, 12]} /><meshStandardMaterial color="#ece4cf" metalness={.5} roughness={.25} /></mesh>
     </group>)}
     <mesh ref={ball}><sphereGeometry args={[BALL_RADIUS, 24, 16]} /><meshStandardMaterial color="#f3f8ff" metalness={.7} roughness={.14} /></mesh>
-    <mesh position={[4, -6.05, .3]}><boxGeometry args={[.55, .22, .35]} /><meshStandardMaterial color="#e44935" /></mesh>
-    <mesh position={[0, -6.9, .03]}><planeGeometry args={[5.8, .12]} /><meshBasicMaterial color="#e04741" /></mesh>
   </>
 }
 export function PinballScene({ paused, releaseKey, inputs, onSnapshot, onReady, onError }: {
@@ -76,7 +66,7 @@ export function PinballScene({ paused, releaseKey, inputs, onSnapshot, onReady, 
     return () => { cancelled = true; instance?.dispose() }
   }, [onReady, onError])
   useEffect(() => { engine?.releaseControls() }, [paused, engine, releaseKey])
-  return <Canvas orthographic camera={{ position: [0, -8, 22], near: .1, far: 100 }} dpr={[1, 1.5]}
+  return <Canvas camera={{ position: [0, -10, 27], near: .1, far: 120 }} dpr={[1, 1.5]}
     frameloop={paused ? 'never' : 'always'} gl={{ antialias: true, alpha: false }}>
     <color attach="background" args={['#080e1c']} />
     <CameraRig />

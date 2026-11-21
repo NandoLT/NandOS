@@ -677,3 +677,16 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 - Antes de pasar a la siguiente aplicación, crear un apartado de documentación del proyecto que explique cómo se han construido las implementaciones especiales: Paint, Writer, Buscaminas, Solitario, Pinball y otras aplicaciones con lógica propia.
 - Incluir arquitectura y componentes reutilizados, modelo de datos/estado, algoritmos y decisiones relevantes, persistencia, interacción de teclado/táctil, limitaciones y pruebas; enlaces al código y diagramas cuando ayuden.
 - Registrar ahora el trabajo pendiente. Redactar este bloque al terminar Pinball para reflejar la implementación final.
+
+### Pinball — distribución y acabado Space Cadet
+
+- Referencia visual acordada: Space Cadet de Windows, según el artículo de VidaExtra compartido por el propietario. La dinámica del prototipo está validada.
+- Objetivo de esta entrega: tablero reconocible por su distribución, carriles curvos, grupo de bumpers superior, dianas, indicadores luminosos, ilustración espacial y panel lateral clásico. Mantener los controles, pausa y tacto físico del prototipo.
+- Criterios: geometría visual y colisiones coherentes para las piezas jugables; bola visible bajo decoración; panel adaptable a escritorio/móvil; sin avisos de compilación o consola. Mantener puntuación/misiones y rampas elevadas como bloques posteriores, identificando el estado de prototipo.
+- Pasos: revisar capturas; definir elementos del tablero en datos compartidos; construir arte y geometría propios en Three.js; ajustar presentación del panel; comprobar lanzamiento/rebotes y revisar escritorio/móvil.
+- Resultado: cámara en perspectiva fija, arte espacial procedural propio, seis bumpers, dianas y dos carriles curvos jugables a ras del tablero. Datos compartidos entre geometría y colisiones. Panel lateral negro con emblema vectorial propio, contadores reales de ensayo y carga de lanzador; presentación compacta en móvil.
+- Corregido un paso estrecho entre el lanzador y la órbita superior detectado al ensayar diferentes cargas. Las pruebas comprueban que cuatro intensidades de lanzamiento recorren el tablero y permiten recuperar la bola.
+- Verificación final: `pnpm verify` completo, 283 pruebas (222 web, 48 API y 13 infraestructura), compilación, tipos y lint correctos. Lanzamiento real en navegador, revisión de escritorio y móvil de 390 px con controles accesibles, consola sin avisos ni errores.
+- Estado: primera aproximación visual a Space Cadet; siguen pendientes rampas elevadas, puntuación de partida, misiones y sonido. Los indicadores actuales son de ensayo, sin simular sistemas de juego pendientes.
+- Referencia: [artículo y captura compartidos por el propietario](https://www.vidaextra.com/juegos-retro/space-cadet-mitico-pinball-3d-windows-95-que-jugamos-saber-que-era-demo-algo-grande-asi-puedes-jugarlo-hoy-1). No se incorporan mapas de bits ni datos originales del juego.
+- Recuperación: cambios locales en `feat/pinball-prototype`; copia acotada del prototipo anterior en `/tmp/nandos-pinball-before-space-cadet.tgz`. Sin commits ni despliegue solicitados. Siguiente paso: revisar distribución y aspecto con el propietario. Documentación técnica global de aplicaciones pendiente para el final de Pinball.

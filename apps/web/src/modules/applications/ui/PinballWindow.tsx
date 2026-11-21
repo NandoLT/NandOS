@@ -54,16 +54,12 @@ function CadetEmblem() {
     <ellipse cx="72" cy="70" rx="12" ry="7" fill="#47464e" /><path d="m37 83 10-2M156 17l8 1M61 10l2 7" stroke="#ddcdad" strokeWidth="2" />
   </svg>
 }
+// Keep equivalent keyboard/screen-reader buttons without reserving any board height.
 const Controls = styled.div`
-  display: flex; gap: 5px; align-items: stretch; padding: 4px;
-  button { flex: 1; min-width: 0; min-height: 32px; padding: 5px 8px; border: var(--os-raised-border); background: var(--os-window); color: var(--os-window-text); font: inherit; touch-action: none; user-select: none; }
-  button[aria-pressed='true'] { border: var(--os-inset-border); background: #c8d2e0; }
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%);
+  &:focus-within { inset: auto 8px 8px; width: auto; height: auto; display: flex; gap: 5px; clip-path: none; z-index: 2; }
+  button { min-height: 32px; padding: 5px 8px; border: var(--os-raised-border); background: var(--os-window); color: var(--os-window-text); font: inherit; touch-action: none; }
   button:focus-visible { outline: 1px dotted currentColor; outline-offset: -5px; }
-`
-const Footer = styled.div`
-  padding: 3px 7px; border: var(--os-inset-border); font-size: 11px; line-height: 1.4;
-  /* Keep the floating assistant launcher clear of the touch controls. */
-  @media (max-width: 640px) { min-height: 48px; padding-right: 116px; }
 `
 class SceneBoundary extends Component<{ children: ReactNode; onError: () => void }, { failed: boolean }> {
   state = { failed: false }
@@ -136,18 +132,9 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
     ]} />
     <Dashboard><strong>PINBALL · PROTOTIPO</strong><span>LANZAMIENTOS {snapshot.shots} · SALIDAS {snapshot.drains} · REBOTES {snapshot.hits}</span><span>Intentos ilimitados</span></Dashboard>
     <Cabinet><Stage aria-label="Tablero tridimensional de Pinball" onPointerDown={() => panel.current?.focus({ preventScroll: true })}>
-      {supported && !failed ? <SceneBoundary key={revision} onError={sceneError}><Suspense fallback={null}><Scene paused={paused} releaseKey={releaseKey} inputs={inputs} onSnapshot={setSnapshot} onReady={sceneReady} onError={sceneError} /></Suspense></SceneBoundary> : <Overlay><p>{failed ? 'No se han podido cargar las físicas.' : 'Este navegador no dispone de WebGL 2.'}</p><p>Prueba con la aceleración gráfica activada en un navegador compatible.</p></Overlay>}
+      {supported && !failed ? <SceneBoundary key={revision} onError={sceneError}><Suspense fallback={null}><Scene paused={paused} releaseKey={releaseKey} inputs={inputs} onControl={control} onCancel={clear} onSnapshot={setSnapshot} onReady={sceneReady} onError={sceneError} /></Suspense></SceneBoundary> : <Overlay><p>{failed ? 'No se han podido cargar las físicas.' : 'Este navegador no dispone de WebGL 2.'}</p><p>Prueba con la aceleración gráfica activada en un navegador compatible.</p></Overlay>}
       {supported && !failed && !ready && <Overlay><p>Preparando el tablero 3D…</p></Overlay>}
       {ready && !failed && paused && <Overlay><p>Partida en pausa</p>{manualPause && <button type="button" onClick={() => { setManualPause(false); panel.current?.focus() }}>Continuar</button>}</Overlay>}
-
-    </Stage>
-    <ScorePanel aria-label="Panel de Space Cadet">
-      <div><h2><small>3D PINBALL</small>Space<br />Cadet</h2><CadetEmblem /></div>
-      <section aria-label="Lanzamientos del ensayo">LANZAMIENTOS<strong>{String(snapshot.shots).padStart(6, '0')}</strong></section>
-      <section><p>ENSAYO LIBRE</p><p>{paused ? 'Partida en pausa' : snapshot.ready ? 'Esperando lanzamiento' : 'Bola en juego'}</p><meter aria-label="Carga del lanzador" min={0} max={1} value={snapshot.charge} /></section>
-      <section><dl><dt>REBOTES</dt><dd>{snapshot.hits}</dd><dt>SALIDAS</dt><dd>{snapshot.drains}</dd><dt>INTENTOS</dt><dd>∞</dd></dl></section>
-      <footer>RECREACIÓN · NANDOS<br />Tablero en desarrollo</footer>
-    </ScorePanel></Cabinet>
     <Controls aria-label="Controles de Pinball">{(['left', 'launch', 'right'] as const).map((name) => <button key={name} type="button" disabled={!ready || failed || paused} aria-pressed={pressed[name]}
       aria-label={name === 'left' ? 'Flipper izquierdo' : name === 'right' ? 'Flipper derecho' : 'Cargar y lanzar bola'}
       onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId); panel.current?.focus(); control(name, 'pointer-' + event.pointerId, true) }}
@@ -156,7 +143,14 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
       onKeyUp={(event) => { if (event.code === 'Enter') { event.preventDefault(); control(name, 'enter', false) } }}>
       {name === 'left' ? '◀ Izquierdo' : name === 'right' ? 'Derecho ▶' : 'Lanzador'}
     </button>)}</Controls>
-    <Footer role="status">{snapshot.ready ? pressed.launch ? 'Carga: ' + Math.round(snapshot.charge * 100) + ' %. Suelta para lanzar.' : 'Mantén Espacio o Lanzador y suelta para lanzar.' : '← / Z y → / /: flippers · P: pausa · F2: reiniciar'}</Footer>
-    {help && <ClassicDialog title="Pinball · Cómo jugar" onClose={() => setHelp(false)}><p>Mantén pulsado Espacio o el muelle del lanzador para comprimir el muelle; suelta para lanzar. Una carga suave puede volver al carril para reintentarlo, sin perder la bola.</p><p>Usa ← o Z para el flipper izquierdo y → o / para el derecho. Puedes pulsar los dos a la vez. En móvil, mantén los botones inferiores.</p><p>P pausa la partida y F2 reinicia el ensayo. Al perder la bola volverá al lanzador: tienes intentos ilimitados.</p><p>Este primer prototipo sirve para ajustar el tacto. Los carriles curvos ya son jugables. La puntuación, las misiones, el sonido y las rampas elevadas llegarán en los siguientes bloques.</p></ClassicDialog>}
+    </Stage>
+    <ScorePanel aria-label="Panel de Space Cadet">
+      <div><h2><small>3D PINBALL</small>Space<br />Cadet</h2><CadetEmblem /></div>
+      <section aria-label="Lanzamientos del ensayo">LANZAMIENTOS<strong>{String(snapshot.shots).padStart(6, '0')}</strong></section>
+      <section><p>ENSAYO LIBRE</p><p>{paused ? 'Partida en pausa' : snapshot.ready ? 'Esperando lanzamiento' : 'Bola en juego'}</p><meter aria-label="Carga del lanzador" min={0} max={1} value={snapshot.charge} /></section>
+      <section><dl><dt>REBOTES</dt><dd>{snapshot.hits}</dd><dt>SALIDAS</dt><dd>{snapshot.drains}</dd><dt>INTENTOS</dt><dd>∞</dd></dl></section>
+      <footer>RECREACIÓN · NANDOS<br />Tablero en desarrollo</footer>
+    </ScorePanel></Cabinet>
+    {help && <ClassicDialog title="Pinball · Cómo jugar" onClose={() => setHelp(false)}><p>Mantén pulsado Espacio o el muelle del lanzador para comprimir el muelle; suelta para lanzar. Una carga suave puede volver al carril para reintentarlo, sin perder la bola.</p><p>Usa ← o Z para el flipper izquierdo y → o / para el derecho. Puedes pulsar los dos a la vez. En móvil, pulsa directamente sobre cada flipper y mantén pulsado el muelle para cargar; suéltalo para lanzar.</p><p>P pausa la partida y F2 reinicia el ensayo. Al perder la bola volverá al lanzador: tienes intentos ilimitados.</p><p>Este primer prototipo sirve para ajustar el tacto. Los carriles curvos ya son jugables. La puntuación, las misiones, el sonido y las rampas elevadas llegarán en los siguientes bloques.</p></ClassicDialog>}
   </Panel>
 }

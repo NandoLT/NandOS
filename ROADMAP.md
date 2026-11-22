@@ -714,3 +714,8 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 
 - El propietario autoriza subir el trabajo acumulado. Entrega separada en cuatro commits: prototipo e integración; tablero Space Cadet; mecanismo de lanzamiento; ampliación de espacio y controles directos. Integración mediante PR con Verify monorepo y despliegue habitual de Vercel.
 - Próxima sesión: continuar afinando el aspecto y los mecanismos de Pinball. La documentación técnica de las aplicaciones se mantiene prevista para cuando termine Pinball, antes de comenzar otra aplicación.
+
+### Pinball — corrección del empaquetado de producción
+
+- El despliegue del PR #11 completó web/API, pero la prueba real detectó `TypeError: a is not a constructor` al iniciar Three.js. Los fragmentos manuales alteraban el orden de inicialización; el servidor de desarrollo no reproducía el fallo.
+- Corregida la división de Three.js en grupos sin dependencias circulares: fundamentos matemáticos, núcleo, shaders y renderizador. Se conserva la carga diferida, sin silenciar avisos ni elevar el límite de tamaño. La compilación servida por `vite preview` carga el tablero y completa un lanzamiento con consola limpia; se comprobará también el despliegue final.

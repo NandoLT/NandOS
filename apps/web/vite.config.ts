@@ -18,7 +18,12 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: 'writer-prosemirror', test: /node_modules\/prosemirror-/u },
-            { name: 'pinball-three', test: /node_modules\/three\/src\//u, maxSize: 450_000, includeDependenciesRecursively: false },
+            // Keep foundational types ahead of shaders/renderers: size-based partitions
+            // can create circular chunks and evaluate uniforms before Color exists.
+            { name: 'pinball-math', priority: 40, test: /node_modules\/three\/src\/(?:math\/|constants\.js|utils\.js|renderers\/shaders\/(?:UniformsUtils\.js|ShaderChunk\/default_(?:vertex|fragment)\.glsl\.js))/u, includeDependenciesRecursively: false },
+            { name: 'pinball-shaders', priority: 30, test: /node_modules\/three\/src\/renderers\/shaders\//u, includeDependenciesRecursively: false },
+            { name: 'pinball-renderer', priority: 20, test: /node_modules\/three\/src\/(?:renderers\/|extras\/PMREMGenerator\.js)/u, includeDependenciesRecursively: false },
+            { name: 'pinball-core', priority: 10, test: (id: string) => id.includes('/node_modules/three/src/') && !/\/Three[^/]*\.js$/u.test(id), includeDependenciesRecursively: false },
           ],
         },
       },

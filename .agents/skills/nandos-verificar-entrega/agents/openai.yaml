@@ -1,0 +1,4 @@
+interface:
+  display_name: "NandOS · Verificar entrega"
+  short_description: "Pruebas, artefactos y evidencia de entrega"
+  default_prompt: "Usa $nandos-verificar-entrega para esta tarea de NandOS."

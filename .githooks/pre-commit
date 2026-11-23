@@ -2,4 +2,9 @@
 set -eu
 
 git diff --cached --check
+# Run the validator being committed, not an unstaged replacement of it.
+agent_check=$(mktemp "${TMPDIR:-/tmp}/nandos-agents-check.XXXXXX")
+trap 'rm -f "$agent_check"' EXIT HUP INT TERM
+git show :scripts/agents/check.py > "$agent_check"
+python3 "$agent_check" --root "$(git rev-parse --show-toplevel)" --staged
 pnpm exec lint-staged

@@ -1,0 +1,4 @@
+interface:
+  display_name: "NandOS · Consolidar aprendizaje"
+  short_description: "Aprendizajes comprobados sin acumular reglas"
+  default_prompt: "Usa $nandos-consolidar-aprendizaje para esta tarea de NandOS."

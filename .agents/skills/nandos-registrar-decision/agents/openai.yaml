@@ -1,0 +1,4 @@
+interface:
+  display_name: "NandOS · Registrar decision"
+  short_description: "Decisiones de arquitectura y sus consecuencias"
+  default_prompt: "Usa $nandos-registrar-decision para esta tarea de NandOS."

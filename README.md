@@ -2,6 +2,15 @@
 
 Portfolio web interactivo con estética de sistema operativo.
 
+## Trabajo asistido y decisiones
+
+El contexto del proyecto empieza en [AGENTS.md](AGENTS.md). Consulta el [mapa de
+contexto y agentes](docs/development.md), los [ADRs](docs/adr/README.md) y el
+[plan de esta implantación](docs/plans/sistema-agentes.md). Las skills locales
+respetan el escritorio W95 y los revisores distinguen evidencia de hipótesis.
+`pnpm agents:check` valida el corpus y `pnpm agents:test` prueba el validador;
+ambos forman parte de `pnpm verify`. Requieren Python 3.11+, sin paquetes externos.
+
 ## Desarrollo local
 
 ```bash

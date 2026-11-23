@@ -1,0 +1,4 @@
+interface:
+  display_name: "NandOS · Revisar interfaz"
+  short_description: "Interfaz W95, móvil y accesibilidad de recorridos"
+  default_prompt: "Usa $nandos-revisar-interfaz para esta tarea de NandOS."

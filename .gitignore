@@ -8,3 +8,6 @@ coverage/
 *.local
 *.tsbuildinfo
 .DS_Store
+
+# Cache de las comprobaciones Python del corpus de agentes
+__pycache__/

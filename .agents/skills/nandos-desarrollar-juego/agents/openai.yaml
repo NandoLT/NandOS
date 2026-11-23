@@ -1,0 +1,4 @@
+interface:
+  display_name: "NandOS · Desarrollar juego"
+  short_description: "Mecánicas, controles y motores de juegos web"
+  default_prompt: "Usa $nandos-desarrollar-juego para esta tarea de NandOS."

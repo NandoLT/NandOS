@@ -719,3 +719,10 @@ Las ideas avanzadas se mantendrán en backlog hasta que el shell, las ventanas, 
 
 - El despliegue del PR #11 completó web/API, pero la prueba real detectó `TypeError: a is not a constructor` al iniciar Three.js. Los fragmentos manuales alteraban el orden de inicialización; el servidor de desarrollo no reproducía el fallo.
 - Corregida la división de Three.js en grupos sin dependencias circulares: fundamentos matemáticos, núcleo, shaders y renderizador. Se conserva la carga diferida, sin silenciar avisos ni elevar el límite de tamaño. La compilación servida por `vite preview` carga el tablero y completa un lanzamiento con consola limpia; se comprobará también el despliegue final.
+
+### Contexto, agentes y skills — 22 de noviembre de 2026
+
+- Implantación local del contexto por áreas, seis skills y cuatro revisores acotados; ADRs para decisiones, planes para ejecución y aprendizaje basado en evidencia.
+- Controles estructurales y pruebas del corpus conectados al CI existente y al pre-commit con lectura del índice. No se instalan hooks de terceros ni se cambian permisos/modelos globales.
+- Fuentes y alcance en [docs/sources.md](docs/sources.md); resultado y continuación en [el plan](docs/plans/sistema-agentes.md).
+- El desarrollo de Pinball continúa; su ficha identifica el prototipo y lo pendiente. La documentación técnica extensa de aplicaciones se mantiene después de finalizarlo.

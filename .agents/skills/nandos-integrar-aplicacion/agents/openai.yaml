@@ -1,0 +1,4 @@
+interface:
+  display_name: "NandOS · Integrar aplicacion"
+  short_description: "Aplicaciones, ventanas y archivos del escritorio"
+  default_prompt: "Usa $nandos-integrar-aplicacion para esta tarea de NandOS."

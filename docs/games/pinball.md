@@ -24,7 +24,10 @@ para esta incidencia. No elevar el umbral de avisos para hacer pasar una entrega
 
 ## Siguiente iteración
 
-Seguir afinando geometría, mecanismos y aspecto según la referencia; medir problemas
-reales de física. Acordar aceptación de puntuación/misiones cuando se aborde ese
-bloque. Después, documentar técnicamente Paint, Writer y todos los juegos antes
-de otra aplicación, como solicita el propietario. No marcar estos trabajos como hechos.
+La ficha anterior describe el prototipo integrado. La partida clásica local
+adopta la referencia simplificada del propietario: órbita única, cuatro bumpers,
+dos bancos laterales, slingshots y carriles IN/OUT, sin saucer ni rampa interior.
+El [plan de la iteración local](../plans/pinball-partida-clasica.md) recoge sus
+objetivos, pruebas y punto de continuación.
+Después de cerrar Pinball, documentar técnicamente Paint, Writer y los juegos
+antes de iniciar otra aplicación.

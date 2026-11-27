@@ -1,8 +1,10 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { PointerEvent, ReactNode } from 'react'
 import styled from '@emotion/styled'
 import { AppMenuBar } from '../../../shared/ui/AppMenuBar'
 import { ClassicDialog } from '../../../shared/ui/ClassicDialog'
+import { createPinballGame, pinballMessage } from '../domain/pinball-game'
+import type { PinballMode } from '../domain/pinball-game'
 import type { PinballControl, PinballInputs, PinballSnapshot } from '../domain/pinball'
 
 const Scene = lazy(() => import('./PinballScene').then((module) => ({ default: module.PinballScene })))
@@ -21,27 +23,30 @@ const Overlay = styled.div`
 `
 const Dashboard = styled.div`
   display: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px;
-  padding: 6px 10px; background: #111; color: #ffa33c; font: 12px/1.4 monospace; border: var(--os-inset-border);
-  strong { color: #fff0c7; } span:last-child { color: #a5bbcc; }
+  padding: 4px 8px; background: #100b19; color: #ffd18c; font: 12px/1.4 monospace; border: var(--os-inset-border);
+  strong { color: #e9d1ff; } span:last-child { color: #e3c3ee; }
   @container (max-width: 560px) { display: flex; }
 `
 const Cabinet = styled.div`
-  display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 5px; padding: 4px; flex: 1; min-height: 0; background: #08090d;
+  display: grid; grid-template-columns: minmax(0, 1fr) clamp(174px, 27%, 260px); gap: 5px; padding: 4px; flex: 1; min-height: 0; background: #08090d;
   @container (max-width: 560px) { grid-template-columns: minmax(0, 1fr); > aside { display: none; } }
 `
 const ScorePanel = styled.aside`
-  display: flex; flex-direction: column; gap: 7px; padding: 5px; min-height: 0; overflow: auto;
-  background: #0a090c; border: 3px ridge #a4a4a4; color: #c3a0f1;
-  h2 { margin: 8px 0 2px; text-align: center; color: #c3a0f1; font: italic bold 36px/.86 Georgia, serif; text-shadow: 2px 2px #61458e; transform: rotate(-6deg); }
-  h2 small { display: block; font: bold 13px/1.5 monospace; letter-spacing: 1px; transform: rotate(6deg); }
-  svg { display: block; width: 100%; height: 90px; }
-  section { padding: 7px; border: 3px ridge #8b8b8b; font: 12px/1.5 monospace; }
-  section strong { display: block; font: bold 24px/1.4 monospace; color: #d8c2fc; font-variant-numeric: tabular-nums; }
-  section p { margin: 0; }
+  display: flex; flex-direction: column; gap: 8px; padding: 7px; min-height: 0; overflow: auto; container-type: size;
+  background: radial-gradient(ellipse at 50% 10%, #201333, #090810 63%); border: 2px solid #968a9b; color: #d6adef;
+  h2 { margin: 10px 0 3px; text-align: center; color: #e2b4ff; font: italic bold clamp(27px, 10cqh, 60px)/.86 Georgia, serif; text-shadow: 2px 3px #6d459a; transform: rotate(-6deg); }
+  h2 small { display: block; margin-bottom: 4px; font: bold 13px/1.5 monospace; letter-spacing: 2px; transform: rotate(6deg); }
+  svg { display: block; width: 100%; height: clamp(42px, 17cqh, 120px); }
+  section { padding: 7px; border: 2px inset #8b8b8b; background: #020203; font: 12px/1.5 monospace; }
+  section strong { display: block; font: bold clamp(22px, 15cqw, 36px)/1.35 monospace; text-shadow: 1px 0 #9874b6; color: #f0d9ff; font-variant-numeric: tabular-nums; }
+  h3 { margin: 0 0 3px; font: inherit; letter-spacing: 1px; }
+  ul { list-style: none; margin: 0; padding: 0; color: #f5e8ff; }
+  li { display: flex; align-items: baseline; gap: 5px; }
+  li span:first-child { color: #e2adff; }
+  .ball { color: #fa738d; font: bold 16px/1.5 monospace; text-align: right; }
+  .ball b { color: #c9aff5; font-size: 23px; padding: 0 7px; border: 1px solid #625c67; }
   dl { display: grid; grid-template-columns: 1fr auto; gap: 5px; margin: 0; font: 11px/1.5 monospace; }
   dd { margin: 0; color: #e5c675; } dt { color: #a9a0b5; }
-  meter { display: block; width: 100%; height: 12px; margin-top: 7px; }
-  footer { margin-top: auto; padding-top: 6px; color: #9c92a9; text-align: center; font: 10px/1.5 monospace; }
 `
 function CadetEmblem() {
   return <svg viewBox="0 0 180 100" aria-hidden="true">
@@ -68,8 +73,9 @@ class SceneBoundary extends Component<{ children: ReactNode; onError: () => void
   render() { return this.state.failed ? <Overlay><p>No se ha podido iniciar el tablero 3D.</p><p>Comprueba que tu navegador tenga WebGL activado y vuelve a abrir Pinball.</p></Overlay> : this.props.children }
 }
 const keyControl = (code: string): PinballControl | undefined => ({ ArrowLeft: 'left', KeyZ: 'left', ArrowRight: 'right', Slash: 'right', Space: 'launch' } as Record<string, PinballControl>)[code]
-const emptySnapshot: PinballSnapshot = { ready: true, charge: 0, shots: 0, drains: 0, hits: 0 }
+const emptySnapshot = (mode: PinballMode): PinballSnapshot => ({ ready: true, charge: 0, shots: 0, drains: 0, hits: 0, game: createPinballGame(mode) })
 export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boolean; isActive: boolean; onClose: () => void }) {
+  const [mode, setMode] = useState<PinballMode>('classic')
   const [manualPause, setManualPause] = useState(false)
   const [hidden, setHidden] = useState(document.hidden)
   const [blurred, setBlurred] = useState(false)
@@ -78,11 +84,16 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
   const [failed, setFailed] = useState(false)
   const [revision, setRevision] = useState(0)
   const [releaseKey, setReleaseKey] = useState(0)
-  const [snapshot, setSnapshot] = useState(emptySnapshot)
+  const [snapshot, setSnapshot] = useState(() => emptySnapshot('classic'))
   const [pressed, setPressed] = useState<PinballInputs>({ left: false, right: false, launch: false })
   const inputs = useRef<PinballInputs>({ left: false, right: false, launch: false })
   const sources = useRef<Record<PinballControl, Set<string>>>({ left: new Set(), right: new Set(), launch: new Set() })
   const panel = useRef<HTMLDivElement>(null)
+  const gameOver = snapshot.game.phase === 'over'
+  const objectives = [
+    { label: 'Completa ambos bancos', done: snapshot.game.targets.every(Boolean) },
+    { label: 'Recorre la órbita superior', done: snapshot.game.orbit },
+  ]
   const paused = isPaused || !isActive || manualPause || hidden || blurred || help
   const supported = typeof window.WebGL2RenderingContext !== 'undefined'
   useEffect(() => { if (isActive && !isPaused) panel.current?.focus({ preventScroll: true }) }, [isActive, isPaused])
@@ -92,12 +103,22 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
     setPressed({ ...inputs.current }); setReleaseKey((value) => value + 1)
   }, [])
   const control = useCallback((name: PinballControl, source: string, down: boolean) => {
-    if (down && (paused || !ready)) return
+    if (down && (paused || !ready || gameOver)) return
     if (down) sources.current[name].add(source)
     else sources.current[name].delete(source)
     inputs.current[name] = sources.current[name].size > 0
     setPressed({ ...inputs.current })
-  }, [paused, ready])
+  }, [paused, ready, gameOver])
+  // Fiber consumes these events internally; handle cancellation at the DOM boundary.
+  const cancelPointer = (event: PointerEvent<HTMLElement>) => {
+    const source = 'pointer-' + event.pointerId
+    for (const name of ['left', 'right', 'launch'] as const) {
+      const held = sources.current[name]
+      if (!held.has(source)) continue
+      control(name, source, false)
+      if (name === 'launch' && !held.size) setReleaseKey((value) => value + 1)
+    }
+  }
   useEffect(() => { if (paused) clear() }, [paused, clear])
   useEffect(() => {
     const visibility = () => { setHidden(document.hidden); clear() }
@@ -109,7 +130,7 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
   }, [clear])
   const sceneReady = useCallback(() => setReady(true), [])
   const sceneError = useCallback(() => setFailed(true), [])
-  const restart = useCallback(() => { clear(); setReady(false); setFailed(false); setSnapshot(emptySnapshot); setRevision((value) => value + 1); setManualPause(false); panel.current?.focus() }, [clear])
+  const restart = useCallback((nextMode: PinballMode = mode) => { clear(); setMode(nextMode); setReady(false); setFailed(false); setSnapshot(emptySnapshot(nextMode)); setRevision((value) => value + 1); setManualPause(false); panel.current?.focus() }, [clear, mode])
   useEffect(() => {
     if (!isActive || isPaused) return
     const down = (event: KeyboardEvent) => {
@@ -127,18 +148,20 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
   return <Panel ref={panel} tabIndex={0} aria-label="Juego de Pinball"
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) clear() }}>
     <AppMenuBar label="Menús de Pinball" onOpen={clear} menus={[
-      { name: 'Juego', commands: [{ label: 'Reiniciar ensayo · F2', run: restart }, { label: manualPause ? 'Continuar · P' : 'Pausar · P', run: () => setManualPause((value) => !value) }, { label: 'Salir', run: onClose }] },
+      { name: 'Juego', commands: [{ label: 'Nueva partida · F2', run: () => restart() }, { label: (mode === 'classic' ? '✓ ' : '') + 'Partida clásica · 3 bolas', run: () => restart('classic') }, { label: (mode === 'practice' ? '✓ ' : '') + 'Ensayo libre', run: () => restart('practice') }, { label: manualPause ? 'Continuar · P' : 'Pausar · P', run: () => setManualPause((value) => !value) }, { label: 'Salir', run: onClose }] },
       { name: 'Ayuda', commands: [{ label: 'Cómo jugar', run: () => setHelp(true) }] },
     ]} />
-    <Dashboard><strong>PINBALL · PROTOTIPO</strong><span>LANZAMIENTOS {snapshot.shots} · SALIDAS {snapshot.drains} · REBOTES {snapshot.hits}</span><span>Intentos ilimitados</span></Dashboard>
-    <Cabinet><Stage aria-label="Tablero tridimensional de Pinball" onPointerDown={() => panel.current?.focus({ preventScroll: true })}>
-      {supported && !failed ? <SceneBoundary key={revision} onError={sceneError}><Suspense fallback={null}><Scene paused={paused} releaseKey={releaseKey} inputs={inputs} onControl={control} onCancel={clear} onSnapshot={setSnapshot} onReady={sceneReady} onError={sceneError} /></Suspense></SceneBoundary> : <Overlay><p>{failed ? 'No se han podido cargar las físicas.' : 'Este navegador no dispone de WebGL 2.'}</p><p>Prueba con la aceleración gráfica activada en un navegador compatible.</p></Overlay>}
+    <Dashboard><strong>{snapshot.game.score.toLocaleString('es-ES')} PUNTOS</strong><span>BOLA {snapshot.game.ball}{mode === 'classic' ? ' / 3' : ' · LIBRE'}</span><span>{pinballMessage(snapshot.game)}</span></Dashboard>
+    <Cabinet><Stage aria-label="Tablero tridimensional de Pinball" onPointerDown={() => panel.current?.focus({ preventScroll: true })}
+      onPointerCancel={cancelPointer} onLostPointerCapture={cancelPointer}>
+      {supported && !failed ? <SceneBoundary key={revision} onError={sceneError}><Suspense fallback={null}><Scene mode={mode} paused={paused} releaseKey={releaseKey} inputs={inputs} onControl={control} onSnapshot={setSnapshot} onReady={sceneReady} onError={sceneError} /></Suspense></SceneBoundary> : <Overlay><p>{failed ? 'No se han podido cargar las físicas.' : 'Este navegador no dispone de WebGL 2.'}</p><p>Prueba con la aceleración gráfica activada en un navegador compatible.</p></Overlay>}
       {supported && !failed && !ready && <Overlay><p>Preparando el tablero 3D…</p></Overlay>}
+      {gameOver && !paused && <Overlay><p>FIN DE PARTIDA</p><p>{snapshot.game.score.toLocaleString('es-ES')} puntos</p><button type="button" onClick={() => restart()}>Nueva partida · F2</button></Overlay>}
       {ready && !failed && paused && <Overlay><p>Partida en pausa</p>{manualPause && <button type="button" onClick={() => { setManualPause(false); panel.current?.focus() }}>Continuar</button>}</Overlay>}
-    <Controls aria-label="Controles de Pinball">{(['left', 'launch', 'right'] as const).map((name) => <button key={name} type="button" disabled={!ready || failed || paused} aria-pressed={pressed[name]}
+    <Controls aria-label="Controles de Pinball">{(['left', 'launch', 'right'] as const).map((name) => <button key={name} type="button" disabled={!ready || failed || paused || gameOver} aria-pressed={pressed[name]}
       aria-label={name === 'left' ? 'Flipper izquierdo' : name === 'right' ? 'Flipper derecho' : 'Cargar y lanzar bola'}
       onPointerDown={(event) => { event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId); panel.current?.focus(); control(name, 'pointer-' + event.pointerId, true) }}
-      onPointerUp={(event) => control(name, 'pointer-' + event.pointerId, false)} onPointerCancel={clear} onLostPointerCapture={(event) => { if (sources.current[name].has('pointer-' + event.pointerId)) clear() }}
+      onPointerUp={(event) => control(name, 'pointer-' + event.pointerId, false)}
       onKeyDown={(event) => { if (event.code === 'Enter') { event.preventDefault(); control(name, 'enter', true) } }}
       onKeyUp={(event) => { if (event.code === 'Enter') { event.preventDefault(); control(name, 'enter', false) } }}>
       {name === 'left' ? '◀ Izquierdo' : name === 'right' ? 'Derecho ▶' : 'Lanzador'}
@@ -146,11 +169,13 @@ export function PinballWindow({ isPaused, isActive, onClose }: { isPaused: boole
     </Stage>
     <ScorePanel aria-label="Panel de Space Cadet">
       <div><h2><small>3D PINBALL</small>Space<br />Cadet</h2><CadetEmblem /></div>
-      <section aria-label="Lanzamientos del ensayo">LANZAMIENTOS<strong>{String(snapshot.shots).padStart(6, '0')}</strong></section>
-      <section><p>ENSAYO LIBRE</p><p>{paused ? 'Partida en pausa' : snapshot.ready ? 'Esperando lanzamiento' : 'Bola en juego'}</p><meter aria-label="Carga del lanzador" min={0} max={1} value={snapshot.charge} /></section>
-      <section><dl><dt>REBOTES</dt><dd>{snapshot.hits}</dd><dt>SALIDAS</dt><dd>{snapshot.drains}</dd><dt>INTENTOS</dt><dd>∞</dd></dl></section>
-      <footer>RECREACIÓN · NANDOS<br />Tablero en desarrollo</footer>
+      <div className="ball">BOLA <b>{snapshot.game.ball}</b></div>
+      <section aria-label="Puntuación">JUGADOR 1<strong>{String(snapshot.game.score).padStart(8, '0')}</strong></section>
+      <section aria-label="Estado de misión"><h3>MISIONES</h3><ul>
+        {objectives.map(({ label, done }) => <li key={label}><span aria-label={done ? 'Completado' : 'Pendiente'}>{done ? '☑' : '☐'}</span>{label}</li>)}
+      </ul></section>
+      <section><dl><dt>RANGO</dt><dd>CADETE</dd><dt>MISIONES</dt><dd>{objectives.filter(({ done }) => done).length} / {objectives.length}</dd><dt>MODALIDAD</dt><dd>{mode === 'classic' ? '3 BOLAS' : 'LIBRE'}</dd></dl></section>
     </ScorePanel></Cabinet>
-    {help && <ClassicDialog title="Pinball · Cómo jugar" onClose={() => setHelp(false)}><p>Mantén pulsado Espacio o el muelle del lanzador para comprimir el muelle; suelta para lanzar. Una carga suave puede volver al carril para reintentarlo, sin perder la bola.</p><p>Usa ← o Z para el flipper izquierdo y → o / para el derecho. Puedes pulsar los dos a la vez. En móvil, pulsa directamente sobre cada flipper y mantén pulsado el muelle para cargar; suéltalo para lanzar.</p><p>P pausa la partida y F2 reinicia el ensayo. Al perder la bola volverá al lanzador: tienes intentos ilimitados.</p><p>Este primer prototipo sirve para ajustar el tacto. Los carriles curvos ya son jugables. La puntuación, las misiones, el sonido y las rampas elevadas llegarán en los siguientes bloques.</p></ClassicDialog>}
+    {help && <ClassicDialog title="Pinball · Cómo jugar" onClose={() => setHelp(false)}><p>Mantén pulsado Espacio o el muelle para cargar; suelta para lanzar. Una carga suave puede volver al carril sin perder la bola.</p><p>Usa ← o Z para el flipper izquierdo y → o / para el derecho. En móvil, pulsa directamente sobre los flippers y el muelle. P pausa y F2 reinicia. Juego &gt; Ensayo libre permite practicar sin límite.</p><p>Recorre la órbita superior y golpea los dos bancos amarillos. Cada objetivo da un bono una vez por partida. Los carriles IN devuelven la bola a los flippers; por los carriles OUT se pierde. Si la bola queda inmóvil, la búsqueda automática la devuelve al lanzador sin descontarla.</p></ClassicDialog>}
   </Panel>
 }

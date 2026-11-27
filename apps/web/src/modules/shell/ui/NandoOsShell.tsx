@@ -1711,7 +1711,7 @@ function DesktopShell() {
       )}
 
       <Suspense fallback={null}>
-        {MascotLab ? <MascotLab /> : <AssistantDock content={portfolioContent} viewport={viewport} onLaunchApp={launchApp} />}
+        {MascotLab ? <MascotLab /> : <AssistantDock content={portfolioContent} viewport={viewport} onLaunchApp={launchApp} behindWindows={activeWindowId === 'pinball'} />}
       </Suspense>
 
       {notice && <Notice role="status">{notice}</Notice>}

@@ -1,13 +1,13 @@
 import { CanvasTexture, SRGBColorSpace } from 'three'
-import { pinballLanes } from '../domain/pinball'
+import { BALL_START, FIELD_CENTER, SHOOTER_WIDTH, TABLE_HEIGHT, TABLE_WIDTH, pinballCabinet, pinballReturnLanes, pinballShooterPath } from '../domain/pinball'
 
 /** Original procedural playfield artwork; no original game bitmap is embedded. */
 export function createPinballArtwork() {
   const canvas = document.createElement('canvas')
   canvas.width = 1024; canvas.height = 1536
   const ctx = canvas.getContext('2d')!
-  const sx = canvas.width / 9.6, sy = canvas.height / 14.4
-  const point = (x: number, y: number): [number, number] => [(x + 4.8) * sx, (7.2 - y) * sy]
+  const sx = canvas.width / TABLE_WIDTH, sy = canvas.height / TABLE_HEIGHT
+  const point = (x: number, y: number): [number, number] => [(x + TABLE_WIDTH / 2) * sx, (TABLE_HEIGHT / 2 - y) * sy]
   const line = (points: readonly [number, number][], color: string, width: number, close = false) => {
     ctx.beginPath(); points.forEach(([x, y], index) => { const p = point(x, y); if (index) ctx.lineTo(...p); else ctx.moveTo(...p) })
     if (close) ctx.closePath()
@@ -25,64 +25,65 @@ export function createPinballArtwork() {
     ctx.save(); ctx.translate(...point(x, y)); ctx.rotate(angle); ctx.fillStyle = color
     ctx.font = 'bold ' + size + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(text, 0, 0); ctx.restore()
   }
+  ctx.beginPath()
+  pinballCabinet.forEach(([x, y], index) => {
+    if (index === 0) ctx.moveTo(...point(x, y))
+    else ctx.lineTo(...point(x, y))
+  })
+  ctx.closePath()
+  ctx.clip()
   const background = ctx.createLinearGradient(0, 0, 1024, 1536)
-  background.addColorStop(0, '#192a39'); background.addColorStop(.48, '#123957'); background.addColorStop(1, '#151c3a')
+  background.addColorStop(0, '#0b1331'); background.addColorStop(.52, '#11284b'); background.addColorStop(1, '#0b1738')
   ctx.fillStyle = background; ctx.fillRect(0, 0, 1024, 1536)
   // Hexagonal armour pattern, kept subdued so the ball remains legible.
   for (let row = 0; row < 27; row++) for (let column = 0; column < 16; column++) {
     const x = -4.8 + column * .65 + row % 2 * .325, y = -7.2 + row * .57
     const vertices = Array.from({ length: 6 }, (_, index): [number, number] => [x + Math.cos(index * Math.PI / 3) * .32, y + Math.sin(index * Math.PI / 3) * .32])
-    line(vertices, '#2b57714a', 2, true)
+    line(vertices, '#38648232', 2, true)
   }
   for (let index = 0; index < 100; index++) {
     const x = Math.sin(index * 137.31) * 4.1, y = Math.sin(index * 49.71 + 1) * 6.5
     circle(x, y, index % 7 ? .012 : .024, index % 3 ? '#77a4b764' : '#f5d7a494')
   }
-  // Painted left-hand launch chute; the two raised rails are real colliders.
-  for (const lane of pinballLanes) {
-    line(lane.points, '#0b1026', lane.width * sx + 28)
-    line(lane.points, '#87638d', lane.width * sx + 10)
-    line(lane.points, '#434166', lane.width * sx)
-    line(lane.points, '#a492aa', 4)
-  }
-  // Central rank wheel.
-  circle(-.05, -1.2, 1.5, '#0d1e32', '#527392')
-  circle(-.05, -1.2, 1.22, '#264e67', '#768ba7')
-  const core = ctx.createRadialGradient(...point(-.05, -1.2), 3, ...point(-.05, -1.2), 105)
-  core.addColorStop(0, '#f37c5280'); core.addColorStop(.3, '#486c8480'); core.addColorStop(1, '#10233f')
-  circle(-.05, -1.2, .99, core)
-  for (let index = 0; index < 12; index++) {
-    const angle = index * Math.PI / 6
-    circle(-.05 + Math.cos(angle) * 1.35, -1.2 + Math.sin(angle) * 1.35, .095, index % 3 === 0 ? '#d1b148' : '#203c55', '#15202c')
-  }
-  circle(-.05, -1.2, .18, '#df7854', '#e7bc8d')
-  label('CADET', -.05, -.65, 26, '#90acb7'); label('RANK', -.05, -1.85, 18, '#90acb7')
-  // Rocket and plasma fins around the flipper area.
-  polygon([[-.05, -5.9], [-.36, -4.5], [-.24, -3.8], [-.05, -3.45], [.14, -3.8], [.28, -4.5]], '#d4b88f', '#47567b')
-  polygon([[-.25, -4.6], [-1.85, -3.2], [-.7, -5.4]], '#593e8e', '#8e6dba')
-  polygon([[.2, -4.6], [1.75, -3.2], [.6, -5.4]], '#593e8e', '#8e6dba')
-  polygon([[-.19, -5.2], [-.05, -6.25], [.1, -5.2]], '#e16f50')
-  circle(-.05, -4.3, .12, '#68b7cf', '#283f60')
-  for (const side of [-1, 1]) {
-    polygon([[side * 1.8, -3.85], [side * 2.4, -2.55], [side * 2.95, -3.75]], '#24273c', '#ce5348')
-    for (let index = 0; index < 3; index++) circle(side * (2 + index * .2), -3.5, .055, '#82b9d2')
-    line([[side * 4.15, -5.9], [side * 3.3, -5.9], [side * 2.25, -4.75]], '#a5a5a0', 10)
-  }
-  label('LAUNCH', -2.65, 2.5, 19, '#ddd6bd', -.65)
-  label('DEPLOY', 4, 1.8, 17, '#e3d294', -Math.PI / 2)
-  label('HYPERSPACE', -2.6, -2.45, 16, '#b9a0c6', -.7)
-  label('FUEL', 2.1, .25, 18, '#d9cc76', -Math.PI / 2)
-  label('SPACE CADET', -.1, -6.55, 27, '#b3bdbe')
-  label('NANDOS • RECREATION', -.1, -6.9, 12, '#7f929e')
-  // Upper rollover lamps and painted direction arrows.
-  for (let index = 0; index < 3; index++) {
-    const x = -.7 + index * .48
-    line([[x, 5.65], [x, 6.1]], '#ac8e6e', 7); circle(x, 5.75, .08, '#daa04c')
-  }
-  for (const [x, y, rotation] of [[-1, .9, -.4], [1.9, 1.6, .2], [-2.2, -.2, -.5]]) {
-    const points: [number, number][] = [[-.14, -.25], [.14, -.25], [.14, 0], [.3, 0], [0, .42], [-.3, 0], [-.14, 0]]
-    polygon(points.map(([px, py]) => [x + px * Math.cos(rotation) - py * Math.sin(rotation), y + px * Math.sin(rotation) + py * Math.cos(rotation)]), '#b5ad24', '#1a2437')
-  }
+  line(pinballShooterPath, '#2f253c', SHOOTER_WIDTH * sx + 13)
+  line(pinballShooterPath, '#523f49', SHOOTER_WIDTH * sx)
+  line(pinballShooterPath, '#8c6655', 4)
+  for (const x of [-1.75, 0, 1.75]) label('≪', x, 5.93, 34, '#ffe2a0')
+  for (const y of [-3.4, -1.34, .72, 2.78]) label('≪', BALL_START.x + .12, y, 34, '#ffe2a0', Math.PI / 2)
+
+  circle(FIELD_CENTER, 2.58, 1.82, '#7559ae12', '#5863a8')
+  circle(FIELD_CENTER, 2.58, 1.52, '#7559ae0a', '#3c4d83')
+  polygon([[FIELD_CENTER - .84, 5.05], [FIELD_CENTER + .84, 5.05], [FIELD_CENTER + .84, 4.53], [FIELD_CENTER - .84, 4.53]], '#2a1c53', '#e5bc7f')
+  label('← ÓRBITA', FIELD_CENTER, 4.69, 22, '#fff0bb')
+
+  const rocket = (points: [number, number][], fill: string, stroke?: string) =>
+    polygon(points.map(([x, y]) => [FIELD_CENTER + x, y]), fill, stroke)
+  ctx.save()
+  ctx.translate(...point(FIELD_CENTER, -1.76))
+  ctx.rotate(-.39)
+  ctx.beginPath()
+  ctx.ellipse(0, 0, 171, 29, 0, 0, Math.PI * 2)
+  ctx.strokeStyle = '#a273e5'
+  ctx.lineWidth = 7
+  ctx.stroke()
+  ctx.restore()
+  rocket([[-.3, -1.62], [-.72, -2.3], [-.65, -2.89], [-.2, -2.4], [.2, -2.4], [.65, -2.89], [.72, -2.3], [.3, -1.62]], '#7749ab', '#bf92df')
+  rocket([[0, .21], [-.25, -.25], [-.38, -1], [-.28, -1.87], [-.15, -2.47], [.15, -2.47], [.28, -1.87], [.38, -1], [.25, -.25]], '#e9cdab', '#f8e9c6')
+  rocket([[0, .21], [-.25, -.25], [.25, -.25]], '#bc3155')
+  rocket([[-.12, -2.42], [0, -3.17], [.12, -2.42], [0, -1.58]], '#e24464', '#f8a2a1')
+  circle(FIELD_CENTER, -.83, .165, '#99e8f7', '#3c617c')
+  label('⋯ SPACE CADET ⋯', FIELD_CENTER, -3.55, 30, '#efcfaa')
+
+  pinballReturnLanes.forEach(({ divider }, index) => {
+    const x = divider.at(-1)![0]
+    const side = index === 0 ? -1 : 1
+    for (const [name, laneX] of [['OUT', x + side * .52], ['IN', x - side * .47]] as const) {
+      label(name, laneX, -5.75, 18, '#ffe2a0')
+      label('LANE', laneX, -6.04, 16, '#ffe2a0')
+      label('▼', laneX, -6.45, 23, '#ffe2a0')
+    }
+  })
+  label('NANDOS  •  RECREACIÓN', FIELD_CENTER, -6.78, 15, '#bfa4d8')
   const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace; texture.anisotropy = 4
   return texture
 }

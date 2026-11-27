@@ -12,9 +12,9 @@ import { SvgMascot } from './SvgMascot'
 import { AssistantButton, AssistantChat } from './AssistantChat'
 import { useReducedMotion } from './useReducedMotion'
 
-const Dock = styled.aside<{ $chatOpen: boolean }>`
+const Dock = styled.aside<{ $chatOpen: boolean; $behindWindows: boolean }>`
   position: fixed; right: 12px; bottom: calc(var(--os-taskbar-height) + 12px);
-  width: 200px; z-index: 1050; font-size: 12px; color: var(--os-window-text);
+  width: 200px; z-index: ${({ $behindWindows }) => $behindWindows ? 5 : 1050}; font-size: 12px; color: var(--os-window-text);
   @media (max-width: 640px) { display: ${({ $chatOpen }) => $chatOpen ? 'none' : 'block'}; }
 `
 const Launcher = styled(AssistantButton)`
@@ -83,9 +83,9 @@ function ToolIcon({ kind }: { kind: 'chat' | 'hide' }) {
   </svg>
 }
 
-interface Props { content: PortfolioContent; viewport: WindowBounds; onLaunchApp(id: AppId): void; service?: AssistantService }
+interface Props { content: PortfolioContent; viewport: WindowBounds; onLaunchApp(id: AppId): void; service?: AssistantService; behindWindows?: boolean }
 
-export default function AssistantDock({ content, viewport, onLaunchApp, service = demoAssistant }: Props) {
+export default function AssistantDock({ content, viewport, onLaunchApp, service = demoAssistant, behindWindows = false }: Props) {
   const { visible, chatOpen, messages, mode, show, hide, openChat, closeChat } = useAssistantStore()
   const [draft, setDraft] = useState('')
   const controller = useRef<MascotController | null>(null)
@@ -134,7 +134,7 @@ export default function AssistantDock({ content, viewport, onLaunchApp, service 
   }
 
   return <>
-    <Dock aria-label="Asistente nandBot" $chatOpen={chatOpen} onClick={(event) => event.stopPropagation()}
+    <Dock aria-label="Asistente nandBot" $chatOpen={chatOpen} $behindWindows={behindWindows} onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => { event.preventDefault(); event.stopPropagation() }}>
       {!visible ? <Launcher ref={launcher} type="button" aria-label="Mostrar a nandBot" onClick={() => {
         show()

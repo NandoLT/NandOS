@@ -27,8 +27,8 @@ export function PinballLauncher({ engine }: { engine: PinballEngine }) {
     </mesh>
     <group ref={assembly} position={[0, PLUNGER_HEAD_Y, 0]}>
       <mesh><cylinderGeometry args={[.245, .245, .1, 24]} /><meshStandardMaterial color="#c4bdad" metalness={.5} roughness={.3} /></mesh>
-      <mesh position={[0, -.52, 0]}><cylinderGeometry args={[.045, .045, 1.04, 12]} /><meshStandardMaterial color="#b5bbc3" metalness={.6} roughness={.25} /></mesh>
-      <mesh position={[0, -1.08, 0]}><sphereGeometry args={[.16, 20, 12]} /><meshStandardMaterial color="#9f2938" metalness={.2} roughness={.28} /></mesh>
+      <mesh position={[0, -.44, 0]}><cylinderGeometry args={[.045, .045, .88, 12]} /><meshStandardMaterial color="#b5bbc3" metalness={.6} roughness={.25} /></mesh>
+      <mesh position={[0, -.94, 0]}><sphereGeometry args={[.17, 20, 12]} /><meshStandardMaterial color="#ba2542" metalness={.2} roughness={.28} /></mesh>
     </group>
   </group>
 }
